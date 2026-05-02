@@ -8,6 +8,8 @@ import {
   exportComponentDocx,
   exportComponentPdf,
   getComponentByCode,
+  getComponentDrafts,
+  getComponents,
   getComponentLogs,
 } from '../lib/api';
 import { DisciplineDetailsPage } from './DisciplineDetailsPage';
@@ -35,6 +37,8 @@ vi.mock('../lib/api', async () => {
   return {
     ...actual,
     getComponentByCode: vi.fn(),
+    getComponents: vi.fn(),
+    getComponentDrafts: vi.fn(),
     getComponentLogs: vi.fn(),
     exportComponentPdf: vi.fn(),
     exportComponentDocx: vi.fn(),
@@ -43,6 +47,8 @@ vi.mock('../lib/api', async () => {
 });
 
 const mockedGetComponentByCode = vi.mocked(getComponentByCode);
+const mockedGetComponents = vi.mocked(getComponents);
+const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
 const mockedGetComponentLogs = vi.mocked(getComponentLogs);
 const mockedExportComponentPdf = vi.mocked(exportComponentPdf);
 const mockedExportComponentDocx = vi.mocked(exportComponentDocx);
@@ -80,6 +86,16 @@ describe('DisciplineDetailsPage', () => {
     });
 
     mockedGetComponentLogs.mockResolvedValue({
+      results: [],
+      total: 0,
+    });
+
+    mockedGetComponents.mockResolvedValue({
+      results: [],
+      total: 0,
+    });
+
+    mockedGetComponentDrafts.mockResolvedValue({
       results: [],
       total: 0,
     });
@@ -150,7 +166,7 @@ describe('DisciplineDetailsPage', () => {
 
     await screen.findByText('Compiladores draft');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF oficial' }));
     await userEvent.click(screen.getByRole('button', { name: 'Exportar DOCX' }));
 
     await waitFor(() => {

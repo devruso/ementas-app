@@ -25,6 +25,7 @@ export const DisciplineDetailsPage = () => {
   const navigate = useNavigate();
   const params = useParams();
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportingDoc, setExportingDoc] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -40,10 +41,14 @@ export const DisciplineDetailsPage = () => {
   const code = useMemo(() => params.componentCode?.toUpperCase() || '', [params.componentCode]);
 
   const loadComponent = async () => {
+    setErrorMessage('');
+
     const [currentComponent, componentsResponse, draftsResponse] = await Promise.all([
       getComponentByCode(code),
       getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
-      getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+      auth.isAuthenticated
+        ? getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' })
+        : Promise.resolve({ results: [], total: 0 }),
     ]);
 
     const catalog = new Set<string>();
@@ -79,6 +84,11 @@ export const DisciplineDetailsPage = () => {
 
     setLoading(true);
     loadComponent()
+      .catch((err) => {
+        const appError = err as AppError;
+        setComponent(null);
+        setErrorMessage(appError.message || 'Falha ao carregar disciplina.');
+      })
       .finally(() => setLoading(false));
   }, [code, navigate, auth.isAuthenticated]);
 
@@ -155,10 +165,18 @@ export const DisciplineDetailsPage = () => {
   }
 
   if (!component) {
-    return <div className="panel p-10 text-center text-sm text-muted">Disciplina nao encontrada.</div>;
+    return (
+      <div className="panel p-10 text-center text-sm text-muted">
+        {errorMessage || 'Disciplina nao encontrada.'}
+      </div>
+    );
   }
 
   const latestApproval = (logs || component.logs || []).find((log) => log.type === 'approval');
+  const officialVersionCode = latestApproval?.versionCode
+    || (latestApproval?.agreementDate && latestApproval?.agreementNumber
+      ? `${new Date(latestApproval.agreementDate).toLocaleDateString('pt-BR').replace(/\//g, '')}${latestApproval.agreementNumber}`
+      : null);
   const showingDraft = auth.isAuthenticated && !showPublishedVersion && !!component.draft;
   const activeComponent = showingDraft && component.draft ? component.draft : component;
   const visibleLogs = auth.isAuthenticated ? logs || [] : component.logs || [];
@@ -243,6 +261,9 @@ export const DisciplineDetailsPage = () => {
               <div>
                 Ata ou referencia: {latestApproval?.agreementNumber || 'Nao informada'}
               </div>
+              <div>
+                Versao oficial: {officialVersionCode || 'Nao gerada'}
+              </div>
             </div>
 
             <button
@@ -252,7 +273,7 @@ export const DisciplineDetailsPage = () => {
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary-500 px-4 py-3 font-semibold text-secondary-700 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Download className="h-4 w-4" />
-              {exporting ? 'Exportando PDF...' : 'Exportar PDF'}
+              {exporting ? 'Exportando PDF oficial...' : 'Exportar PDF oficial'}
             </button>
 
             <button
@@ -294,6 +315,20 @@ export const DisciplineDetailsPage = () => {
         </div>
 
         <div className="space-y-6">
+          <SectionCard title="Versao oficial publicada">
+            <div className="space-y-3">
+              <div><strong>Ementa oficial:</strong> {component.syllabus || 'Nao informada.'}</div>
+              <div><strong>Conteudo programatico oficial:</strong> {component.program || 'Nao informado.'}</div>
+              <div>
+                <strong>Referencia de aprovacao:</strong>{' '}
+                {latestApproval?.agreementNumber
+                  ? `${formatDate(latestApproval.agreementDate)} - ATA ${latestApproval.agreementNumber}`
+                  : 'Nao encontrada'}
+              </div>
+              <div><strong>Codigo de versao:</strong> {officialVersionCode || 'Nao gerado'}</div>
+            </div>
+          </SectionCard>
+
           <SectionCard title="Visao geral">
             <div className="space-y-3">
               <div>
@@ -355,6 +390,11 @@ export const DisciplineDetailsPage = () => {
                     <div className="text-sm text-ink">
                       {log.description || 'Alteracao registrada sem descricao adicional.'}
                     </div>
+                    {log.versionCode ? (
+                      <div className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary-600">
+                        Versao oficial: {log.versionCode}
+                      </div>
+                    ) : null}
                     <div className="mt-2 text-xs text-muted">
                       {formatDate(log.createdAt)}
                       {log.user?.name ? ` · ${log.user.name}` : ''}
