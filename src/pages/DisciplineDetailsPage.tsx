@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { SectionCard } from '../components/SectionCard';
 import { useAuth } from '../contexts/AuthContext';
-import { approveComponentDraft, exportComponentDoc, exportComponentPdf, getComponentByCode, getComponentLogs } from '../lib/api';
+import { approveComponentDraft, exportComponentDocx, exportComponentPdf, getComponentByCode, getComponentLogs } from '../lib/api';
 import { formatDate, formatWorkload } from '../lib/format';
 import { AppError } from '../lib/errors';
 import type { Component } from '../types';
@@ -85,11 +85,11 @@ export const DisciplineDetailsPage = () => {
     setExportingDoc(true);
 
     try {
-      const blob = await exportComponentDoc(component.id);
+      const blob = await exportComponentDocx(component.id);
       const fileUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = fileUrl;
-      anchor.download = `${component.code}-${component.name}.doc`;
+      anchor.download = `${component.code}-${component.name}.docx`;
       anchor.click();
       URL.revokeObjectURL(fileUrl);
     } finally {
@@ -228,7 +228,7 @@ export const DisciplineDetailsPage = () => {
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 px-4 py-3 font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FileText className="h-4 w-4" />
-              {exportingDoc ? 'Exportando DOC...' : 'Exportar DOC'}
+              {exportingDoc ? 'Exportando DOCX...' : 'Exportar DOCX'}
             </button>
 
             {showingDraft ? (
@@ -314,7 +314,7 @@ export const DisciplineDetailsPage = () => {
               <ScrollText className="mt-1 h-4 w-4 shrink-0 text-secondary-700" />
               <p>
                 Este slice já cobre consulta pública, autenticação, perfil, gestão de usuários, cadastro novo,
-                importação documental e aprovação formal. O template IC045 segue único tanto no PDF quanto no .doc.
+                importação documental e aprovação formal. O template IC045 segue único tanto no PDF quanto no .docx.
               </p>
             </div>
           </SectionCard>

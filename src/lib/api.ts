@@ -123,14 +123,16 @@ export const exportComponentPdf = async (componentId: string) => {
   return new Blob([response.data], { type: 'application/pdf;charset=utf-8' });
 };
 
-export const exportComponentDoc = async (componentId: string) => {
+export const exportComponentDocx = async (componentId: string) => {
   const response = await api.get<ArrayBuffer>(`/components/${componentId}/export`, {
-    params: { format: 'doc' },
+    params: { format: 'docx' },
     responseType: 'arraybuffer',
-    headers: { Accept: 'application/msword' },
+    headers: { Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
   });
 
-  return new Blob([response.data], { type: 'application/msword;charset=utf-8' });
+  return new Blob([response.data], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8',
+  });
 };
 
 export const getUsers = async (filter: ListFilter) => {

@@ -5,7 +5,7 @@ Interface web do BDCP em migracao incremental, preservando o backend atual e reo
 ## Escopo atual
 
 - Lista publica de disciplinas com busca, ordenacao e paginacao.
-- Tela publica de detalhe com exportacao oficial em PDF e .doc pelo template IC045, alem da alternancia autenticada entre rascunho e versao publicada.
+- Tela publica de detalhe com exportacao oficial em PDF e .docx pelo template IC045, alem da alternancia autenticada entre rascunho e versao publicada.
 - Login, recuperacao de senha, cadastro por convite e perfil de usuario.
 - Gestao administrativa de usuarios com listagem, busca, ordenacao, remocao e geracao de convite.
 - Cadastro completo de nova disciplina com formulario responsivo e importacao documental por PDF ou DOCX para pre-preenchimento do rascunho.

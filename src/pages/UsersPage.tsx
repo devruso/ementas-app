@@ -81,8 +81,8 @@ export const UsersPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="panel p-6 sm:p-8">
+    <div className="space-y-6 motion-fade">
+      <section className="panel interactive-lift p-6 sm:p-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
@@ -95,7 +95,7 @@ export const UsersPage = () => {
             type="button"
             onClick={handleGenerateInvite}
             disabled={loadingInvite}
-            className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loadingInvite ? 'Gerando convite...' : 'Gerar convite'}
           </button>
@@ -109,7 +109,7 @@ export const UsersPage = () => {
         />
       ) : null}
 
-      <section className="panel overflow-hidden">
+      <section className="panel interactive-lift overflow-hidden">
         <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_240px_180px]">
           <SearchBar value={search} placeholder="Nome ou e-mail do usuário" onChange={setSearch} />
           <SelectField

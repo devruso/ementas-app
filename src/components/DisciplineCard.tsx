@@ -7,10 +7,11 @@ export const DisciplineCard = ({ component }: { component: Component }) => {
   return (
     <Link
       to={`/disciplinas/${component.code.toLowerCase()}`}
-      className="group panel flex h-full flex-col justify-between p-5 transition hover:-translate-y-0.5 hover:border-primary-100"
+      className="group panel interactive-lift relative flex h-full flex-col justify-between overflow-hidden p-5"
     >
+      <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-primary-100/65 blur-2xl transition duration-300 group-hover:bg-primary-100" />
       <div>
-        <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-600">
+        <div className="mb-3 inline-flex rounded-full border border-primary-200 bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary-600">
           {component.code}
         </div>
         <h2 className="text-lg font-semibold text-ink transition group-hover:text-primary-600">
@@ -33,7 +34,7 @@ export const DisciplineCard = ({ component }: { component: Component }) => {
         <div className="pt-2 text-primary-600">
           <span className="inline-flex items-center gap-2 text-sm font-semibold">
             Abrir disciplina
-            <ArrowUpRight className="h-4 w-4" />
+            <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </span>
         </div>
       </div>

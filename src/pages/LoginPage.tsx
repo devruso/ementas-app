@@ -20,9 +20,11 @@ export const LoginPage = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     const nextErrors: { email?: string; password?: string } = {};
 
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(normalizedEmail)) {
       nextErrors.email = 'Informe um e-mail valido.';
     }
 
@@ -39,7 +41,7 @@ export const LoginPage = () => {
     try {
       setLoading(true);
       setError('');
-      await auth.login(email, password);
+      await auth.login(normalizedEmail, password);
 
       const nextPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
       navigate(nextPath || '/disciplinas', { replace: true });

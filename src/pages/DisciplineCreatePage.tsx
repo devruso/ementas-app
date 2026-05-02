@@ -49,8 +49,8 @@ export const DisciplineCreatePage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="panel p-6 sm:p-8">
+    <div className="space-y-6 motion-fade">
+      <section className="panel interactive-lift p-5 sm:p-8">
         <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
           Cadastro completo
         </div>
@@ -60,7 +60,7 @@ export const DisciplineCreatePage = () => {
 
       <DocumentImportCard onApplyPreview={setInitialValues} />
 
-      <section className="panel p-5 sm:p-6">
+      <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
         <div className="mb-4 inline-flex rounded-full bg-secondary-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-secondary-700">
           Importação SIAC
         </div>

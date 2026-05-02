@@ -6,16 +6,16 @@ export const AuthLayout = () => {
     <div className="min-h-screen bg-background">
       <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
         <div className="flex items-center px-5 py-8 sm:px-8 lg:px-10">
-          <div className="panel w-full p-6 sm:p-8">
+          <div className="panel motion-rise w-full p-6 sm:p-8">
             <Outlet />
           </div>
         </div>
 
-        <div className="relative hidden overflow-hidden bg-primary-500 lg:flex lg:flex-col lg:justify-between lg:p-12">
+        <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary-700 via-primary-500 to-primary-600 lg:flex lg:flex-col lg:justify-between lg:p-12">
           <div className="absolute inset-0 bg-hero-grid opacity-20" />
           <div className="relative flex items-center gap-4 text-white">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/14 ring-1 ring-white/20">
-              <img src="/computacao-logo.png" alt="Instituto de Computacao UFBA" className="h-9 w-9 object-contain" />
+            <div className="h-14 w-14 overflow-hidden rounded-full bg-white ring-2 ring-white/35">
+              <img src="/computacao-logo.png" alt="Instituto de Computacao UFBA" className="h-full w-full object-cover" />
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">UFBA Computacao</div>

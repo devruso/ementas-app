@@ -107,8 +107,8 @@ export const DisciplineEditorForm = ({
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="panel p-5 sm:p-6">
+    <div className="space-y-6 motion-fade">
+      <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
         <div className="mb-5">
           <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
             Dados gerais
@@ -128,9 +128,9 @@ export const DisciplineEditorForm = ({
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-3">
+      <section className="grid min-w-0 gap-6 xl:grid-cols-3">
         {workloadCards.map((card) => (
-          <div key={card.key} className="panel p-5 sm:p-6">
+          <div key={card.key} className="panel interactive-lift min-w-0 p-5 sm:p-6">
             <h3 className="mb-4 text-lg font-semibold text-ink">Carga horaria {card.title}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               {workloadFields.map((field) => (
@@ -148,8 +148,8 @@ export const DisciplineEditorForm = ({
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <div className="panel p-5 sm:p-6">
+      <section className="grid min-w-0 gap-6 xl:grid-cols-2">
+        <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
             <TextareaField label="Ementa" value={values.program} onChange={(event) => handleChange('program', event.target.value)} />
             <TextareaField label="Objetivos" value={values.objective} onChange={(event) => handleChange('objective', event.target.value)} />
@@ -157,7 +157,7 @@ export const DisciplineEditorForm = ({
             <TextareaField label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} />
           </div>
         </div>
-        <div className="panel p-5 sm:p-6">
+        <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
             <TextareaField label="Avaliacao da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} />
             <TextareaField label="Bibliografia" value={values.bibliography} onChange={(event) => handleChange('bibliography', event.target.value)} />
@@ -174,7 +174,7 @@ export const DisciplineEditorForm = ({
 
       {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
-      <div className="sticky bottom-0 z-10 -mx-1 rounded-3xl border border-line bg-white/95 p-4 shadow-panel backdrop-blur">
+      <div className="sticky bottom-2 z-10 rounded-3xl border border-line bg-white/95 p-4 shadow-panel backdrop-blur sm:-mx-1">
         <FormActions>
           <button
             type="button"

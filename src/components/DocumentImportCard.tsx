@@ -62,7 +62,7 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
   };
 
   return (
-    <section className="panel p-5 sm:p-6">
+    <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
       <div className="mb-4 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
         Importação documental
       </div>
@@ -71,7 +71,7 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
         Envie um arquivo baseado no plano IC045. O backend sugere os campos para revisão humana antes do salvamento.
       </p>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mt-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
         <label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-line px-4 py-3 font-semibold text-ink transition hover:bg-slate-50">
           <input type="file" accept=".pdf,.docx" className="hidden" onChange={handleFileChange} />
           {loading ? 'Processando documento...' : 'Selecionar PDF ou DOCX'}
@@ -90,7 +90,7 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
       {error ? <div className="mt-4 rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
       {preview ? (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="rounded-3xl border border-line bg-background p-4">
             <div className="mb-3 text-sm font-semibold text-ink">Campos reconhecidos</div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -103,13 +103,13 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
           <div className="space-y-4">
             <div className="rounded-3xl border border-line bg-background p-4 text-sm">
               <div className="mb-2 font-semibold text-ink">Avisos</div>
-              <ul className="space-y-2 text-muted">
+              <ul className="space-y-2 break-words text-muted">
                 {preview.warnings.length > 0 ? preview.warnings.map((warning) => <li key={warning}>• {warning}</li>) : <li>• Nenhum aviso crítico.</li>}
               </ul>
             </div>
             <div className="rounded-3xl border border-line bg-background p-4 text-sm">
               <div className="mb-2 font-semibold text-ink">Seções não reconhecidas</div>
-              <ul className="space-y-2 text-muted">
+              <ul className="space-y-2 break-words text-muted">
                 {preview.unrecognizedSections.length > 0 ? preview.unrecognizedSections.map((section) => <li key={section}>• {section}</li>) : <li>• Todas as seções esperadas foram encontradas.</li>}
               </ul>
             </div>

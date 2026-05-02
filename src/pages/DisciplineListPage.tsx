@@ -46,8 +46,20 @@ export const DisciplineListPage = () => {
   }, [components, filter.limit]);
 
   return (
-    <div className="space-y-6">
-      <section className="panel overflow-hidden">
+    <div className="space-y-6 motion-fade">
+      <section className="panel interactive-lift p-5 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
+              Catálogo acadêmico
+            </div>
+            <h2 className="text-xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
+          </div>
+          <div className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-600">
+            {components.total} resultado(s)
+          </div>
+        </div>
+
         <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_220px_180px]">
           <SearchBar
             value={search}
@@ -101,7 +113,7 @@ export const DisciplineListPage = () => {
         )}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-3xl border border-dashed border-primary-100 bg-white/70 px-5 py-4 text-sm text-ink/80 md:flex-row md:items-center md:justify-between">
+      <section className="flex flex-col gap-3 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-5 py-4 text-sm text-ink/80 md:flex-row md:items-center md:justify-between">
         <div>
           <strong>{components.total}</strong> disciplina(s) encontrada(s).
         </div>
@@ -111,7 +123,7 @@ export const DisciplineListPage = () => {
             type="button"
             disabled={filter.page <= 0}
             onClick={() => setFilter((current) => ({ ...current, page: current.page - 1 }))}
-            className="rounded-full border border-line px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full border border-line px-4 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Anterior
           </button>
@@ -122,7 +134,7 @@ export const DisciplineListPage = () => {
             type="button"
             disabled={filter.page + 1 >= totalPages}
             onClick={() => setFilter((current) => ({ ...current, page: current.page + 1 }))}
-            className="rounded-full border border-line px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full border border-line px-4 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Proxima
           </button>
