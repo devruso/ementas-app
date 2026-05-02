@@ -62,6 +62,9 @@ export interface ComponentLog {
   description?: string;
   agreementNumber?: string;
   agreementDate?: string;
+  versionCode?: string;
+  officialProgram?: string;
+  officialSyllabus?: string;
   createdAt: string;
   user?: User;
 }

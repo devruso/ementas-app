@@ -1,0 +1,4 @@
+/* Compatibility stylesheet for legacy CRA shell migration. */
+html, body {
+  margin: 0;
+}
