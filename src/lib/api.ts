@@ -157,6 +157,13 @@ export const deleteUserById = async (userId: string) => {
   await api.delete(`/users/${userId}`);
 };
 
+export const importComponentsFromSiac = async (courseCode: number, semester: number) => {
+  await api.post('/components/import', {
+    cdCurso: courseCode,
+    nuPerCursoInicial: semester,
+  });
+};
+
 export const getComponentDraftByCode = async (componentCode: string) => {
   const response = await api.get<ComponentDraft>(`/component-drafts/${componentCode}`);
 
