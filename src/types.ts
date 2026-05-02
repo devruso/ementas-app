@@ -22,6 +22,32 @@ export interface ListFilter {
   sortOrder?: 'ASC' | 'DESC';
 }
 
+export interface ImportDraftPreviewPayload {
+  code: string;
+  name: string;
+  department: string;
+  modality: string;
+  program: string;
+  semester: string;
+  prerequeriments: string;
+  methodology: string;
+  objective: string;
+  syllabus: string;
+  learningAssessment: string;
+  bibliography: string;
+  workload: WorkloadEntry;
+}
+
+export interface ImportDraftPreviewResponse {
+  fileName: string;
+  mimeType: string;
+  suggestedDraft: ImportDraftPreviewPayload;
+  warnings: string[];
+  unrecognizedSections: string[];
+  extractedSections: Record<string, string>;
+  rawText: string;
+}
+
 export interface User {
   id: string;
   name: string;

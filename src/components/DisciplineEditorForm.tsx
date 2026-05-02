@@ -12,6 +12,7 @@ interface DisciplineEditorFormProps {
   onCancel: () => void;
   onSave: (values: DisciplineFormValues) => Promise<void>;
   onSaveAndPublish: (values: DisciplineFormValues) => Promise<void>;
+  showPublishAction?: boolean;
 }
 
 const workloadFields: Array<keyof DisciplineFormValues['studentWorkload']> = [
@@ -37,6 +38,7 @@ export const DisciplineEditorForm = ({
   onCancel,
   onSave,
   onSaveAndPublish,
+  showPublishAction = true,
 }: DisciplineEditorFormProps) => {
   const [values, setValues] = useState<DisciplineFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<{ code?: string; name?: string }>({});
@@ -190,14 +192,16 @@ export const DisciplineEditorForm = ({
           >
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
-          <button
-            type="button"
-            onClick={submitSaveAndPublish}
-            disabled={saving}
-            className="inline-flex items-center justify-center rounded-2xl bg-secondary-500 px-5 py-3 font-semibold text-secondary-700 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Salvar e publicar
-          </button>
+          {showPublishAction ? (
+            <button
+              type="button"
+              onClick={submitSaveAndPublish}
+              disabled={saving}
+              className="inline-flex items-center justify-center rounded-2xl bg-secondary-500 px-5 py-3 font-semibold text-secondary-700 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Salvar e publicar
+            </button>
+          ) : null}
         </FormActions>
       </div>
     </div>

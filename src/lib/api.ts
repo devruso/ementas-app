@@ -1,6 +1,14 @@
 import axios, { AxiosError } from 'axios';
 
-import type { Component, ComponentDraft, ComponentLog, ListData, ListFilter, User } from '../types';
+import type {
+  Component,
+  ComponentDraft,
+  ComponentLog,
+  ImportDraftPreviewResponse,
+  ListData,
+  ListFilter,
+  User,
+} from '../types';
 import { AppError } from './errors';
 
 const api = axios.create({
@@ -115,8 +123,75 @@ export const exportComponentPdf = async (componentId: string) => {
   return new Blob([response.data], { type: 'application/pdf;charset=utf-8' });
 };
 
+export const exportComponentDoc = async (componentId: string) => {
+  const response = await api.get<ArrayBuffer>(`/components/${componentId}/export`, {
+    params: { format: 'doc' },
+    responseType: 'arraybuffer',
+    headers: { Accept: 'application/msword' },
+  });
+
+  return new Blob([response.data], { type: 'application/msword;charset=utf-8' });
+};
+
+export const getUsers = async (filter: ListFilter) => {
+  const response = await api.get<ListData<User>>('/users', {
+    params: {
+      page: filter.page,
+      limit: filter.limit,
+      search: filter.search?.trim() || undefined,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
+    },
+  });
+
+  return response.data;
+};
+
+export const generateInvite = async () => {
+  const response = await api.get<{ token: string }>('/invite/generate');
+
+  return response.data.token;
+};
+
+export const deleteUserById = async (userId: string) => {
+  await api.delete(`/users/${userId}`);
+};
+
 export const getComponentDraftByCode = async (componentCode: string) => {
   const response = await api.get<ComponentDraft>(`/component-drafts/${componentCode}`);
+
+  return response.data;
+};
+
+export const createComponentDraft = async (data: Partial<ComponentDraft>) => {
+  const response = await api.post<ComponentDraft>('/component-drafts', {
+    code: data.code,
+    name: data.name,
+    department: data.department,
+    semester: data.semester,
+    modality: data.modality,
+    program: data.program,
+    objective: data.objective,
+    syllabus: data.syllabus,
+    methodology: data.methodology,
+    learningAssessment: data.learningAssessment,
+    bibliography: data.bibliography,
+    prerequeriments: data.prerequeriments,
+    workload: data.workload,
+  });
+
+  return response.data;
+};
+
+export const previewDraftImport = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post<ImportDraftPreviewResponse>('/component-drafts/import-preview', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 
   return response.data;
 };

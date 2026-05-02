@@ -1,4 +1,4 @@
-import { BookOpenText, FileSearch2, GraduationCap, LogIn, Menu, UserCircle2, X } from 'lucide-react';
+import { BookOpenText, FilePlus2, FileSearch2, GraduationCap, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
@@ -41,6 +41,38 @@ export const AppShell = () => {
 
             {auth.isAuthenticated ? (
               <>
+                {auth.user?.role === 'admin' ? (
+                  <NavLink
+                    to="/disciplinas/adicionar"
+                    className={({ isActive }) =>
+                      `rounded-full px-4 py-2 text-sm font-medium transition ${
+                        isActive ? 'bg-white text-primary-600' : 'text-white/86 hover:bg-white/10'
+                      }`
+                    }
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FilePlus2 className="h-4 w-4" />
+                      Adicionar
+                    </span>
+                  </NavLink>
+                ) : null}
+
+                {auth.user?.role === 'admin' ? (
+                  <NavLink
+                    to="/usuarios"
+                    className={({ isActive }) =>
+                      `rounded-full px-4 py-2 text-sm font-medium transition ${
+                        isActive ? 'bg-white text-primary-600' : 'text-white/86 hover:bg-white/10'
+                      }`
+                    }
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Users2 className="h-4 w-4" />
+                      Usuários
+                    </span>
+                  </NavLink>
+                ) : null}
+
                 <NavLink
                   to="/perfil"
                   className={({ isActive }) =>
@@ -102,6 +134,24 @@ export const AppShell = () => {
               </NavLink>
               {auth.isAuthenticated ? (
                 <>
+                  {auth.user?.role === 'admin' ? (
+                    <NavLink
+                      to="/disciplinas/adicionar"
+                      className="rounded-2xl bg-white/10 px-4 py-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Adicionar disciplina
+                    </NavLink>
+                  ) : null}
+                  {auth.user?.role === 'admin' ? (
+                    <NavLink
+                      to="/usuarios"
+                      className="rounded-2xl bg-white/10 px-4 py-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Usuários
+                    </NavLink>
+                  ) : null}
                   <NavLink
                     to="/perfil"
                     className="rounded-2xl bg-white/10 px-4 py-3"
@@ -144,7 +194,7 @@ export const AppShell = () => {
                 Migracao inicial do app publico
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
-                Consulta publica de disciplinas e exportacao oficial
+                Consulta pública, gestão acadêmica e exportação oficial IC045
               </h1>
             </div>
           </div>

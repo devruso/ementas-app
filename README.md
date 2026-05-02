@@ -5,8 +5,10 @@ Interface web do BDCP em migracao incremental, preservando o backend atual e reo
 ## Escopo atual
 
 - Lista publica de disciplinas com busca, ordenacao e paginacao.
-- Tela publica de detalhe com exportacao de PDF e alternancia autenticada entre rascunho e versao publicada.
+- Tela publica de detalhe com exportacao oficial em PDF e .doc pelo template IC045, alem da alternancia autenticada entre rascunho e versao publicada.
 - Login, recuperacao de senha, cadastro por convite e perfil de usuario.
+- Gestao administrativa de usuarios com listagem, busca, ordenacao, remocao e geracao de convite.
+- Cadastro completo de nova disciplina com formulario responsivo e importacao documental por PDF ou DOCX para pre-preenchimento do rascunho.
 - Edicao de rascunho e publicacao com dados formais de aprovacao, usando os endpoints existentes do backend.
 - Layout responsivo e mobile first, sem mudar contratos da API atual.
 
@@ -35,4 +37,4 @@ Variaveis suportadas:
 
 ## Proxima etapa recomendada
 
-Migrar os fluxos administrativos restantes por fatias pequenas: gestao de usuarios, convites, importacao documental e cadastro completo de disciplinas novas.
+Refinar os fluxos administrativos com testes de interface e ampliar a cobertura do cadastro/importacao para casos negativos e revisao humana dos campos extraidos.

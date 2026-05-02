@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
+import { AdminRoute } from './components/AdminRoute';
 import { AuthLayout } from './components/AuthLayout';
 import { GuestRoute } from './components/GuestRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -7,11 +8,13 @@ import { AppShell } from './components/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
 import { DisciplineDetailsPage } from './pages/DisciplineDetailsPage';
 import { DisciplineEditPage } from './pages/DisciplineEditPage';
+import { DisciplineCreatePage } from './pages/DisciplineCreatePage';
 import { DisciplineListPage } from './pages/DisciplineListPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
+import { UsersPage } from './pages/UsersPage';
 
 export const App = () => {
   return (
@@ -25,6 +28,11 @@ export const App = () => {
           <Route element={<ProtectedRoute />}>
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/disciplinas/:componentCode/editar" element={<DisciplineEditPage />} />
+
+            <Route element={<AdminRoute />}>
+              <Route path="/usuarios" element={<UsersPage />} />
+              <Route path="/disciplinas/adicionar" element={<DisciplineCreatePage />} />
+            </Route>
           </Route>
         </Route>
 
