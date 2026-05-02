@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
-import { approveComponentDraft, getComponentDraftByCode, updateComponentDraft } from '../lib/api';
+import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponents, updateComponentDraft } from '../lib/api';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
 import type { ComponentDraft } from '../types';
@@ -19,6 +19,7 @@ export const DisciplineEditPage = () => {
   const [dialogError, setDialogError] = useState('');
   const [agreementDate, setAgreementDate] = useState('');
   const [agreementNumber, setAgreementNumber] = useState('');
+  const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
 
   const code = useMemo(() => componentCode?.toUpperCase() || '', [componentCode]);
 
@@ -28,8 +29,31 @@ export const DisciplineEditPage = () => {
       return;
     }
 
-    const currentDraft = await getComponentDraftByCode(code);
+    const [currentDraft, componentsResult, draftsResult] = await Promise.all([
+      getComponentDraftByCode(code),
+      getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+      getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+    ]);
+
+    const mapped = new Map<string, { code: string; name: string }>();
+    componentsResult.results.forEach((component) => {
+      mapped.set(component.code, {
+        code: component.code,
+        name: component.name,
+      });
+    });
+
+    draftsResult.results.forEach((draftItem) => {
+      if (draftItem.code?.trim()) {
+        mapped.set(draftItem.code, {
+          code: draftItem.code,
+          name: draftItem.name || 'Rascunho sem nome',
+        });
+      }
+    });
+
     setDraft(currentDraft);
+    setAvailablePrerequisites(Array.from(mapped.values()));
   };
 
   useEffect(() => {
@@ -132,6 +156,7 @@ export const DisciplineEditPage = () => {
         initialValues={getDisciplineFormInitialValues(draft)}
         saving={saving}
         error={error}
+        availablePrerequisites={availablePrerequisites}
         onCancel={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
         onSave={handleSave}
         onSaveAndPublish={handleSaveAndPublish}

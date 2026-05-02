@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { DocumentImportCard } from '../components/DocumentImportCard';
-import { createComponentDraft, importComponentsFromSiac } from '../lib/api';
+import { createComponentDraft, getComponentDrafts, getComponents, importComponentsFromSiac } from '../lib/api';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
+import type { Component } from '../types';
 
 export const DisciplineCreatePage = () => {
   const navigate = useNavigate();
@@ -16,6 +17,36 @@ export const DisciplineCreatePage = () => {
   const [semester, setSemester] = useState('');
   const [siacMessage, setSiacMessage] = useState('');
   const [error, setError] = useState('');
+  const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
+
+  useEffect(() => {
+    Promise.allSettled([
+      getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+      getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+    ])
+      .then((results) => {
+        const mapped = new Map<string, { code: string; name: string }>();
+
+        if (results[0].status === 'fulfilled') {
+          results[0].value.results.forEach((component: Component) => {
+            mapped.set(component.code, { code: component.code, name: component.name });
+          });
+        }
+
+        if (results[1].status === 'fulfilled') {
+          results[1].value.results.forEach((draft) => {
+            if (draft.code?.trim()) {
+              mapped.set(draft.code, { code: draft.code, name: draft.name || 'Rascunho sem nome' });
+            }
+          });
+        }
+
+        setAvailablePrerequisites(Array.from(mapped.values()));
+      })
+      .catch(() => {
+        setAvailablePrerequisites([]);
+      });
+  }, []);
 
   const handleCreate = async (values: DisciplineFormValues) => {
     try {
@@ -112,6 +143,7 @@ export const DisciplineCreatePage = () => {
         initialValues={initialValues}
         saving={saving}
         error={error}
+        availablePrerequisites={availablePrerequisites}
         onCancel={() => navigate('/disciplinas')}
         onSave={handleCreate}
         onSaveAndPublish={handleCreate}

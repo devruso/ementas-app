@@ -11,6 +11,55 @@ import type {
 } from '../types';
 import { AppError } from './errors';
 
+interface ApiValidationDetail {
+  property?: string;
+  reasons?: string[];
+}
+
+interface ApiErrorPayload {
+  message?: string;
+  error?: ApiValidationDetail[] | string;
+}
+
+const apiMessageMap: Record<string, string> = {
+  'Validation failed': 'Existem campos inválidos. Revise os dados informados.',
+  'Incorrect username and/or password. Please try again!': 'E-mail ou senha inválidos. Confira os dados e tente novamente.',
+  'Username or password missing. Please try again!': 'Informe e-mail e senha para continuar.',
+  'User does not exists!': 'Usuário não encontrado.',
+  'This invite is invalid or already expired.': 'Convite inválido ou expirado.',
+};
+
+const normalizeApiMessage = (message?: string) => {
+  if (!message) {
+    return 'Erro interno no servidor.';
+  }
+
+  return apiMessageMap[message] || message;
+};
+
+const extractValidationReason = (payload?: ApiErrorPayload) => {
+  if (!payload?.error || !Array.isArray(payload.error)) {
+    return null;
+  }
+
+  const firstReason = payload.error.find((item) => item?.reasons?.length)?.reasons?.[0];
+
+  if (!firstReason) {
+    return null;
+  }
+
+  return firstReason
+    .replace(
+      /^code\s+deve\s+estar\s+de\s+acordo\s+com\s+a\s+expressão\s+regular\s+\/\^\[A-Z\]\{2,4\}\[0-9\]\{2,4\}\$\/$/i,
+      'Código inválido. Use o formato AAA999 ou AAAA9999 (ex.: MAT245 ou IC045).'
+    )
+    .replace(
+      /^code\s+deve\s+estar\s+de\s+acordo\s+com\s+a\s+expressão\s+regular\s+\/\^\[A-Z\]\{3,4\}\[0-9\]\{2,4\}\$\/$/i,
+      'Código inválido. Use o formato AAA999 ou AAAA9999 (ex.: MAT245 ou IC045).'
+    )
+    .replace(/^([a-zA-Z]+) deve ser informado.*$/i, 'Preencha os campos obrigatórios para continuar.');
+};
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3333/api',
 });
@@ -28,8 +77,10 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string }>) => {
-    const message = error.response?.data?.message || 'Erro interno no servidor.';
+  (error: AxiosError<ApiErrorPayload>) => {
+    const payload = error.response?.data;
+    const validationReason = extractValidationReason(payload);
+    const message = validationReason || normalizeApiMessage(payload?.message);
     const statusCode = error.response?.status || 500;
 
     return Promise.reject(new AppError(message, statusCode));
@@ -168,6 +219,20 @@ export const importComponentsFromSiac = async (courseCode: number, semester: num
 
 export const getComponentDraftByCode = async (componentCode: string) => {
   const response = await api.get<ComponentDraft>(`/component-drafts/${componentCode}`);
+
+  return response.data;
+};
+
+export const getComponentDrafts = async (filter: ListFilter) => {
+  const response = await api.get<ListData<ComponentDraft>>('/component-drafts', {
+    params: {
+      page: filter.page,
+      limit: filter.limit,
+      search: filter.search?.trim() || undefined,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
+    },
+  });
 
   return response.data;
 };

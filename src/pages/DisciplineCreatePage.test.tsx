@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createComponentDraft } from '../lib/api';
+import { createComponentDraft, getComponentDrafts, getComponents } from '../lib/api';
 import { DisciplineCreatePage } from './DisciplineCreatePage';
 
 const navigateMock = vi.fn();
@@ -22,13 +22,26 @@ vi.mock('../lib/api', async () => {
   return {
     ...actual,
     createComponentDraft: vi.fn(),
+    getComponents: vi.fn(),
+    getComponentDrafts: vi.fn(),
   };
 });
 
 const mockedCreateComponentDraft = vi.mocked(createComponentDraft);
+const mockedGetComponents = vi.mocked(getComponents);
+const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
 
 describe('DisciplineCreatePage', () => {
   it('deve criar disciplina e navegar para edição do rascunho', async () => {
+    mockedGetComponents.mockResolvedValueOnce({
+      total: 0,
+      results: [],
+    });
+    mockedGetComponentDrafts.mockResolvedValueOnce({
+      total: 0,
+      results: [],
+    });
+
     mockedCreateComponentDraft.mockResolvedValueOnce({
       id: 'draft-1',
       code: 'IC045',

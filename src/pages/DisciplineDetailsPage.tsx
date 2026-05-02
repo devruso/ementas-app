@@ -5,10 +5,20 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { SectionCard } from '../components/SectionCard';
 import { useAuth } from '../contexts/AuthContext';
-import { approveComponentDraft, exportComponentDocx, exportComponentPdf, getComponentByCode, getComponentLogs } from '../lib/api';
+import {
+  approveComponentDraft,
+  exportComponentDocx,
+  exportComponentPdf,
+  getComponentByCode,
+  getComponentDrafts,
+  getComponentLogs,
+  getComponents,
+} from '../lib/api';
 import { formatDate, formatWorkload } from '../lib/format';
 import { AppError } from '../lib/errors';
 import type { Component } from '../types';
+
+const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
 export const DisciplineDetailsPage = () => {
   const auth = useAuth();
@@ -25,11 +35,26 @@ export const DisciplineDetailsPage = () => {
   const [showPublishedVersion, setShowPublishedVersion] = useState(false);
   const [component, setComponent] = useState<Component | null>(null);
   const [logs, setLogs] = useState<Component['logs']>([]);
+  const [knownCodes, setKnownCodes] = useState<Set<string>>(new Set());
 
   const code = useMemo(() => params.componentCode?.toUpperCase() || '', [params.componentCode]);
 
   const loadComponent = async () => {
-    const currentComponent = await getComponentByCode(code);
+    const [currentComponent, componentsResponse, draftsResponse] = await Promise.all([
+      getComponentByCode(code),
+      getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+      getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+    ]);
+
+    const catalog = new Set<string>();
+    componentsResponse.results.forEach((item) => catalog.add(item.code.toUpperCase()));
+    draftsResponse.results.forEach((item) => {
+      if (item.code?.trim()) {
+        catalog.add(item.code.toUpperCase());
+      }
+    });
+
+    setKnownCodes(catalog);
     setComponent(currentComponent);
 
     if (auth.isAuthenticated && currentComponent.id) {
@@ -137,6 +162,15 @@ export const DisciplineDetailsPage = () => {
   const showingDraft = auth.isAuthenticated && !showPublishedVersion && !!component.draft;
   const activeComponent = showingDraft && component.draft ? component.draft : component;
   const visibleLogs = auth.isAuthenticated ? logs || [] : component.logs || [];
+  const normalizedPrerequeriments = activeComponent.prerequeriments?.trim().toUpperCase() || '';
+  const isNotApplicable = ['NAO_SE_APLICA', 'N/A', 'NÃO SE APLICA', 'NAO SE APLICA'].includes(normalizedPrerequeriments);
+  const prerequerimentCodes = Array.from(
+    new Set(activeComponent.prerequeriments?.toUpperCase().match(prerequerimentCodeRegex) ?? [])
+  );
+  const prerequerimentStatus = prerequerimentCodes.map((codeItem) => ({
+    code: codeItem,
+    status: knownCodes.has(codeItem) ? 'existing' : 'pending',
+  }));
 
   return (
     <div className="space-y-6">
@@ -262,7 +296,31 @@ export const DisciplineDetailsPage = () => {
         <div className="space-y-6">
           <SectionCard title="Visao geral">
             <div className="space-y-3">
-              <div><strong>Pre-requisitos:</strong> {activeComponent.prerequeriments || 'Nao informado'}</div>
+              <div>
+                <strong>Pre-requisitos:</strong>
+                {isNotApplicable ? (
+                  <span className="ml-2 inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    Nao se aplica
+                  </span>
+                ) : prerequerimentStatus.length > 0 ? (
+                  <span className="ml-2 inline-flex flex-wrap gap-2 align-middle">
+                    {prerequerimentStatus.map((item) => (
+                      <span
+                        key={item.code}
+                        className={
+                          item.status === 'existing'
+                            ? 'inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600'
+                            : 'inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700'
+                        }
+                      >
+                        {item.code} {item.status === 'existing' ? '(existente)' : '(pendente)'}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="ml-2">{activeComponent.prerequeriments || 'Nao informado'}</span>
+                )}
+              </div>
               <div><strong>Departamento:</strong> {activeComponent.department || 'Nao informado'}</div>
               <div><strong>Semestre:</strong> {activeComponent.semester || 'Nao informado'}</div>
             </div>

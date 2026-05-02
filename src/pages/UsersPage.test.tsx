@@ -2,18 +2,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { deleteUserById, generateInvite, getUsers } from '../lib/api';
+import { deleteUserById, generateInvite, getUsers, register } from '../lib/api';
 import { UsersPage } from './UsersPage';
 
 vi.mock('../lib/api', () => ({
   getUsers: vi.fn(),
   generateInvite: vi.fn(),
   deleteUserById: vi.fn(),
+  register: vi.fn(),
 }));
 
 const mockedGetUsers = vi.mocked(getUsers);
 const mockedGenerateInvite = vi.mocked(generateInvite);
 const mockedDeleteUserById = vi.mocked(deleteUserById);
+const mockedRegister = vi.mocked(register);
 
 describe('UsersPage', () => {
   const originalConfirm = window.confirm;
@@ -70,5 +72,28 @@ describe('UsersPage', () => {
       expect(window.confirm).toHaveBeenCalled();
       expect(mockedDeleteUserById).toHaveBeenCalledWith('u-1');
     });
+  });
+
+  it('deve criar professor diretamente no app', async () => {
+    mockedGenerateInvite.mockResolvedValueOnce('invite-token-direct');
+    mockedRegister.mockResolvedValueOnce();
+
+    render(<UsersPage />);
+
+    await userEvent.type(await screen.findByLabelText('Nome do professor'), 'Novo Professor');
+    await userEvent.type(screen.getByLabelText('E-mail institucional'), 'novo.prof@test.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Criar professor agora' }));
+
+    await waitFor(() => {
+      expect(mockedGenerateInvite).toHaveBeenCalledTimes(1);
+      expect(mockedRegister).toHaveBeenCalledWith(
+        'invite-token-direct',
+        'Novo Professor',
+        'novo.prof@test.com',
+        expect.stringMatching(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{12}$/)
+      );
+    });
+
+    expect(await screen.findByText('Professor criado com sucesso. Guarde a senha provisória com segurança.')).toBeInTheDocument();
   });
 });
