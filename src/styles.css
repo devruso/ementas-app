@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color: #464646;
+    background: #f3f3f3;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at top left, rgba(58, 125, 255, 0.16), transparent 24%),
+      linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-3xl border border-line bg-white shadow-panel;
+  }
+
+  .soft-ring {
+    @apply outline-none ring-0 transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100;
+  }
+}
