@@ -6,7 +6,7 @@ import { FormField } from '../components/FormField';
 import { useAuth } from '../contexts/AuthContext';
 import { validateInviteToken } from '../lib/api';
 import { AppError } from '../lib/errors';
-import { isValidEmail, isValidPassword } from '../lib/validation';
+import { isUfbaInstitutionalEmail, isValidEmail, isValidPassword, normalizeEmail } from '../lib/validation';
 
 export const RegisterPage = () => {
   const auth = useAuth();
@@ -37,8 +37,15 @@ export const RegisterPage = () => {
       return;
     }
 
-    if (!isValidEmail(email)) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!isValidEmail(normalizedEmail)) {
       setError('Informe um e-mail valido.');
+      return;
+    }
+
+    if (!isUfbaInstitutionalEmail(normalizedEmail)) {
+      setError('Use seu e-mail institucional da UFBA (@ufba.br).');
       return;
     }
 
@@ -55,7 +62,7 @@ export const RegisterPage = () => {
     try {
       setLoading(true);
       setError('');
-      await auth.register(inviteToken, name, email, password);
+      await auth.register(inviteToken, name.trim(), normalizedEmail, password);
       navigate('/entrar', { replace: true });
     } catch (err) {
       const appError = err as AppError;
@@ -88,6 +95,9 @@ export const RegisterPage = () => {
         </div>
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Criar conta</h1>
         <p className="text-sm leading-7 text-muted">Conclua seu cadastro para acessar os fluxos autenticados do sistema.</p>
+        <div className="inline-flex rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+          Somente e-mail institucional UFBA (@ufba.br)
+        </div>
       </div>
 
       <form className="space-y-5" onSubmit={handleSubmit}>

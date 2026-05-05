@@ -5,7 +5,7 @@ import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
 import { useAuth } from '../contexts/AuthContext';
 import { AppError } from '../lib/errors';
-import { isValidEmail } from '../lib/validation';
+import { isUfbaInstitutionalEmail, isValidEmail, normalizeEmail } from '../lib/validation';
 
 export const LoginPage = () => {
   const auth = useAuth();
@@ -20,12 +20,14 @@ export const LoginPage = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
 
     const nextErrors: { email?: string; password?: string } = {};
 
     if (!isValidEmail(normalizedEmail)) {
       nextErrors.email = 'Informe um e-mail valido.';
+    } else if (!isUfbaInstitutionalEmail(normalizedEmail)) {
+      nextErrors.email = 'Use seu e-mail institucional da UFBA (@ufba.br).';
     }
 
     if (!password) {
@@ -61,6 +63,9 @@ export const LoginPage = () => {
         </div>
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Entrar</h1>
         <p className="text-sm leading-7 text-muted">Acesse o sistema para editar disciplinas, revisar rascunhos e publicar aprovacoes.</p>
+        <div className="inline-flex rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+          Acesso restrito a contas institucionais @ufba.br
+        </div>
       </div>
 
       <form className="space-y-5" onSubmit={handleSubmit}>
