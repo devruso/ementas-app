@@ -27,7 +27,7 @@ export const AppShell = () => {
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
-                UFBA Computacao
+                Instituto de Computação
               </div>
               <div className="text-lg font-semibold">Ementas e Conteudos Programaticos</div>
             </div>
@@ -167,18 +167,6 @@ export const AppShell = () => {
       <main className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-hero-grid opacity-40" />
         <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 md:px-10 md:py-10">
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="interactive-lift mb-2 inline-flex items-center gap-2 rounded-full border border-primary-100 bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-                <FileSearch2 className="h-3.5 w-3.5" />
-                Plataforma acadêmica institucional
-              </div>
-              <h1 className="motion-rise text-2xl font-semibold tracking-tight text-ink sm:text-3xl md:text-4xl">
-                Consulta pública, gestão acadêmica e exportação oficial
-              </h1>
-            </div>
-          </div>
-
           <Outlet />
         </div>
       </main>

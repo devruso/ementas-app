@@ -254,9 +254,9 @@ export const DisciplineEditorForm = ({
       <section className="grid min-w-0 gap-6 xl:grid-cols-2">
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField label="Ementa" value={values.program} onChange={(event) => handleChange('program', event.target.value)} />
+            <TextareaField label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} />
             <TextareaField label="Objetivos" value={values.objective} onChange={(event) => handleChange('objective', event.target.value)} />
-            <TextareaField label="Conteudo programatico" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} />
+            <TextareaField label="Conteudo programatico" value={values.program} onChange={(event) => handleChange('program', event.target.value)} />
             <TextareaField label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} />
           </div>
         </div>

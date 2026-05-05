@@ -19,6 +19,7 @@ export const DisciplineEditPage = () => {
   const [dialogError, setDialogError] = useState('');
   const [agreementDate, setAgreementDate] = useState('');
   const [agreementNumber, setAgreementNumber] = useState('');
+  const [approvalSignature, setApprovalSignature] = useState('');
   const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
 
   const code = useMemo(() => componentCode?.toUpperCase() || '', [componentCode]);
@@ -111,8 +112,8 @@ export const DisciplineEditPage = () => {
       return;
     }
 
-    if (!agreementDate || !agreementNumber.trim()) {
-      setDialogError('Informe a data e o numero da ATA.');
+    if (!agreementDate || !agreementNumber.trim() || !approvalSignature.trim()) {
+      setDialogError('Informe data, numero da ATA e assinatura de aprovação.');
       return;
     }
 
@@ -122,6 +123,7 @@ export const DisciplineEditPage = () => {
       await approveComponentDraft(draft.id, {
         agreementDate: new Date(agreementDate).toISOString(),
         agreementNumber,
+        signature: approvalSignature,
       });
 
       setDialogOpen(false);
@@ -148,8 +150,8 @@ export const DisciplineEditPage = () => {
         <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
           Gestao de disciplina
         </div>
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Editar disciplina {draft.code}</h1>
-        <p className="mt-2 text-sm leading-7 text-muted">Fluxo mobile first para atualizar rascunho e publicar com aprovacao formal.</p>
+        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Editar disciplina</h1>
+        <p className="mt-2 text-sm leading-7 text-muted">Atualize o rascunho com leitura confortável e publique com aprovação formal quando o conteúdo estiver consolidado.</p>
       </section>
 
       <DisciplineEditorForm
@@ -167,10 +169,12 @@ export const DisciplineEditPage = () => {
         componentCode={draft.code}
         agreementDate={agreementDate}
         agreementNumber={agreementNumber}
+        signature={approvalSignature}
         submitting={saving}
         error={dialogError}
         onChangeAgreementDate={setAgreementDate}
         onChangeAgreementNumber={setAgreementNumber}
+        onChangeSignature={setApprovalSignature}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleApprove}
       />

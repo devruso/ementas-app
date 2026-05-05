@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import { cn } from '../lib/utils';
 
 interface TextareaFieldProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -6,13 +8,27 @@ interface TextareaFieldProps extends React.TextareaHTMLAttributes<HTMLTextAreaEl
 }
 
 export const TextareaField = ({ label, error, className, ...props }: TextareaFieldProps) => {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const element = textareaRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, [props.value]);
+
   return (
     <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
       <span>{label}</span>
       <textarea
         {...props}
+        ref={textareaRef}
         className={cn(
-          'soft-ring min-h-[152px] min-w-0 rounded-2xl border border-transparent bg-background px-4 py-3 text-sm text-ink shadow-sm placeholder:text-muted',
+          'soft-ring min-h-[152px] min-w-0 resize-none overflow-hidden rounded-2xl border border-transparent bg-background px-4 py-3 text-sm text-ink shadow-sm placeholder:text-muted',
           error ? 'border-danger/40 ring-4 ring-red-100' : '',
           className
         )}

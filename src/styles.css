@@ -57,23 +57,26 @@
   }
 
   .soft-ring {
-    @apply outline-none ring-0 transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100;
+    @apply outline-none ring-0 transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100;
   }
 
   .glass-header {
-    @apply border-b border-white/65 bg-gradient-to-r from-primary-600/95 via-primary-500/95 to-primary-600/95 shadow-lg backdrop-blur-xl;
+    @apply border-b border-white/55 shadow-lg backdrop-blur-2xl;
+    background: linear-gradient(90deg, rgba(12, 69, 146, 0.86) 0%, rgba(38, 112, 196, 0.78) 50%, rgba(12, 69, 146, 0.86) 100%);
   }
 
   .nav-pill {
-    @apply rounded-full border border-transparent px-4 py-2 text-sm font-medium text-white/90 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10;
+    @apply rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/90 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10;
   }
 
   .nav-pill-active {
-    @apply border-white/45 bg-white text-primary-600 shadow-md;
+    @apply border-white/55 bg-white/90 shadow-md backdrop-blur-md;
+    color: #0c4592;
   }
 
   .mobile-sheet {
-    @apply border-t border-white/15 bg-primary-600/95 px-5 py-4 backdrop-blur;
+    @apply border-t border-white/20 px-5 py-4 backdrop-blur-2xl;
+    background-color: rgba(12, 69, 146, 0.6);
   }
 
   .logo-orb {

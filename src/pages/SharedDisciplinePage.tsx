@@ -46,37 +46,96 @@ export const SharedDisciplinePage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="panel p-6">
-        <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-          Compartilhamento temporário
+    <div className="space-y-6 motion-fade">
+      <section className="panel overflow-hidden">
+        <div className="relative p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary-100/80 via-white/25 to-secondary-500/25" />
+          <div className="pointer-events-none absolute right-0 top-0 h-36 w-36 rounded-full bg-primary-300/20 blur-3xl" />
+          <div className="relative">
+            <div className="mb-3 inline-flex rounded-full border border-primary-200 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700 shadow-sm">
+              Compartilhamento temporário
+            </div>
+            <div className="max-w-4xl">
+              <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl md:text-4xl">{component.code} - {component.name}</h2>
+              <p className="mt-3 text-sm leading-7 text-muted sm:text-base">
+                Versão oficial publicada para acesso público temporário, preservando leitura institucional, contexto acadêmico e integridade do conteúdo compartilhado.
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2.5">
+              <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
+                Departamento: {component.department || 'Não informado'}
+              </span>
+              <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
+                Semestre: {component.semester || 'Não informado'}
+              </span>
+              <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
+                Modalidade: {component.modality || 'Não informada'}
+              </span>
+            </div>
+          </div>
         </div>
-        <h2 className="text-2xl font-semibold text-ink">{component.code} - {component.name}</h2>
-        <p className="mt-2 text-sm text-muted">
-          Versão oficial publicada para acesso público temporário.
-        </p>
       </section>
 
-      <SectionCard title="Ementa">{component.syllabus || 'Não informada.'}</SectionCard>
-      <SectionCard title="Conteúdo programático">{component.program || 'Não informado.'}</SectionCard>
-      <SectionCard title="Objetivos">{component.objective || 'Não informados.'}</SectionCard>
-      <SectionCard title="Metodologia">{component.methodology || 'Não informada.'}</SectionCard>
-      <SectionCard title="Bibliografia">{component.bibliography || 'Não informada.'}</SectionCard>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-6">
+          <SectionCard title="Ementa">{component.syllabus || 'Não informada.'}</SectionCard>
+          <SectionCard title="Conteúdo programático">{component.program || 'Não informado.'}</SectionCard>
+          <SectionCard title="Objetivos">{component.objective || 'Não informados.'}</SectionCard>
+          <SectionCard title="Metodologia">{component.methodology || 'Não informada.'}</SectionCard>
+          <SectionCard title="Bibliografia">{component.bibliography || 'Não informada.'}</SectionCard>
+        </div>
 
-      <SectionCard title="Carga horária">
-        <div>Estudante (Teoria): {formatWorkload(component.workload?.studentTheory)}</div>
-        <div>Estudante (Prática): {formatWorkload(component.workload?.studentPractice)}</div>
-        <div>Professor (Teoria): {formatWorkload(component.workload?.teacherTheory)}</div>
-        <div>Professor (Prática): {formatWorkload(component.workload?.teacherPractice)}</div>
-      </SectionCard>
+        <div className="space-y-6">
+          <section className="panel interactive-lift overflow-hidden">
+            <div className="border-b border-line bg-slate-50/70 px-5 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/70">
+              Carga horária
+            </div>
+            <div className="grid grid-cols-1 gap-3 px-5 py-5 text-sm sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-2xl border border-line bg-slate-50 p-4 shadow-sm">
+                <div className="mb-2 font-semibold text-ink">Estudante</div>
+                <div>Teoria: {formatWorkload(component.workload?.studentTheory)}</div>
+                <div>Prática: {formatWorkload(component.workload?.studentPractice)}</div>
+              </div>
+              <div className="rounded-2xl border border-line bg-slate-50 p-4 shadow-sm">
+                <div className="mb-2 font-semibold text-ink">Professor</div>
+                <div>Teoria: {formatWorkload(component.workload?.teacherTheory)}</div>
+                <div>Prática: {formatWorkload(component.workload?.teacherPractice)}</div>
+              </div>
+            </div>
+          </section>
 
-      <div className="flex justify-end">
-        <Link
-          to="/entrar"
-          className="inline-flex items-center justify-center rounded-2xl border border-line px-5 py-3 text-sm font-semibold text-ink transition hover:bg-slate-50"
-        >
-          Entrar no BDCP
-        </Link>
+          <section className="panel interactive-lift p-5">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">
+              Acesso institucional
+            </div>
+            <p className="text-sm leading-7 text-muted">
+              Para editar disciplinas, acompanhar histórico e publicar versões oficiais, acesse com sua conta institucional.
+            </p>
+            <div className="mt-4">
+              <Link
+                to="/entrar"
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-line bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-slate-50"
+              >
+                Entrar no BDCP
+              </Link>
+            </div>
+          </section>
+
+          <section className="panel interactive-lift overflow-hidden">
+            <div className="border-b border-line bg-slate-50/70 px-5 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/70">
+              Leitura oficial
+            </div>
+            <div className="space-y-3 px-5 py-5 text-sm leading-7 text-ink/78">
+              <p>Este compartilhamento exibe a versão oficial publicada do componente curricular.</p>
+              <p>O conteúdo exibido não concede permissão de edição, alteração de estado ou decisão acadêmica fora do fluxo institucional autenticado.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <div className="rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-sm text-primary-800 shadow-sm">
+        Este link é temporário e pode ser revogado a qualquer momento pelo responsável da publicação.
       </div>
     </div>
   );

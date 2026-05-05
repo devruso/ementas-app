@@ -24,6 +24,18 @@ import type { Component, PublicShare } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
+const getApprovalStatusMessage = (latestApproval?: Component['logs'][number]) => {
+  if (!latestApproval) {
+    return 'A exportação usa os dados formais de aprovação registrados no momento da publicação. Como esta disciplina ainda não possui publicação oficial com ata e data vinculadas, o documento sai sem esses metadados.';
+  }
+
+  if (!latestApproval.agreementDate || !latestApproval.agreementNumber) {
+    return 'Existe um registro de publicação oficial, mas a ata ou a data de aprovação não foram preenchidas integralmente naquele momento. Por isso alguns campos podem aparecer como não informados na exportação.';
+  }
+
+  return 'A exportação oficial utiliza a última aprovação publicada no BDCP, com a ata e a data formalmente registradas.';
+};
+
 export const DisciplineDetailsPage = () => {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -338,7 +350,10 @@ export const DisciplineDetailsPage = () => {
     );
   }
 
-  const latestApproval = (logs || component.logs || []).find((log) => log.type === 'approval');
+  const latestApproval = [...(logs || component.logs || [])]
+    .filter((log) => log.type === 'approval')
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+  const approvalStatusMessage = getApprovalStatusMessage(latestApproval);
   const showingDraft = auth.isAuthenticated && !showPublishedVersion && !!component.draft;
   const activeComponent = showingDraft && component.draft ? component.draft : component;
   const visibleLogs = auth.isAuthenticated ? logs || [] : component.logs || [];
@@ -360,8 +375,8 @@ export const DisciplineDetailsPage = () => {
             <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
               {activeComponent.code}
             </div>
-            <h2 className="text-3xl font-semibold text-ink">{activeComponent.name}</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
+            <p className="text-sm font-medium text-ink/72">{activeComponent.name}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
               {activeComponent.syllabus || activeComponent.program || 'Disciplina sem resumo publico informado.'}
             </p>
 
@@ -378,51 +393,67 @@ export const DisciplineDetailsPage = () => {
             </div>
 
             {auth.isAuthenticated ? (
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  to={`/disciplinas/${component.code.toLowerCase()}/editar`}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-line px-4 py-3 text-sm font-semibold text-ink transition hover:bg-slate-50"
-                >
-                  <FilePenLine className="h-4 w-4 text-primary-600" />
-                  Editar disciplina
-                </Link>
-
-                {component.draft?.id ? (
-                  <button
-                    type="button"
-                    onClick={() => setDialogOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary-600"
-                  >
-                    <ScrollText className="h-4 w-4" />
-                    Publicar
-                  </button>
-                ) : null}
-
-                {component.draft?.id ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowPublishedVersion((current) => !current)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-slate-50"
-                  >
-                    <Eye className="h-4 w-4 text-secondary-700" />
-                    {showPublishedVersion ? 'Ver rascunho salvo' : 'Ver versao publicada'}
-                  </button>
-                ) : null}
-
-                {component.draft?.id ? (
-                  <div className="inline-flex items-center rounded-2xl border border-line bg-slate-50 px-4 py-3 text-sm text-ink/80">
-                    Mostrando agora: {showingDraft ? 'rascunho salvo' : 'publicacao oficial'}
+              <div className="mt-6 space-y-4">
+                <div className="rounded-3xl border border-white/55 bg-white/72 p-4 shadow-sm backdrop-blur-md">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Ações rápidas</div>
+                      <div className="mt-1 text-sm text-ink/70">Edite, publique e alterne entre rascunho salvo e versão oficial.</div>
+                    </div>
+                    {component.draft?.id ? (
+                      <div className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                        Mostrando agora: {showingDraft ? 'rascunho salvo' : 'publicacao oficial'}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
 
-                <button
-                  type="button"
-                  onClick={handleCreatePublicShare}
-                  disabled={creatingShare}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {creatingShare ? 'Gerando link público...' : 'Compartilhar público temporário'}
-                </button>
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      to={`/disciplinas/${component.code.toLowerCase()}/editar`}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-slate-50"
+                    >
+                      <FilePenLine className="h-4 w-4 text-primary-600" />
+                      Editar disciplina
+                    </Link>
+
+                    {component.draft?.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setDialogOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600"
+                      >
+                        <ScrollText className="h-4 w-4" />
+                        Publicar
+                      </button>
+                    ) : null}
+
+                    {component.draft?.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowPublishedVersion((current) => !current)}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-slate-50"
+                      >
+                        <Eye className="h-4 w-4 text-secondary-700" />
+                        {showPublishedVersion ? 'Ver rascunho salvo' : 'Ver versao publicada'}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-dashed border-primary-200/80 bg-primary-50/70 p-4 shadow-sm">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Compartilhamento</div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCreatePublicShare}
+                      disabled={creatingShare}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-primary-200 bg-white px-4 py-3 text-sm font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {creatingShare ? 'Gerando link público...' : 'Compartilhar público temporário'}
+                    </button>
+                    <p className="text-sm text-ink/68">Crie um link temporário auditável para consulta pública controlada.</p>
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -576,27 +607,40 @@ export const DisciplineDetailsPage = () => {
             ) : null}
           </div>
 
-          <div className="rounded-3xl bg-ink p-5 text-white">
-            <div className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
-              Exportacao oficial
+          <div className="rounded-3xl border border-white/45 bg-white/14 p-5 text-ink shadow-panel backdrop-blur-xl">
+            <div className="rounded-3xl border border-white/40 bg-white/42 p-4 shadow-sm">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700/80">
+                Exportacao oficial
+              </div>
+              <div className="text-sm text-ink/68">
+                Gere PDF ou DOCX com o conteúdo oficial publicado e com os metadados formais de aprovação quando eles existirem no histórico.
+              </div>
             </div>
-            <div className="space-y-3 text-sm text-white/80">
-              <div>
-                Ultima aprovacao: {latestApproval ? formatDate(latestApproval.agreementDate) : 'Nao encontrada'}
+
+            <div className="mt-4 space-y-3 rounded-3xl border border-white/35 bg-white/36 p-4 text-sm text-ink/75">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-ink/60">Ultima aprovacao</span>
+                <strong className="text-right text-ink">{latestApproval?.agreementDate ? formatDate(latestApproval.agreementDate) : 'Nao informada'}</strong>
               </div>
-              <div>
-                Ata ou referencia: {latestApproval?.agreementNumber || 'Nao informada'}
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-ink/60">Ata ou referencia</span>
+                <strong className="text-right text-ink">{latestApproval?.agreementNumber || 'Nao informada'}</strong>
               </div>
-              <div>
-                Publicado por: {latestApproval?.user?.name || 'Nao informado'}
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-ink/60">Publicado por</span>
+                <strong className="text-right text-ink">{latestApproval?.user?.name || 'Nao informado'}</strong>
               </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
+              {approvalStatusMessage}
             </div>
 
             <button
               type="button"
               onClick={handleExport}
               disabled={exporting}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary-500 px-4 py-3 font-semibold text-secondary-700 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary-500 px-4 py-3 font-semibold text-secondary-700 transition hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Download className="h-4 w-4" />
               {exporting ? 'Exportando PDF oficial...' : 'Exportar PDF oficial'}
@@ -606,21 +650,21 @@ export const DisciplineDetailsPage = () => {
               type="button"
               onClick={handleExportDoc}
               disabled={exportingDoc}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 px-4 py-3 font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-200 bg-white/45 px-4 py-3 font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FileText className="h-4 w-4" />
               {exportingDoc ? 'Exportando DOCX...' : 'Exportar DOCX'}
             </button>
 
             {showingDraft ? (
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+              <div className="mt-3 rounded-2xl border border-white/40 bg-white/45 px-4 py-3 text-sm text-ink/75">
                 Visualizando rascunho autenticado. Alterne para a versao publicada quando quiser conferir o conteudo oficial.
               </div>
             ) : null}
 
             <Link
               to="/disciplinas"
-              className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-white/20 px-4 py-3 text-sm text-white/86 transition hover:bg-white/10"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-white/45 bg-white/20 px-4 py-3 text-sm text-ink/80 transition hover:bg-white/45"
             >
               Voltar para inicio
             </Link>
