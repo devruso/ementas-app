@@ -20,11 +20,11 @@ import {
 } from '../lib/api';
 import { formatDate, formatWorkload } from '../lib/format';
 import { AppError } from '../lib/errors';
-import type { Component, PublicShare } from '../types';
+import type { Component, ComponentLog, PublicShare } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
-const getApprovalStatusMessage = (latestApproval?: Component['logs'][number]) => {
+const getApprovalStatusMessage = (latestApproval?: ComponentLog) => {
   if (!latestApproval) {
     return 'A exportação usa os dados formais de aprovação registrados no momento da publicação. Como esta disciplina ainda não possui publicação oficial com ata e data vinculadas, o documento sai sem esses metadados.';
   }
