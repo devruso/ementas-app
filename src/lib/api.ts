@@ -6,6 +6,7 @@ import type {
   ComponentDraft,
   ComponentLog,
   ImportDraftPreviewResponse,
+  ImportComponentsSummary,
   ListData,
   ListFilter,
   PublicShare,
@@ -146,6 +147,8 @@ export const getComponents = async (filter: ListFilter) => {
       search: filter.search?.trim() || undefined,
       sortBy: filter.sortBy,
       sortOrder: filter.sortOrder,
+      academicLevel: filter.academicLevel,
+      department: filter.department?.trim() || undefined,
     },
   });
 
@@ -285,10 +288,26 @@ export const createTeacherByAdmin = async (
 };
 
 export const importComponentsFromSiac = async (courseCode: number, semester: number) => {
-  await api.post('/components/import', {
+  const response = await api.post<ImportComponentsSummary>('/components/import', {
     cdCurso: courseCode,
     nuPerCursoInicial: semester,
   });
+
+  return response.data;
+};
+
+export const importComponentsFromSigaaPublic = async (
+  sourceType: 'department' | 'program',
+  sourceId: string,
+  academicLevel: 'graduacao' | 'mestrado' | 'doutorado'
+) => {
+  const response = await api.post<ImportComponentsSummary>('/components/import/sigaa-public', {
+    sourceType,
+    sourceId,
+    academicLevel,
+  });
+
+  return response.data;
 };
 
 export const getComponentDraftByCode = async (componentCode: string) => {

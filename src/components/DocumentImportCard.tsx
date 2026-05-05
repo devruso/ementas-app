@@ -68,7 +68,7 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
       </div>
       <h2 className="text-xl font-semibold text-ink">Pré-preencher a disciplina por PDF ou DOCX</h2>
       <p className="mt-2 text-sm leading-7 text-muted">
-        Envie um arquivo baseado no plano IC045. O backend sugere os campos para revisão humana antes do salvamento.
+        Envie um plano de ensino em PDF ou DOCX. O backend sugere os campos para revisão humana antes do salvamento.
       </p>
 
       <div className="mt-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">

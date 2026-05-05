@@ -2,7 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createComponentDraft, getComponentDrafts, getComponents } from '../lib/api';
+import {
+  createComponentDraft,
+  getComponentDrafts,
+  getComponents,
+  importComponentsFromSiac,
+  importComponentsFromSigaaPublic,
+} from '../lib/api';
 import { DisciplineCreatePage } from './DisciplineCreatePage';
 
 const navigateMock = vi.fn();
@@ -24,12 +30,16 @@ vi.mock('../lib/api', async () => {
     createComponentDraft: vi.fn(),
     getComponents: vi.fn(),
     getComponentDrafts: vi.fn(),
+    importComponentsFromSiac: vi.fn(),
+    importComponentsFromSigaaPublic: vi.fn(),
   };
 });
 
 const mockedCreateComponentDraft = vi.mocked(createComponentDraft);
 const mockedGetComponents = vi.mocked(getComponents);
 const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
+const mockedImportComponentsFromSiac = vi.mocked(importComponentsFromSiac);
+const mockedImportComponentsFromSigaaPublic = vi.mocked(importComponentsFromSigaaPublic);
 
 describe('DisciplineCreatePage', () => {
   it('deve criar disciplina e navegar para edição do rascunho', async () => {
@@ -64,5 +74,61 @@ describe('DisciplineCreatePage', () => {
     });
 
     expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045/editar', { replace: true });
+  });
+
+  it('deve importar SIAC e SIGAA e exibir resumo operacional na interface', async () => {
+    mockedGetComponents.mockResolvedValueOnce({
+      total: 0,
+      results: [],
+    });
+    mockedGetComponentDrafts.mockResolvedValueOnce({
+      total: 0,
+      results: [],
+    });
+
+    mockedImportComponentsFromSiac.mockResolvedValueOnce({
+      source: 'siac',
+      requested: 10,
+      created: 7,
+      skippedExisting: 2,
+      failed: 1,
+      failures: ['MATA01: Unexpected error.'],
+      failureCategories: { unexpected_error: 1 },
+    });
+
+    mockedImportComponentsFromSigaaPublic.mockResolvedValueOnce({
+      source: 'sigaa-public',
+      requested: 6,
+      created: 4,
+      skippedExisting: 1,
+      failed: 1,
+      failures: ['SIGAA_SOURCE timeout'],
+      failureCategories: { source_timeout: 1 },
+    });
+
+    render(<DisciplineCreatePage />);
+
+    await userEvent.type(screen.getByLabelText('Código do curso'), '112140');
+    await userEvent.type(screen.getByPlaceholderText('Ex: 20261'), '20261');
+    await userEvent.click(screen.getByRole('button', { name: 'Importar do SIAC' }));
+
+    await waitFor(() => {
+      expect(mockedImportComponentsFromSiac).toHaveBeenCalledWith(112140, 20261);
+    });
+
+    expect(await screen.findByText('Resumo da importacao SIAC')).toBeInTheDocument();
+    expect(screen.getByText(/unexpected_error \(1\)/i)).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText('Tipo de fonte'), 'program');
+    await userEvent.type(screen.getByLabelText('ID da fonte'), '1820');
+    await userEvent.selectOptions(screen.getByLabelText('Nível acadêmico'), 'mestrado');
+    await userEvent.click(screen.getByRole('button', { name: 'Importar do SIGAA público' }));
+
+    await waitFor(() => {
+      expect(mockedImportComponentsFromSigaaPublic).toHaveBeenCalledWith('program', '1820', 'mestrado');
+    });
+
+    expect(await screen.findByText('Resumo da importacao SIGAA público')).toBeInTheDocument();
+    expect(screen.getByText(/source_timeout \(1\)/i)).toBeInTheDocument();
   });
 });

@@ -20,6 +20,19 @@ export interface ListFilter {
   search?: string;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
+  academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
+  department?: string;
+}
+
+export interface ImportComponentsSummary {
+  source: 'siac' | 'sigaa-public';
+  requested: number;
+  created: number;
+  skippedExisting: number;
+  failed: number;
+  failures: string[];
+  failureCategories: Record<string, number>;
+  parameters?: Record<string, string>;
 }
 
 export interface ImportDraftPreviewPayload {

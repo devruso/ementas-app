@@ -77,6 +77,7 @@ describe('DocumentImportCard', () => {
     await waitFor(() => expect(onApplyPreview).toHaveBeenCalledTimes(1));
     expect(onApplyPreview.mock.calls[0][0].code).toBe('IC045');
     expect(onApplyPreview.mock.calls[0][0].name).toBe('Compiladores');
+    expect(screen.queryByText(/plano IC045/i)).not.toBeInTheDocument();
   });
 
   it('deve exibir erro quando preview falhar', async () => {
