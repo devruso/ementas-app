@@ -73,7 +73,7 @@ export const RegisterPage = () => {
   };
 
   if (validating) {
-    return <div className="text-sm text-muted">Validando convite...</div>;
+    return <div className="text-sm text-ink/80">Validando convite...</div>;
   }
 
   if (!tokenValid) {
@@ -88,13 +88,13 @@ export const RegisterPage = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-ink">
       <div className="space-y-3">
-        <div className="inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
+        <div className="inline-flex rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700">
           Convite institucional
         </div>
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Criar conta</h1>
-        <p className="text-sm leading-7 text-muted">Conclua seu cadastro para acessar os fluxos autenticados do sistema.</p>
+        <p className="text-sm leading-7 text-ink/80">Conclua seu cadastro para acessar os fluxos autenticados do sistema.</p>
         <div className="inline-flex rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
           Somente e-mail institucional UFBA (@ufba.br)
         </div>
@@ -108,7 +108,7 @@ export const RegisterPage = () => {
         {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
         <FormActions>
-          <Link to="/entrar" className="inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium text-primary-600">
+          <Link to="/entrar" className="inline-flex items-center justify-center rounded-2xl border border-primary-200 bg-white px-4 py-3 text-sm font-semibold text-primary-700 transition hover:bg-primary-50">
             Voltar para login
           </Link>
           <button
