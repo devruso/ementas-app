@@ -9,7 +9,7 @@ export const AdminRoute = () => {
     return <div className="panel p-10 text-center text-sm text-muted">Carregando permissao...</div>;
   }
 
-  if (!auth.isAuthenticated || auth.user?.role !== 'admin') {
+  if (!auth.isAuthenticated || (auth.user?.role !== 'admin' && auth.user?.role !== 'super_admin')) {
     return <Navigate to="/disciplinas" replace />;
   }
 

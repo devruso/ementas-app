@@ -5,7 +5,8 @@ import { FormField } from '../components/FormField';
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
 import { UsersTable } from '../components/UsersTable';
-import { deleteUserById, generateInvite, getUsers, register } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
+import { createTeacherByAdmin, deleteUserById, generateInvite, getUsers, updateUserRole } from '../lib/api';
 import { AppError } from '../lib/errors';
 import { isValidEmail } from '../lib/validation';
 import type { ListData, ListFilter, User } from '../types';
@@ -18,12 +19,15 @@ const initialFilter: ListFilter = {
 };
 
 export const UsersPage = () => {
+  const auth = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   const [users, setUsers] = useState<ListData<User>>({ results: [], total: 0 });
   const [loadingInvite, setLoadingInvite] = useState(false);
   const [creatingTeacher, setCreatingTeacher] = useState(false);
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState('');
   const [removingUserId, setRemovingUserId] = useState('');
+  const [roleDraftByUserId, setRoleDraftByUserId] = useState<Record<string, User['role']>>({});
   const [inviteToken, setInviteToken] = useState('');
   const [teacherName, setTeacherName] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
@@ -31,33 +35,6 @@ export const UsersPage = () => {
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState('');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-
-  const generateSecurePassword = () => {
-    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    const lower = 'abcdefghijkmnopqrstuvwxyz';
-    const numbers = '23456789';
-    const symbols = '@$!%*?&';
-    const allChars = upper + lower + numbers + symbols;
-    const required = [
-      upper[Math.floor(Math.random() * upper.length)],
-      lower[Math.floor(Math.random() * lower.length)],
-      numbers[Math.floor(Math.random() * numbers.length)],
-      symbols[Math.floor(Math.random() * symbols.length)],
-    ];
-
-    while (required.length < 12) {
-      required.push(allChars[Math.floor(Math.random() * allChars.length)]);
-    }
-
-    for (let index = required.length - 1; index > 0; index -= 1) {
-      const randomIndex = Math.floor(Math.random() * (index + 1));
-      const current = required[index];
-      required[index] = required[randomIndex];
-      required[randomIndex] = current;
-    }
-
-    return required.join('');
-  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -70,6 +47,17 @@ export const UsersPage = () => {
   const loadUsers = async () => {
     const response = await getUsers(filter);
     setUsers(response);
+    setRoleDraftByUserId((current) => {
+      const next = { ...current };
+
+      response.results.forEach((user) => {
+        if (!next[user.id]) {
+          next[user.id] = user.role;
+        }
+      });
+
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -114,21 +102,14 @@ export const UsersPage = () => {
       setCreatingTeacher(true);
       setError('');
       setSuccess('');
-      const generatedPassword = generateSecurePassword();
-      const token = await generateInvite();
-      await register(token, teacherName.trim(), teacherEmail.trim(), generatedPassword);
+      const createdTeacher = await createTeacherByAdmin(
+        teacherName.trim(),
+        teacherEmail.trim(),
+        sendCredentialsByEmail
+      );
 
-      setLastGeneratedPassword(generatedPassword);
+      setLastGeneratedPassword(createdTeacher.temporaryPassword);
       setSuccess('Professor criado com sucesso. Guarde a senha provisória com segurança.');
-
-      if (sendCredentialsByEmail) {
-        const subject = encodeURIComponent('Acesso BDCP - Credenciais iniciais');
-        const body = encodeURIComponent(
-          `Olá ${teacherName.trim()},\n\nSeu acesso ao BDCP foi criado.\n\nE-mail: ${teacherEmail.trim()}\nSenha provisória: ${generatedPassword}\n\nAo entrar, recomendamos alterar a senha imediatamente.\n\nAtenciosamente,\nEquipe BDCP`
-        );
-
-        window.location.href = `mailto:${teacherEmail.trim()}?subject=${subject}&body=${body}`;
-      }
 
       setTeacherName('');
       setTeacherEmail('');
@@ -160,6 +141,36 @@ export const UsersPage = () => {
       setError(appError.message);
     } finally {
       setRemovingUserId('');
+    }
+  };
+
+  const handleUpdateRole = async (user: User) => {
+    const nextRole = roleDraftByUserId[user.id] || user.role;
+
+    if (nextRole === user.role) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Deseja alterar o perfil de ${user.name} para ${nextRole.replace('_', ' ')}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingRoleUserId(user.id);
+      setError('');
+      setSuccess('');
+      await updateUserRole(user.id, nextRole);
+      setSuccess('Perfil atualizado com sucesso.');
+      await loadUsers();
+    } catch (err) {
+      const appError = err as AppError;
+      setError(appError.message);
+    } finally {
+      setUpdatingRoleUserId('');
     }
   };
 
@@ -275,9 +286,17 @@ export const UsersPage = () => {
         users={users}
         currentPage={filter.page}
         totalPages={Math.max(totalPages, 1)}
+        currentUserId={auth.user?.id}
+        currentUserRole={auth.user?.role}
+        roleDraftByUserId={roleDraftByUserId}
+        updatingRoleUserId={updatingRoleUserId}
         removingUserId={removingUserId}
         onPageChange={(page) => setFilter((current) => ({ ...current, page }))}
         onRemoveUser={handleRemoveUser}
+        onRoleDraftChange={(userId, role) => {
+          setRoleDraftByUserId((current) => ({ ...current, [userId]: role }));
+        }}
+        onUpdateUserRole={handleUpdateRole}
       />
     </div>
   );

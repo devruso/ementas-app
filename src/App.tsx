@@ -14,6 +14,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
+import { SharedDisciplinePage } from './pages/SharedDisciplinePage';
 import { UsersPage } from './pages/UsersPage';
 
 export const App = () => {
@@ -22,10 +23,11 @@ export const App = () => {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/disciplinas" replace />} />
-          <Route path="/disciplinas" element={<DisciplineListPage />} />
-          <Route path="/disciplinas/:componentCode" element={<DisciplineDetailsPage />} />
+          <Route path="/publico/disciplinas/:shareToken" element={<SharedDisciplinePage />} />
 
           <Route element={<ProtectedRoute />}>
+            <Route path="/disciplinas" element={<DisciplineListPage />} />
+            <Route path="/disciplinas/:componentCode" element={<DisciplineDetailsPage />} />
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/disciplinas/:componentCode/editar" element={<DisciplineEditPage />} />
 

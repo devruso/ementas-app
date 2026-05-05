@@ -1,4 +1,4 @@
-import { Download, Eye, FilePenLine, FileText, History, ScrollText } from 'lucide-react';
+import { Download, Eye, FilePenLine, FileText, ScrollText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -7,16 +7,20 @@ import { SectionCard } from '../components/SectionCard';
 import { useAuth } from '../contexts/AuthContext';
 import {
   approveComponentDraft,
+  createPublicShare,
   exportComponentDocx,
   exportComponentPdf,
+  getActivePublicShares,
   getComponentByCode,
   getComponentDrafts,
   getComponentLogs,
   getComponents,
+  revokeAllPublicShares,
+  revokePublicShare,
 } from '../lib/api';
 import { formatDate, formatWorkload } from '../lib/format';
 import { AppError } from '../lib/errors';
-import type { Component } from '../types';
+import type { Component, PublicShare } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
@@ -33,12 +37,41 @@ export const DisciplineDetailsPage = () => {
   const [dialogError, setDialogError] = useState('');
   const [agreementDate, setAgreementDate] = useState('');
   const [agreementNumber, setAgreementNumber] = useState('');
+  const [approvalSignature, setApprovalSignature] = useState('');
   const [showPublishedVersion, setShowPublishedVersion] = useState(false);
+  const [creatingShare, setCreatingShare] = useState(false);
+  const [loadingActiveShares, setLoadingActiveShares] = useState(false);
+  const [revokingShareId, setRevokingShareId] = useState('');
+  const [revokingAllShares, setRevokingAllShares] = useState(false);
+  const [shareCreatorFilter, setShareCreatorFilter] = useState('all');
+  const [shareExpirationFilter, setShareExpirationFilter] = useState<'all' | '24h' | '72h' | '168h'>('all');
+  const [publicShareLink, setPublicShareLink] = useState('');
+  const [publicShareExpiresAt, setPublicShareExpiresAt] = useState('');
+  const [activeSharesPage, setActiveSharesPage] = useState(0);
+  const [activeSharesLimit] = useState(5);
+  const [activeSharesSortBy, setActiveSharesSortBy] = useState<'createdAt' | 'expiresAt' | 'createdBy'>('createdAt');
+  const [activeSharesSortOrder, setActiveSharesSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [activeSharesTotalPages, setActiveSharesTotalPages] = useState(1);
+  const [activePublicShares, setActivePublicShares] = useState<PublicShare[]>([]);
   const [component, setComponent] = useState<Component | null>(null);
   const [logs, setLogs] = useState<Component['logs']>([]);
   const [knownCodes, setKnownCodes] = useState<Set<string>>(new Set());
 
   const code = useMemo(() => params.componentCode?.toUpperCase() || '', [params.componentCode]);
+
+  const loadActiveShares = async (componentId: string) => {
+    const sharesResponse = await getActivePublicShares(componentId, {
+      page: activeSharesPage,
+      limit: activeSharesLimit,
+      sortBy: activeSharesSortBy,
+      sortOrder: activeSharesSortOrder,
+      creatorId: shareCreatorFilter === 'all' ? undefined : shareCreatorFilter,
+      expirationRange: shareExpirationFilter,
+    });
+
+    setActivePublicShares(sharesResponse.results);
+    setActiveSharesTotalPages(Math.max(sharesResponse.meta?.totalPages || 1, 1));
+  };
 
   const loadComponent = async () => {
     setErrorMessage('');
@@ -63,16 +96,24 @@ export const DisciplineDetailsPage = () => {
     setComponent(currentComponent);
 
     if (auth.isAuthenticated && currentComponent.id) {
-      const logResponse = await getComponentLogs(currentComponent.id, {
-        page: 0,
-        limit: 10,
-        sortBy: 'createdAt',
-        sortOrder: 'DESC',
-      });
+      setLoadingActiveShares(true);
 
-      setLogs(logResponse.results);
+      try {
+        const logResponse = await getComponentLogs(currentComponent.id, {
+          page: 0,
+          limit: 10,
+          sortBy: 'createdAt',
+          sortOrder: 'DESC',
+        });
+
+        setLogs(logResponse.results);
+        await loadActiveShares(currentComponent.id);
+      } finally {
+        setLoadingActiveShares(false);
+      }
     } else {
       setLogs(currentComponent.logs || []);
+      setActivePublicShares([]);
     }
   };
 
@@ -90,7 +131,17 @@ export const DisciplineDetailsPage = () => {
         setErrorMessage(appError.message || 'Falha ao carregar disciplina.');
       })
       .finally(() => setLoading(false));
-  }, [code, navigate, auth.isAuthenticated]);
+  }, [
+    code,
+    navigate,
+    auth.isAuthenticated,
+    activeSharesPage,
+    activeSharesLimit,
+    activeSharesSortBy,
+    activeSharesSortOrder,
+    shareCreatorFilter,
+    shareExpirationFilter,
+  ]);
 
   const handleExport = async () => {
     if (!component?.id) {
@@ -142,14 +193,21 @@ export const DisciplineDetailsPage = () => {
       return;
     }
 
+    if (!approvalSignature.trim()) {
+      setDialogError('Informe sua assinatura para validar a publicação oficial.');
+      return;
+    }
+
     try {
       setPublishing(true);
       setDialogError('');
       await approveComponentDraft(component.draft.id, {
         agreementDate: new Date(agreementDate).toISOString(),
         agreementNumber,
+        signature: approvalSignature,
       });
       setDialogOpen(false);
+      setApprovalSignature('');
       setShowPublishedVersion(true);
       await loadComponent();
     } catch (err) {
@@ -159,6 +217,114 @@ export const DisciplineDetailsPage = () => {
       setPublishing(false);
     }
   };
+
+  const handleCreatePublicShare = async () => {
+    if (!component?.id) {
+      return;
+    }
+
+    const informedHours = window.prompt('Informe por quantas horas o link ficará ativo (1 a 168):', '24');
+
+    if (!informedHours) {
+      return;
+    }
+
+    const expiresInHours = Number(informedHours);
+
+    if (!Number.isFinite(expiresInHours) || expiresInHours < 1) {
+      setErrorMessage('Informe uma duração válida para o compartilhamento.');
+      return;
+    }
+
+    try {
+      setCreatingShare(true);
+      const share = await createPublicShare(component.id, expiresInHours);
+      const absoluteLink = `${window.location.origin}${share.publicLink}`;
+      setPublicShareLink(absoluteLink);
+      setPublicShareExpiresAt(formatDate(share.expiresAt));
+      setActiveSharesPage(0);
+      await loadActiveShares(component.id);
+
+      try {
+        await navigator.clipboard.writeText(absoluteLink);
+      } catch {
+        // Clipboard can be unavailable in insecure contexts; keep showing the generated link.
+      }
+    } catch (err) {
+      const appError = err as AppError;
+      setErrorMessage(appError.message || 'Não foi possível criar o link público temporário.');
+    } finally {
+      setCreatingShare(false);
+    }
+  };
+
+  const handleRevokeShare = async (shareId: string) => {
+    if (!component?.id) {
+      return;
+    }
+
+    try {
+      setRevokingShareId(shareId);
+      setErrorMessage('');
+      await revokePublicShare(shareId);
+      await loadActiveShares(component.id);
+    } catch (err) {
+      const appError = err as AppError;
+      setErrorMessage(appError.message || 'Não foi possível revogar o link público.');
+    } finally {
+      setRevokingShareId('');
+    }
+  };
+
+  const handleRevokeAllShares = async () => {
+    if (!component?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm('Deseja revogar todos os links públicos ativos desta disciplina?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setRevokingAllShares(true);
+      setErrorMessage('');
+      await revokeAllPublicShares(component.id);
+      setActivePublicShares([]);
+      setActiveSharesTotalPages(1);
+      setPublicShareLink('');
+      setPublicShareExpiresAt('');
+    } catch (err) {
+      const appError = err as AppError;
+      setErrorMessage(appError.message || 'Não foi possível revogar os links públicos.');
+    } finally {
+      setRevokingAllShares(false);
+    }
+  };
+
+  const shareCreatorOptions = useMemo(() => {
+    const known = new Set<string>();
+
+    return activePublicShares
+      .filter((share) => share.createdByUser?.id && share.createdByUser?.name)
+      .filter((share) => {
+        const creatorId = String(share.createdByUser?.id);
+
+        if (known.has(creatorId)) {
+          return false;
+        }
+
+        known.add(creatorId);
+        return true;
+      })
+      .map((share) => ({
+        id: String(share.createdByUser?.id),
+        name: String(share.createdByUser?.name),
+      }));
+  }, [activePublicShares]);
+
+  const filteredActivePublicShares = useMemo(() => activePublicShares, [activePublicShares]);
 
   if (loading) {
     return <div className="panel p-10 text-center text-sm text-muted">Carregando disciplina...</div>;
@@ -173,10 +339,6 @@ export const DisciplineDetailsPage = () => {
   }
 
   const latestApproval = (logs || component.logs || []).find((log) => log.type === 'approval');
-  const officialVersionCode = latestApproval?.versionCode
-    || (latestApproval?.agreementDate && latestApproval?.agreementNumber
-      ? `${new Date(latestApproval.agreementDate).toLocaleDateString('pt-BR').replace(/\//g, '')}${latestApproval.agreementNumber}`
-      : null);
   const showingDraft = auth.isAuthenticated && !showPublishedVersion && !!component.draft;
   const activeComponent = showingDraft && component.draft ? component.draft : component;
   const visibleLogs = auth.isAuthenticated ? logs || [] : component.logs || [];
@@ -243,9 +405,173 @@ export const DisciplineDetailsPage = () => {
                     className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-slate-50"
                   >
                     <Eye className="h-4 w-4 text-secondary-700" />
-                    {showPublishedVersion ? 'Ver rascunho' : 'Ver versao publicada'}
+                    {showPublishedVersion ? 'Ver rascunho salvo' : 'Ver versao publicada'}
                   </button>
                 ) : null}
+
+                {component.draft?.id ? (
+                  <div className="inline-flex items-center rounded-2xl border border-line bg-slate-50 px-4 py-3 text-sm text-ink/80">
+                    Mostrando agora: {showingDraft ? 'rascunho salvo' : 'publicacao oficial'}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={handleCreatePublicShare}
+                  disabled={creatingShare}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {creatingShare ? 'Gerando link público...' : 'Compartilhar público temporário'}
+                </button>
+              </div>
+            ) : null}
+
+            {publicShareLink ? (
+              <div className="mt-4 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700">
+                <p>Link público gerado e copiado para a área de transferência.</p>
+                <p>Expira em: {publicShareExpiresAt || 'Data não informada'}</p>
+                <p className="break-all">{publicShareLink}</p>
+              </div>
+            ) : null}
+
+            {auth.isAuthenticated ? (
+              <div className="mt-4 rounded-2xl border border-line bg-white px-4 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-ink">Links públicos ativos</h3>
+                  <button
+                    type="button"
+                    onClick={handleRevokeAllShares}
+                    disabled={revokingAllShares || activePublicShares.length === 0}
+                    className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-danger transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {revokingAllShares ? 'Revogando...' : 'Revogar todos'}
+                  </button>
+                </div>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
+                    Ordenar por
+                    <select
+                      aria-label="Ordenar links por"
+                      value={activeSharesSortBy}
+                      onChange={(event) => {
+                        setActiveSharesPage(0);
+                        setActiveSharesSortBy(event.target.value as 'createdAt' | 'expiresAt' | 'createdBy');
+                      }}
+                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
+                    >
+                      <option value="createdAt">Data de criação</option>
+                      <option value="expiresAt">Data de expiração</option>
+                      <option value="createdBy">Criador</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
+                    Direção
+                    <select
+                      aria-label="Direção da ordenação de links"
+                      value={activeSharesSortOrder}
+                      onChange={(event) => {
+                        setActiveSharesPage(0);
+                        setActiveSharesSortOrder(event.target.value as 'ASC' | 'DESC');
+                      }}
+                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
+                    >
+                      <option value="DESC">Decrescente</option>
+                      <option value="ASC">Crescente</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
+                    Filtrar por criador
+                    <select
+                      aria-label="Filtrar links por criador"
+                      value={shareCreatorFilter}
+                      onChange={(event) => {
+                        setActiveSharesPage(0);
+                        setShareCreatorFilter(event.target.value);
+                      }}
+                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
+                    >
+                      <option value="all">Todos os criadores</option>
+                      {shareCreatorOptions.map((creator) => (
+                        <option key={creator.id} value={creator.id}>{creator.name}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
+                    Filtrar por expiração
+                    <select
+                      aria-label="Filtrar links por expiração"
+                      value={shareExpirationFilter}
+                      onChange={(event) => {
+                        setActiveSharesPage(0);
+                        setShareExpirationFilter(event.target.value as 'all' | '24h' | '72h' | '168h');
+                      }}
+                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
+                    >
+                      <option value="all">Qualquer prazo</option>
+                      <option value="24h">Expira em até 24h</option>
+                      <option value="72h">Expira em até 72h</option>
+                      <option value="168h">Expira em até 7 dias</option>
+                    </select>
+                  </label>
+                </div>
+
+                {loadingActiveShares ? (
+                  <p className="mt-3 text-sm text-muted">Carregando links ativos...</p>
+                ) : filteredActivePublicShares.length === 0 ? (
+                  <p className="mt-3 text-sm text-muted">Nenhum link público ativo para esta disciplina.</p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {filteredActivePublicShares.map((share) => {
+                      const link = `${window.location.origin}${share.publicLink}`;
+
+                      return (
+                        <div key={share.id} className="rounded-xl border border-line bg-slate-50 px-3 py-3 text-xs sm:text-sm">
+                          <p className="break-all text-primary-700">{link}</p>
+                          <p className="mt-1 text-muted">Expira em: {formatDate(share.expiresAt)}</p>
+                          <p className="mt-1 text-muted">
+                            Criado por: {share.createdByUser?.name || 'Usuário não identificado'}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeShare(share.id)}
+                              disabled={revokingShareId === share.id}
+                              className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {revokingShareId === share.id ? 'Revogando...' : 'Revogar link'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-3 flex items-center justify-between text-xs text-ink/70">
+                  <span>Página {activeSharesPage + 1} de {activeSharesTotalPages}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSharesPage((current) => Math.max(0, current - 1))}
+                      disabled={activeSharesPage === 0 || loadingActiveShares}
+                      className="rounded-lg border border-line px-2 py-1 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSharesPage((current) => Math.min(activeSharesTotalPages - 1, current + 1))}
+                      disabled={activeSharesPage + 1 >= activeSharesTotalPages || loadingActiveShares}
+                      className="rounded-lg border border-line px-2 py-1 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
@@ -262,7 +588,7 @@ export const DisciplineDetailsPage = () => {
                 Ata ou referencia: {latestApproval?.agreementNumber || 'Nao informada'}
               </div>
               <div>
-                Versao oficial: {officialVersionCode || 'Nao gerada'}
+                Publicado por: {latestApproval?.user?.name || 'Nao informado'}
               </div>
             </div>
 
@@ -296,7 +622,7 @@ export const DisciplineDetailsPage = () => {
               to="/disciplinas"
               className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-white/20 px-4 py-3 text-sm text-white/86 transition hover:bg-white/10"
             >
-              Voltar para a lista
+              Voltar para inicio
             </Link>
           </div>
         </div>
@@ -315,20 +641,6 @@ export const DisciplineDetailsPage = () => {
         </div>
 
         <div className="space-y-6">
-          <SectionCard title="Versao oficial publicada">
-            <div className="space-y-3">
-              <div><strong>Ementa oficial:</strong> {component.syllabus || 'Nao informada.'}</div>
-              <div><strong>Conteudo programatico oficial:</strong> {component.program || 'Nao informado.'}</div>
-              <div>
-                <strong>Referencia de aprovacao:</strong>{' '}
-                {latestApproval?.agreementNumber
-                  ? `${formatDate(latestApproval.agreementDate)} - ATA ${latestApproval.agreementNumber}`
-                  : 'Nao encontrada'}
-              </div>
-              <div><strong>Codigo de versao:</strong> {officialVersionCode || 'Nao gerado'}</div>
-            </div>
-          </SectionCard>
-
           <SectionCard title="Visao geral">
             <div className="space-y-3">
               <div>
@@ -378,44 +690,22 @@ export const DisciplineDetailsPage = () => {
             </div>
           </SectionCard>
 
-          <SectionCard title="Historico oficial">
-            <div className="space-y-4">
-              {(visibleLogs?.length ?? 0) > 0 ? (
-                visibleLogs?.slice(0, 10).map((log) => (
-                  <div key={log.id} className="rounded-2xl border border-line bg-slate-50 p-4">
-                    <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-600">
-                      <History className="h-3.5 w-3.5" />
-                      {log.type}
+          {(visibleLogs?.length ?? 0) > 0 ? (
+            <SectionCard title="Ultimas publicacoes">
+              <div className="space-y-4">
+                {visibleLogs
+                  ?.filter((log) => log.type === 'approval')
+                  .slice(0, 5)
+                  .map((log) => (
+                    <div key={log.id} className="rounded-2xl border border-line bg-slate-50 p-4 text-sm">
+                      <div><strong>Data:</strong> {formatDate(log.agreementDate || log.createdAt)}</div>
+                      <div><strong>Ata:</strong> {log.agreementNumber || 'Nao informada'}</div>
+                      <div><strong>Publicado por:</strong> {log.user?.name || 'Nao informado'}</div>
                     </div>
-                    <div className="text-sm text-ink">
-                      {log.description || 'Alteracao registrada sem descricao adicional.'}
-                    </div>
-                    {log.versionCode ? (
-                      <div className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary-600">
-                        Versao oficial: {log.versionCode}
-                      </div>
-                    ) : null}
-                    <div className="mt-2 text-xs text-muted">
-                      {formatDate(log.createdAt)}
-                      {log.user?.name ? ` · ${log.user.name}` : ''}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-muted">Nenhum log publico disponivel.</div>
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Escopo desta migracao">
-            <div className="flex items-start gap-3">
-              <ScrollText className="mt-1 h-4 w-4 shrink-0 text-secondary-700" />
-              <p>
-                Este slice já cobre consulta pública, autenticação, perfil, gestão de usuários, cadastro novo,
-                importação documental e aprovação formal. O template IC045 segue único tanto no PDF quanto no .docx.
-              </p>
-            </div>
-          </SectionCard>
+                  ))}
+              </div>
+            </SectionCard>
+          ) : null}
         </div>
       </section>
 
@@ -424,10 +714,12 @@ export const DisciplineDetailsPage = () => {
         componentCode={component.code}
         agreementDate={agreementDate}
         agreementNumber={agreementNumber}
+        signature={approvalSignature}
         submitting={publishing}
         error={dialogError}
         onChangeAgreementDate={setAgreementDate}
         onChangeAgreementNumber={setAgreementNumber}
+        onChangeSignature={setApprovalSignature}
         onClose={() => setDialogOpen(false)}
         onSubmit={handlePublish}
       />

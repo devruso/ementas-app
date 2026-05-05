@@ -1,12 +1,14 @@
 import axios, { AxiosError } from 'axios';
 
 import type {
+  BulkRevokePublicSharesResult,
   Component,
   ComponentDraft,
   ComponentLog,
   ImportDraftPreviewResponse,
   ListData,
   ListFilter,
+  PublicShare,
   User,
 } from '../types';
 import { AppError } from './errors';
@@ -128,6 +130,14 @@ export const updateUserPassword = async (password: string) => {
   await api.put('/users/update/password', { password });
 };
 
+export const updateUserSignature = async (signature: string) => {
+  await api.put('/users/update/signature', { signature });
+};
+
+export const updateUserRole = async (userId: string, role: 'super_admin' | 'admin' | 'teacher') => {
+  await api.put(`/users/${userId}/role`, { role });
+};
+
 export const getComponents = async (filter: ListFilter) => {
   const response = await api.get<ListData<Component>>('/components', {
     params: {
@@ -144,6 +154,12 @@ export const getComponents = async (filter: ListFilter) => {
 
 export const getComponentByCode = async (componentCode: string) => {
   const response = await api.get<Component>(`/components/${componentCode}`);
+
+  return response.data;
+};
+
+export const getSharedComponentByToken = async (token: string) => {
+  const response = await api.get<Component>(`/components/shared/${token}`);
 
   return response.data;
 };
@@ -208,6 +224,64 @@ export const generateInvite = async () => {
 
 export const deleteUserById = async (userId: string) => {
   await api.delete(`/users/${userId}`);
+};
+
+export const createPublicShare = async (componentId: string, expiresInHours = 24) => {
+  const response = await api.post<PublicShare>(`/components/${componentId}/public-shares`, {
+    expiresInHours,
+  });
+
+  return response.data;
+};
+
+export const revokePublicShare = async (shareId: string) => {
+  await api.post(`/components/public-shares/${shareId}/revoke`);
+};
+
+export const getActivePublicShares = async (
+  componentId: string,
+  filter: Pick<ListFilter, 'page' | 'limit' | 'sortBy' | 'sortOrder'> & {
+    creatorId?: string;
+    expirationRange?: '24h' | '72h' | '168h' | 'all';
+  }
+) => {
+  const response = await api.get<ListData<PublicShare>>(`/components/${componentId}/public-shares`, {
+    params: {
+      page: filter.page,
+      limit: filter.limit,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
+      creatorId: filter.creatorId,
+      expirationRange: filter.expirationRange,
+    },
+  });
+
+  return response.data;
+};
+
+export const revokeAllPublicShares = async (componentId: string) => {
+  const response = await api.post<BulkRevokePublicSharesResult>(`/components/${componentId}/public-shares/revoke-all`);
+
+  return response.data;
+};
+
+export const createTeacherByAdmin = async (
+  name: string,
+  email: string,
+  sendCredentialsByEmail = true
+) => {
+  const response = await api.post<{
+    id: string;
+    name: string;
+    email: string;
+    temporaryPassword: string;
+  }>('/users/create-teacher', {
+    name,
+    email,
+    sendCredentialsByEmail,
+  });
+
+  return response.data;
 };
 
 export const importComponentsFromSiac = async (courseCode: number, semester: number) => {
@@ -295,7 +369,7 @@ export const updateComponentDraft = async (
 
 export const approveComponentDraft = async (
   componentDraftId: string,
-  data: { agreementDate: string; agreementNumber: string }
+  data: { agreementDate: string; agreementNumber: string; signature: string }
 ) => {
   await api.post(`/component-drafts/${componentDraftId}/approve`, data);
 };

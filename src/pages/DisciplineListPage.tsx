@@ -54,6 +54,7 @@ export const DisciplineListPage = () => {
               Catálogo acadêmico
             </div>
             <h2 className="text-xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
+            <p className="mt-2 text-sm text-muted">Ordene em ordem alfabética pelo nome ou em ordem crescente pelo código.</p>
           </div>
           <div className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-600">
             {components.total} resultado(s)
@@ -74,8 +75,8 @@ export const DisciplineListPage = () => {
               setFilter((current) => ({ ...current, page: 0, sortBy: event.target.value }))
             }
           >
-            <option value="code">Codigo</option>
-            <option value="name">Nome</option>
+            <option value="code">Codigo da disciplina</option>
+            <option value="name">Nome (ordem alfabetica)</option>
             <option value="department">Departamento</option>
             <option value="updatedAt">Atualizacao</option>
           </SelectField>

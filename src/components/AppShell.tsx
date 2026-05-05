@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 export const AppShell = () => {
   const auth = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isAdminProfile = auth.user?.role === 'admin' || auth.user?.role === 'super_admin';
   const navPillClass = ({ isActive }: { isActive: boolean }) => `nav-pill ${isActive ? 'nav-pill-active' : ''}`;
 
   return (
@@ -15,7 +16,14 @@ export const AppShell = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 text-white sm:px-6 md:gap-6 md:px-10 md:py-4">
           <NavLink to="/disciplinas" className="flex items-center gap-4">
             <div className="logo-orb bg-white">
-              <img src="/computacao-logo.png" alt="Instituto de Computacao UFBA" className="h-full w-full object-cover" />
+              <img
+                src="https://computacao.ufba.br/imagem"
+                alt="Instituto de Computacao UFBA"
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src = '/computacao-logo.png';
+                }}
+              />
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
@@ -35,7 +43,7 @@ export const AppShell = () => {
 
             {auth.isAuthenticated ? (
               <>
-                {auth.user?.role === 'admin' ? (
+                {isAdminProfile ? (
                   <NavLink to="/disciplinas/adicionar" className={navPillClass}>
                     <span className="inline-flex items-center gap-2">
                       <FilePlus2 className="h-4 w-4" />
@@ -44,7 +52,7 @@ export const AppShell = () => {
                   </NavLink>
                 ) : null}
 
-                {auth.user?.role === 'admin' ? (
+                {isAdminProfile ? (
                   <NavLink to="/usuarios" className={navPillClass}>
                     <span className="inline-flex items-center gap-2">
                       <Users2 className="h-4 w-4" />
@@ -59,6 +67,12 @@ export const AppShell = () => {
                     Perfil
                   </span>
                 </NavLink>
+
+                {auth.user?.name ? (
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white/90">
+                    Ola, {auth.user.name.split(' ')[0]}
+                  </span>
+                ) : null}
 
                 <button
                   type="button"
@@ -100,7 +114,7 @@ export const AppShell = () => {
               </NavLink>
               {auth.isAuthenticated ? (
                 <>
-                  {auth.user?.role === 'admin' ? (
+                  {isAdminProfile ? (
                     <NavLink
                       to="/disciplinas/adicionar"
                       className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
@@ -109,7 +123,7 @@ export const AppShell = () => {
                       Adicionar disciplina
                     </NavLink>
                   ) : null}
-                  {auth.user?.role === 'admin' ? (
+                  {isAdminProfile ? (
                     <NavLink
                       to="/usuarios"
                       className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
@@ -160,7 +174,7 @@ export const AppShell = () => {
                 Plataforma acadêmica institucional
               </div>
               <h1 className="motion-rise text-2xl font-semibold tracking-tight text-ink sm:text-3xl md:text-4xl">
-                Consulta pública, gestão acadêmica e exportação oficial IC045
+                Consulta pública, gestão acadêmica e exportação oficial
               </h1>
             </div>
           </div>

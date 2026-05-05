@@ -6,10 +6,12 @@ interface ApproveDraftDialogProps {
   componentCode: string;
   agreementDate: string;
   agreementNumber: string;
+  signature: string;
   submitting: boolean;
   error?: string;
   onChangeAgreementDate: (value: string) => void;
   onChangeAgreementNumber: (value: string) => void;
+  onChangeSignature: (value: string) => void;
   onClose: () => void;
   onSubmit: () => void;
 }
@@ -19,10 +21,12 @@ export const ApproveDraftDialog = ({
   componentCode,
   agreementDate,
   agreementNumber,
+  signature,
   submitting,
   error,
   onChangeAgreementDate,
   onChangeAgreementNumber,
+  onChangeSignature,
   onClose,
   onSubmit,
 }: ApproveDraftDialogProps) => {
@@ -44,7 +48,7 @@ export const ApproveDraftDialog = ({
         <div className="space-y-4">
           <FormField
             label="Data da ATA"
-            type="datetime-local"
+            type="date"
             value={agreementDate}
             onChange={(event) => onChangeAgreementDate(event.target.value)}
           />
@@ -52,6 +56,12 @@ export const ApproveDraftDialog = ({
             label="Numero da ATA"
             value={agreementNumber}
             onChange={(event) => onChangeAgreementNumber(event.target.value)}
+          />
+          <FormField
+            label="Assinatura de aprovação"
+            type="password"
+            value={signature}
+            onChange={(event) => onChangeSignature(event.target.value)}
           />
           {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
         </div>

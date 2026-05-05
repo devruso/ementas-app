@@ -2,6 +2,7 @@ import type { ListData, User } from '../types';
 
 const roleLabelMap: Record<User['role'], string> = {
   admin: 'Admin',
+  super_admin: 'Super Admin',
   teacher: 'Professor',
 };
 
@@ -9,21 +10,34 @@ interface UsersTableProps {
   users: ListData<User>;
   currentPage: number;
   totalPages: number;
+  currentUserId?: string;
+  currentUserRole?: User['role'];
+  roleDraftByUserId?: Record<string, User['role']>;
+  updatingRoleUserId?: string;
   removingUserId?: string;
   onPageChange: (page: number) => void;
   onRemoveUser: (user: User) => Promise<void>;
+  onRoleDraftChange?: (userId: string, role: User['role']) => void;
+  onUpdateUserRole?: (user: User) => Promise<void>;
 }
 
 export const UsersTable = ({
   users,
   currentPage,
   totalPages,
+  currentUserId,
+  currentUserRole,
+  roleDraftByUserId,
+  updatingRoleUserId,
   removingUserId,
   onPageChange,
   onRemoveUser,
+  onRoleDraftChange,
+  onUpdateUserRole,
 }: UsersTableProps) => {
   const hasPreviousPage = currentPage >= 1;
   const hasNextPage = currentPage + 1 < totalPages;
+  const canManageRoles = currentUserRole === 'super_admin';
 
   return (
     <div className="panel interactive-lift overflow-hidden">
@@ -48,9 +62,37 @@ export const UsersTable = ({
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50 md:hidden">Tipo</div>
-              <span className="inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600">
-                {roleLabelMap[user.role]}
-              </span>
+              {canManageRoles && onRoleDraftChange && onUpdateUserRole ? (
+                <div className="flex flex-col gap-2">
+                  <select
+                    aria-label={`Perfil de ${user.name}`}
+                    value={roleDraftByUserId?.[user.id] || user.role}
+                    disabled={user.id === currentUserId || updatingRoleUserId === user.id}
+                    onChange={(event) => onRoleDraftChange(user.id, event.target.value as User['role'])}
+                    className="rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink"
+                  >
+                    <option value="teacher">Professor</option>
+                    <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateUserRole(user)}
+                    disabled={
+                      user.id === currentUserId
+                      || updatingRoleUserId === user.id
+                      || (roleDraftByUserId?.[user.id] || user.role) === user.role
+                    }
+                    className="inline-flex items-center justify-center rounded-xl border border-primary-200 px-3 py-2 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {updatingRoleUserId === user.id ? 'Salvando...' : 'Salvar perfil'}
+                  </button>
+                </div>
+              ) : (
+                <span className="inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600">
+                  {roleLabelMap[user.role]}
+                </span>
+              )}
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50 md:hidden">Cadastro</div>

@@ -2,25 +2,39 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { deleteUserById, generateInvite, getUsers, register } from '../lib/api';
+import { createTeacherByAdmin, deleteUserById, generateInvite, getUsers, updateUserRole } from '../lib/api';
 import { UsersPage } from './UsersPage';
+
+const useAuthMock = vi.fn();
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock('../lib/api', () => ({
   getUsers: vi.fn(),
   generateInvite: vi.fn(),
   deleteUserById: vi.fn(),
-  register: vi.fn(),
+  createTeacherByAdmin: vi.fn(),
+  updateUserRole: vi.fn(),
 }));
 
 const mockedGetUsers = vi.mocked(getUsers);
 const mockedGenerateInvite = vi.mocked(generateInvite);
 const mockedDeleteUserById = vi.mocked(deleteUserById);
-const mockedRegister = vi.mocked(register);
+const mockedCreateTeacherByAdmin = vi.mocked(createTeacherByAdmin);
+const mockedUpdateUserRole = vi.mocked(updateUserRole);
 
 describe('UsersPage', () => {
   const originalConfirm = window.confirm;
 
   beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+      user: { id: 'super-1', name: 'Super', email: 'super@test.com', role: 'super_admin' },
+    });
+
     mockedGetUsers.mockResolvedValue({
       results: [
         {
@@ -75,8 +89,12 @@ describe('UsersPage', () => {
   });
 
   it('deve criar professor diretamente no app', async () => {
-    mockedGenerateInvite.mockResolvedValueOnce('invite-token-direct');
-    mockedRegister.mockResolvedValueOnce();
+    mockedCreateTeacherByAdmin.mockResolvedValueOnce({
+      id: 'u-2',
+      name: 'Novo Professor',
+      email: 'novo.prof@test.com',
+      temporaryPassword: 'F$vJAL5Kx!Hz',
+    });
 
     render(<UsersPage />);
 
@@ -85,15 +103,29 @@ describe('UsersPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Criar professor agora' }));
 
     await waitFor(() => {
-      expect(mockedGenerateInvite).toHaveBeenCalledTimes(1);
-      expect(mockedRegister).toHaveBeenCalledWith(
-        'invite-token-direct',
+      expect(mockedCreateTeacherByAdmin).toHaveBeenCalledWith(
         'Novo Professor',
         'novo.prof@test.com',
-        expect.stringMatching(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{12}$/)
+        true
       );
     });
 
     expect(await screen.findByText('Professor criado com sucesso. Guarde a senha provisória com segurança.')).toBeInTheDocument();
+  });
+
+  it('deve permitir ao super admin atualizar o perfil de usuário', async () => {
+    window.confirm = vi.fn(() => true);
+    mockedUpdateUserRole.mockResolvedValueOnce();
+
+    render(<UsersPage />);
+
+    expect(await screen.findByText('Professor Teste')).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText('Perfil de Professor Teste'), 'admin');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar perfil' }));
+
+    await waitFor(() => {
+      expect(mockedUpdateUserRole).toHaveBeenCalledWith('u-1', 'admin');
+    });
   });
 });

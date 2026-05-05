@@ -52,8 +52,23 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'teacher';
+  role: 'super_admin' | 'admin' | 'teacher';
+  signatureUpdatedAt?: string;
   createdAt?: string;
+}
+
+export interface PublicShare {
+  id: string;
+  token: string;
+  expiresAt: string;
+  publicLink: string;
+  createdAt?: string;
+  createdBy?: string;
+  createdByUser?: Pick<User, 'id' | 'name' | 'email'>;
+}
+
+export interface BulkRevokePublicSharesResult {
+  revokedCount: number;
 }
 
 export interface ComponentLog {
@@ -93,6 +108,7 @@ export interface ComponentDraft {
   name: string;
   department?: string;
   semester?: string;
+  academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
   modality?: string;
   program?: string;
   objective?: string;
@@ -111,6 +127,7 @@ export interface Component {
   name: string;
   department?: string;
   semester?: string;
+  academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
   modality?: string;
   program?: string;
   objective?: string;
