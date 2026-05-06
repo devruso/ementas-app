@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -176,12 +176,17 @@ describe('DisciplineDetailsPage', () => {
     await screen.findByText('Compiladores draft');
     await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
 
-    await screen.findByText('Publicar IC045');
+    const dialogTitle = await screen.findByRole('heading', { name: 'Publicar IC045' });
+    const dialogContainer = dialogTitle.closest('div.panel');
 
-    await userEvent.type(screen.getByLabelText('Data da ATA'), '2026-05-01');
-    await userEvent.type(screen.getByLabelText('Numero da ATA'), 'ATA-123');
-    await userEvent.type(screen.getByLabelText('Assinatura de aprovação'), 'Assina123!');
-    await userEvent.click(screen.getAllByRole('button', { name: 'Publicar' })[1]);
+    expect(dialogContainer).not.toBeNull();
+
+    const dialog = within(dialogContainer as HTMLElement);
+    fireEvent.change(dialog.getByLabelText('Data da ATA'), { target: { value: '2026-05-01' } });
+    await userEvent.clear(dialog.getByLabelText('Numero da ATA'));
+    await userEvent.type(dialog.getByLabelText('Numero da ATA'), 'ATA-123');
+    await userEvent.type(dialog.getByLabelText('Assinatura de aprovação'), 'Assina123!');
+    await userEvent.click(dialog.getByRole('button', { name: 'Publicar' }));
 
     await waitFor(() => {
       expect(mockedApproveComponentDraft).toHaveBeenCalledTimes(1);

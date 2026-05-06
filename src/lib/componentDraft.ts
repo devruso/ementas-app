@@ -38,6 +38,11 @@ export interface ReferenceChecklistItem {
   message: string;
 }
 
+const DEFAULT_DISCIPLINE_FORM_VALUES: Pick<DisciplineFormValues, 'modality' | 'prerequeriments'> = {
+  modality: 'Presencial',
+  prerequeriments: 'NAO_SE_APLICA',
+};
+
 const emptyWorkload: WorkloadGroupFormValue = {
   theory: 0,
   practice: 0,
@@ -107,11 +112,35 @@ export const formatAbntReferenceLine = (line: string, date = new Date()) => {
 };
 
 export const formatAbntReferenceBlock = (value?: string, date = new Date()) =>
-  String(value || '')
+  Array.from(
+    new Set(
+      String(value || '')
     .split(/\r?\n/)
     .map((line) => formatAbntReferenceLine(line, date))
     .filter((line) => line.length > 0)
-    .join('\n');
+    )
+  ).join('\n');
+
+const splitUniqueReferenceLines = (value?: string) =>
+  Array.from(
+    new Set(
+      formatAbntReferenceBlock(value)
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+    )
+  );
+
+const normalizeReferenceSections = (referencesBasic?: string, referencesComplementary?: string) => {
+  const basicLines = splitUniqueReferenceLines(referencesBasic);
+  const complementaryLines = splitUniqueReferenceLines(referencesComplementary)
+    .filter((line) => !basicLines.includes(line));
+
+  return {
+    basic: basicLines.join('\n'),
+    complementary: complementaryLines.join('\n'),
+  };
+};
 
 export const hasNonWebReferenceWithoutYear = (value?: string) => {
   const lines = String(value || '')
@@ -217,7 +246,7 @@ export const getDisciplineFormInitialValues = (draft?: ComponentDraft): Discipli
   name: cleanText(draft?.name),
   department: cleanText(draft?.department),
   semester: cleanText(draft?.semester),
-  modality: cleanText(draft?.modality),
+  modality: cleanText(draft?.modality) || DEFAULT_DISCIPLINE_FORM_VALUES.modality,
   program: cleanText(draft?.program),
   objective: cleanText(draft?.objective),
   syllabus: cleanText(draft?.syllabus),
@@ -225,27 +254,33 @@ export const getDisciplineFormInitialValues = (draft?: ComponentDraft): Discipli
   learningAssessment: cleanText(draft?.learningAssessment),
   referencesBasic: cleanText(draft?.referencesBasic) || extractReferenceSections(draft?.bibliography).basic,
   referencesComplementary: cleanText(draft?.referencesComplementary) || extractReferenceSections(draft?.bibliography).complementary,
-  prerequeriments: cleanText(draft?.prerequeriments),
+  prerequeriments: cleanText(draft?.prerequeriments) || DEFAULT_DISCIPLINE_FORM_VALUES.prerequeriments,
   studentWorkload: draft?.workload ? toGroup(draft.workload, 'student') : emptyWorkload,
   teacherWorkload: draft?.workload ? toGroup(draft.workload, 'teacher') : emptyWorkload,
   moduleWorkload: draft?.workload ? toGroup(draft.workload, 'module') : emptyWorkload,
 });
 
 export const toDraftPayload = (values: DisciplineFormValues): Partial<ComponentDraft> => ({
+  ...(function () {
+    const normalizedReferences = normalizeReferenceSections(values.referencesBasic, values.referencesComplementary);
+
+    return {
+      referencesBasic: normalizedReferences.basic,
+      referencesComplementary: normalizedReferences.complementary,
+      bibliography: buildBibliographyPayload(normalizedReferences.basic, normalizedReferences.complementary),
+    };
+  })(),
   code: values.code.trim(),
   name: values.name.trim(),
   department: values.department.trim(),
   semester: values.semester.trim(),
-  modality: values.modality.trim(),
+  modality: values.modality.trim() || DEFAULT_DISCIPLINE_FORM_VALUES.modality,
   program: values.program.trim(),
   objective: values.objective.trim(),
   syllabus: values.syllabus.trim(),
   methodology: values.methodology.trim(),
   learningAssessment: values.learningAssessment.trim(),
-  referencesBasic: formatAbntReferenceBlock(values.referencesBasic).trim(),
-  referencesComplementary: formatAbntReferenceBlock(values.referencesComplementary).trim(),
-  bibliography: buildBibliographyPayload(values.referencesBasic, values.referencesComplementary),
-  prerequeriments: values.prerequeriments.trim(),
+  prerequeriments: values.prerequeriments.trim() || DEFAULT_DISCIPLINE_FORM_VALUES.prerequeriments,
   workload: {
     studentTheory: values.studentWorkload.theory,
     studentPractice: values.studentWorkload.practice,
