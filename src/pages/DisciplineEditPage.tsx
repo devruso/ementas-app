@@ -8,6 +8,15 @@ import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } 
 import { AppError } from '../lib/errors';
 import type { ComponentDraft } from '../types';
 
+const getTodayIsoDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
 export const DisciplineEditPage = () => {
   const navigate = useNavigate();
   const { componentCode } = useParams();
@@ -21,8 +30,16 @@ export const DisciplineEditPage = () => {
   const [agreementNumber, setAgreementNumber] = useState('');
   const [approvalSignature, setApprovalSignature] = useState('');
   const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
+  const [approvalHistoryCount, setApprovalHistoryCount] = useState(0);
+  const [liveValues, setLiveValues] = useState<DisciplineFormValues | null>(null);
+  const [lastSavedPayload, setLastSavedPayload] = useState('');
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const code = useMemo(() => componentCode?.toUpperCase() || '', [componentCode]);
+  const initialFormValues = useMemo(
+    () => getDisciplineFormInitialValues(draft || undefined),
+    [draft]
+  );
 
   const loadDraft = async () => {
     if (!code) {
@@ -54,7 +71,20 @@ export const DisciplineEditPage = () => {
     });
 
     setDraft(currentDraft);
+    setLastSavedPayload(JSON.stringify(toDraftPayload(getDisciplineFormInitialValues(currentDraft))));
     setAvailablePrerequisites(Array.from(mapped.values()));
+
+    const currentComponent = componentsResult.results.find((item) => item.code.toUpperCase() === code);
+    const approvalLogs = (currentComponent?.logs || []).filter((log) => log.type === 'approval');
+    setApprovalHistoryCount(approvalLogs.length);
+
+    if (!agreementDate) {
+      setAgreementDate(getTodayIsoDate());
+    }
+
+    if (!agreementNumber) {
+      setAgreementNumber(String(approvalLogs.length + 1));
+    }
   };
 
   useEffect(() => {
@@ -66,6 +96,35 @@ export const DisciplineEditPage = () => {
       })
       .finally(() => setLoading(false));
   }, [code]);
+
+  useEffect(() => {
+    if (!draft?.id || !liveValues || saving || dialogOpen) {
+      return;
+    }
+
+    const nextPayload = toDraftPayload(liveValues);
+    const serializedPayload = JSON.stringify(nextPayload);
+
+    if (!serializedPayload || serializedPayload === lastSavedPayload) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setAutosaveStatus('saving');
+        const updatedDraft = await updateComponentDraft(draft.id, nextPayload);
+        setDraft(updatedDraft);
+        setLastSavedPayload(serializedPayload);
+        setAutosaveStatus('saved');
+      } catch (err) {
+        const appError = err as AppError;
+        setError(appError.message);
+        setAutosaveStatus('error');
+      }
+    }, 800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dialogOpen, draft?.id, lastSavedPayload, liveValues, saving]);
 
   const handleSave = async (values: DisciplineFormValues) => {
     if (!draft?.id) {
@@ -97,6 +156,12 @@ export const DisciplineEditPage = () => {
       setError('');
       const updatedDraft = await updateComponentDraft(draft.id, toDraftPayload(values));
       setDraft(updatedDraft);
+      if (!agreementDate) {
+        setAgreementDate(getTodayIsoDate());
+      }
+      if (!agreementNumber) {
+        setAgreementNumber(String(approvalHistoryCount + 1));
+      }
       setDialogOpen(true);
     } catch (err) {
       const appError = err as AppError;
@@ -152,16 +217,22 @@ export const DisciplineEditPage = () => {
         </div>
         <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Editar disciplina</h1>
         <p className="mt-2 text-sm leading-7 text-muted">Atualize o rascunho com leitura confortável e publique com aprovação formal quando o conteúdo estiver consolidado.</p>
+        <p className="mt-3 text-xs font-medium text-muted">
+          {autosaveStatus === 'saving' && 'Salvando automaticamente...'}
+          {autosaveStatus === 'saved' && 'Rascunho sincronizado automaticamente.'}
+          {autosaveStatus === 'error' && 'Falha no autosave. Tente salvar manualmente.'}
+        </p>
       </section>
 
       <DisciplineEditorForm
-        initialValues={getDisciplineFormInitialValues(draft)}
+        initialValues={initialFormValues}
         saving={saving}
         error={error}
         availablePrerequisites={availablePrerequisites}
         onCancel={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
         onSave={handleSave}
         onSaveAndPublish={handleSaveAndPublish}
+        onValuesChange={setLiveValues}
       />
 
       <ApproveDraftDialog

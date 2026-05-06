@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { DisciplineFormValues } from '../lib/componentDraft';
+import {
+  buildReferenceChecklist,
+  DisciplineFormValues,
+  hasNonWebReferenceWithoutYear,
+} from '../lib/componentDraft';
 import { FormActions } from './FormActions';
 import { FormField } from './FormField';
 import { TextareaField } from './TextareaField';
@@ -12,6 +16,7 @@ interface DisciplineEditorFormProps {
   onCancel: () => void;
   onSave: (values: DisciplineFormValues) => Promise<void>;
   onSaveAndPublish: (values: DisciplineFormValues) => Promise<void>;
+  onValuesChange?: (values: DisciplineFormValues) => void;
   showPublishAction?: boolean;
   availablePrerequisites?: Array<{ code: string; name: string }>;
 }
@@ -20,6 +25,7 @@ const workloadFields: Array<keyof DisciplineFormValues['studentWorkload']> = [
   'theory',
   'practice',
   'theoryPractice',
+  'extension',
   'internship',
   'practiceInternship',
 ];
@@ -28,6 +34,7 @@ const workloadLabels: Record<keyof DisciplineFormValues['studentWorkload'], stri
   theory: 'Teoria',
   practice: 'Pratica',
   theoryPractice: 'Teoria/Pratica',
+  extension: 'Extensao',
   internship: 'Estagio',
   practiceInternship: 'Pratica/Estagio',
 };
@@ -43,17 +50,32 @@ export const DisciplineEditorForm = ({
   onCancel,
   onSave,
   onSaveAndPublish,
+  onValuesChange,
   showPublishAction = true,
   availablePrerequisites = [],
 }: DisciplineEditorFormProps) => {
   const [values, setValues] = useState<DisciplineFormValues>(initialValues);
-  const [fieldErrors, setFieldErrors] = useState<{ code?: string; name?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    code?: string;
+    name?: string;
+    syllabus?: string;
+    objective?: string;
+    program?: string;
+    methodology?: string;
+    learningAssessment?: string;
+    referencesBasic?: string;
+    referencesComplementary?: string;
+  }>({});
   const [prereqSearch, setPrereqSearch] = useState('');
   const [pendingCodeInput, setPendingCodeInput] = useState('');
 
   useEffect(() => {
     setValues(initialValues);
   }, [initialValues]);
+
+  useEffect(() => {
+    onValuesChange?.(values);
+  }, [onValuesChange, values]);
 
   const handleChange = (field: keyof DisciplineFormValues, value: string) => {
     if (field === 'code') {
@@ -109,6 +131,9 @@ export const DisciplineEditorForm = ({
       return option.code.toLowerCase().includes(query) || option.name.toLowerCase().includes(query);
     })
     .slice(0, 8);
+
+  const basicReferencesChecklist = buildReferenceChecklist(values.referencesBasic);
+  const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
 
   const handleAddPrerequeriment = (code: string) => {
     const nextCodes = Array.from(new Set([...selectedPrerequeriments, code]));
@@ -167,7 +192,17 @@ export const DisciplineEditorForm = ({
   };
 
   const validate = () => {
-    const nextErrors: { code?: string; name?: string } = {};
+    const nextErrors: {
+      code?: string;
+      name?: string;
+      syllabus?: string;
+      objective?: string;
+      program?: string;
+      methodology?: string;
+      learningAssessment?: string;
+      referencesBasic?: string;
+      referencesComplementary?: string;
+    } = {};
 
     if (!values.code.trim()) {
       nextErrors.code = 'Informe o codigo da disciplina.';
@@ -197,6 +232,36 @@ export const DisciplineEditorForm = ({
       return;
     }
 
+    const publishErrors: typeof fieldErrors = {};
+
+    if (!values.syllabus.trim()) {
+      publishErrors.syllabus = 'Preencha a ementa para publicação oficial.';
+    }
+    if (!values.objective.trim()) {
+      publishErrors.objective = 'Preencha os objetivos para publicação oficial.';
+    }
+    if (!values.program.trim()) {
+      publishErrors.program = 'Preencha o conteúdo programático para publicação oficial.';
+    }
+    if (!values.methodology.trim()) {
+      publishErrors.methodology = 'Preencha a metodologia para publicação oficial.';
+    }
+    if (!values.learningAssessment.trim()) {
+      publishErrors.learningAssessment = 'Preencha a avaliação da aprendizagem para publicação oficial.';
+    }
+    if (!values.referencesBasic.trim()) {
+      publishErrors.referencesBasic = 'Preencha ao menos as referências básicas para publicação oficial.';
+    } else if (hasNonWebReferenceWithoutYear(values.referencesBasic)) {
+      publishErrors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
+    } else if (values.referencesComplementary.trim() && hasNonWebReferenceWithoutYear(values.referencesComplementary)) {
+      publishErrors.referencesComplementary = 'As referências complementares não web devem incluir ano (ABNT).';
+    }
+
+    if (Object.keys(publishErrors).length > 0) {
+      setFieldErrors((current) => ({ ...current, ...publishErrors }));
+      return;
+    }
+
     await onSaveAndPublish(values);
   };
 
@@ -212,6 +277,10 @@ export const DisciplineEditorForm = ({
   return (
     <div className="space-y-6 motion-fade">
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
+        <div className="mb-4 rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-sm text-primary-900">
+          Este editor segue o template oficial do Word. Para publicação, preencha: Ementa, Objetivos, Conteúdo programático,
+          Metodologia, Avaliação da aprendizagem e Referências básicas.
+        </div>
         <div className="mb-5">
           <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
             Dados gerais
@@ -254,16 +323,73 @@ export const DisciplineEditorForm = ({
       <section className="grid min-w-0 gap-6 xl:grid-cols-2">
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} />
-            <TextareaField label="Objetivos" value={values.objective} onChange={(event) => handleChange('objective', event.target.value)} />
-            <TextareaField label="Conteudo programatico" value={values.program} onChange={(event) => handleChange('program', event.target.value)} />
-            <TextareaField label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} />
+            <TextareaField label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
+            <TextareaField
+              label="Objetivos"
+              value={values.objective}
+              onChange={(event) => handleChange('objective', event.target.value)}
+              error={fieldErrors.objective}
+              placeholder="Use um objetivo por linha para facilitar a organização dos parágrafos no documento oficial."
+            />
+            <TextareaField label="Conteudo programatico" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
+            <TextareaField label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
           </div>
         </div>
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField label="Avaliacao da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} />
-            <TextareaField label="Bibliografia" value={values.bibliography} onChange={(event) => handleChange('bibliography', event.target.value)} />
+            <TextareaField label="Avaliacao da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
+            <TextareaField
+              label="Referencias basicas"
+              value={values.referencesBasic}
+              onChange={(event) => handleChange('referencesBasic', event.target.value)}
+              error={fieldErrors.referencesBasic}
+              placeholder="Liste autores, títulos e dados editoriais essenciais."
+            />
+            {basicReferencesChecklist.length > 0 ? (
+              <div className="rounded-2xl border border-line bg-background px-4 py-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referencias basicas</div>
+                <div className="space-y-2 text-xs text-ink/80">
+                  {basicReferencesChecklist.map((item) => (
+                    <div key={`basic-reference-${item.lineNumber}`} className="rounded-xl border border-line/70 bg-white px-3 py-2">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">Linha {item.lineNumber}</span>
+                        <span className={item.status === 'ok' ? 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700' : 'rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700'}>
+                          {item.status === 'ok' ? 'OK' : 'Ajustar'}
+                        </span>
+                      </div>
+                      <div className="mb-1 text-ink/90">{item.message}</div>
+                      <div className="truncate text-ink/70">{item.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <TextareaField
+              label="Referencias complementares"
+              value={values.referencesComplementary}
+              onChange={(event) => handleChange('referencesComplementary', event.target.value)}
+              error={fieldErrors.referencesComplementary}
+              placeholder="Liste materiais adicionais recomendados."
+            />
+            {complementaryReferencesChecklist.length > 0 ? (
+              <div className="rounded-2xl border border-line bg-background px-4 py-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referencias complementares</div>
+                <div className="space-y-2 text-xs text-ink/80">
+                  {complementaryReferencesChecklist.map((item) => (
+                    <div key={`complementary-reference-${item.lineNumber}`} className="rounded-xl border border-line/70 bg-white px-3 py-2">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">Linha {item.lineNumber}</span>
+                        <span className={item.status === 'ok' ? 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700' : 'rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700'}>
+                          {item.status === 'ok' ? 'OK' : 'Ajustar'}
+                        </span>
+                      </div>
+                      <div className="mb-1 text-ink/90">{item.message}</div>
+                      <div className="truncate text-ink/70">{item.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <TextareaField
               label="Pre-requisitos"
               value={values.prerequeriments}

@@ -48,6 +48,8 @@ export interface ImportDraftPreviewPayload {
   syllabus: string;
   learningAssessment: string;
   bibliography: string;
+  referencesBasic?: string;
+  referencesComplementary?: string;
   workload: WorkloadEntry;
 }
 
@@ -101,16 +103,19 @@ export interface WorkloadEntry {
   studentTheory?: number;
   studentPractice?: number;
   studentTheoryPractice?: number;
+  studentExtension?: number;
   studentInternship?: number;
   studentPracticeInternship?: number;
   teacherTheory?: number;
   teacherPractice?: number;
   teacherTheoryPractice?: number;
+  teacherExtension?: number;
   teacherInternship?: number;
   teacherPracticeInternship?: number;
   moduleTheory?: number;
   modulePractice?: number;
   moduleTheoryPractice?: number;
+  moduleExtension?: number;
   moduleInternship?: number;
   modulePracticeInternship?: number;
 }
@@ -129,6 +134,8 @@ export interface ComponentDraft {
   methodology?: string;
   learningAssessment?: string;
   bibliography?: string;
+  referencesBasic?: string;
+  referencesComplementary?: string;
   prerequeriments?: string;
   workload?: WorkloadEntry;
   userId?: string;
@@ -148,6 +155,8 @@ export interface Component {
   methodology?: string;
   learningAssessment?: string;
   bibliography?: string;
+  referencesBasic?: string;
+  referencesComplementary?: string;
   prerequeriments?: string;
   workload?: WorkloadEntry;
   logs?: ComponentLog[];

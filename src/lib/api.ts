@@ -30,6 +30,8 @@ const apiMessageMap: Record<string, string> = {
   'Username or password missing. Please try again!': 'Informe e-mail e senha para continuar.',
   'User does not exists!': 'Usuário não encontrado.',
   'This invite is invalid or already expired.': 'Convite inválido ou expirado.',
+  'An error has been occurred.': 'Não foi possível concluir a operação. Tente novamente.',
+  'An error has been occurred!': 'Não foi possível concluir a operação. Tente novamente.',
 };
 
 const normalizeApiMessage = (message?: string) => {
@@ -37,7 +39,11 @@ const normalizeApiMessage = (message?: string) => {
     return 'Erro interno no servidor.';
   }
 
-  return apiMessageMap[message] || message;
+  if (Object.prototype.hasOwnProperty.call(apiMessageMap, message)) {
+    return apiMessageMap[message];
+  }
+
+  return 'Não foi possível concluir a operação. Tente novamente em instantes.';
 };
 
 const extractValidationReason = (payload?: ApiErrorPayload) => {
@@ -299,12 +305,14 @@ export const importComponentsFromSiac = async (courseCode: number, semester: num
 export const importComponentsFromSigaaPublic = async (
   sourceType: 'department' | 'program',
   sourceId: string,
-  academicLevel: 'graduacao' | 'mestrado' | 'doutorado'
+  academicLevel: 'graduacao' | 'mestrado' | 'doutorado' | 'all',
+  sourceIdsByLevel?: Partial<Record<'graduacao' | 'mestrado' | 'doutorado', string>>
 ) => {
   const response = await api.post<ImportComponentsSummary>('/components/import/sigaa-public', {
     sourceType,
     sourceId,
     academicLevel,
+    sourceIdsByLevel,
   });
 
   return response.data;
@@ -343,6 +351,8 @@ export const createComponentDraft = async (data: Partial<ComponentDraft>) => {
     methodology: data.methodology,
     learningAssessment: data.learningAssessment,
     bibliography: data.bibliography,
+    referencesBasic: data.referencesBasic,
+    referencesComplementary: data.referencesComplementary,
     prerequeriments: data.prerequeriments,
     workload: data.workload,
   });
@@ -379,6 +389,8 @@ export const updateComponentDraft = async (
     methodology: data.methodology,
     learningAssessment: data.learningAssessment,
     bibliography: data.bibliography,
+    referencesBasic: data.referencesBasic,
+    referencesComplementary: data.referencesComplementary,
     prerequeriments: data.prerequeriments,
     workload: data.workload,
   });

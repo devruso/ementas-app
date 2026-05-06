@@ -7,6 +7,33 @@ import { AppError } from '../lib/errors';
 import { formatWorkload } from '../lib/format';
 import type { Component } from '../types';
 
+const splitReferences = (bibliography?: string, referencesBasic?: string, referencesComplementary?: string) => {
+  const basic = String(referencesBasic || '').trim();
+  const complementary = String(referencesComplementary || '').trim();
+
+  if (basic || complementary) {
+    return { basic, complementary };
+  }
+
+  const raw = String(bibliography || '').trim();
+
+  if (!raw) {
+    return { basic: '', complementary: '' };
+  }
+
+  const basicMatch = raw.match(/(?:REFERENCIAS\s+BASICAS|REFERÊNCIAS\s+BÁSICAS|BASICAS|BÁSICAS)\s*:\s*([\s\S]*?)(?=(?:REFERENCIAS\s+COMPLEMENTARES|REFERÊNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:|$)/i);
+  const complementaryMatch = raw.match(/(?:REFERENCIAS\s+COMPLEMENTARES|REFERÊNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:\s*([\s\S]*)$/i);
+
+  if (basicMatch || complementaryMatch) {
+    return {
+      basic: (basicMatch?.[1] || '').trim(),
+      complementary: (complementaryMatch?.[1] || '').trim(),
+    };
+  }
+
+  return { basic: raw, complementary: '' };
+};
+
 export const SharedDisciplinePage = () => {
   const { shareToken } = useParams();
   const [loading, setLoading] = useState(true);
@@ -44,6 +71,8 @@ export const SharedDisciplinePage = () => {
       </div>
     );
   }
+
+  const references = splitReferences(component.bibliography, component.referencesBasic, component.referencesComplementary);
 
   return (
     <div className="space-y-6 motion-fade">
@@ -83,7 +112,8 @@ export const SharedDisciplinePage = () => {
           <SectionCard title="Conteúdo programático">{component.program || 'Não informado.'}</SectionCard>
           <SectionCard title="Objetivos">{component.objective || 'Não informados.'}</SectionCard>
           <SectionCard title="Metodologia">{component.methodology || 'Não informada.'}</SectionCard>
-          <SectionCard title="Bibliografia">{component.bibliography || 'Não informada.'}</SectionCard>
+          <SectionCard title="Referencias basicas">{references.basic || 'Não informadas.'}</SectionCard>
+          <SectionCard title="Referencias complementares">{references.complementary || 'Não informadas.'}</SectionCard>
         </div>
 
         <div className="space-y-6">
@@ -96,11 +126,19 @@ export const SharedDisciplinePage = () => {
                 <div className="mb-2 font-semibold text-ink">Estudante</div>
                 <div>Teoria: {formatWorkload(component.workload?.studentTheory)}</div>
                 <div>Prática: {formatWorkload(component.workload?.studentPractice)}</div>
+                <div>T/P: {formatWorkload(component.workload?.studentTheoryPractice)}</div>
+                <div>PP: {formatWorkload(component.workload?.studentPracticeInternship)}</div>
+                <div>Ext: {formatWorkload(component.workload?.studentExtension)}</div>
+                <div>E: {formatWorkload(component.workload?.studentInternship)}</div>
               </div>
               <div className="rounded-2xl border border-line bg-slate-50 p-4 shadow-sm">
                 <div className="mb-2 font-semibold text-ink">Professor</div>
                 <div>Teoria: {formatWorkload(component.workload?.teacherTheory)}</div>
                 <div>Prática: {formatWorkload(component.workload?.teacherPractice)}</div>
+                <div>T/P: {formatWorkload(component.workload?.teacherTheoryPractice)}</div>
+                <div>PP: {formatWorkload(component.workload?.teacherPracticeInternship)}</div>
+                <div>Ext: {formatWorkload(component.workload?.teacherExtension)}</div>
+                <div>E: {formatWorkload(component.workload?.teacherInternship)}</div>
               </div>
             </div>
           </section>
@@ -117,7 +155,7 @@ export const SharedDisciplinePage = () => {
                 to="/entrar"
                 className="inline-flex w-full items-center justify-center rounded-2xl border border-line bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-slate-50"
               >
-                Entrar no BDCP
+                Entrar no Ementas
               </Link>
             </div>
           </section>

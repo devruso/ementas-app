@@ -24,16 +24,190 @@ import type { Component, ComponentLog, PublicShare } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
-const getApprovalStatusMessage = (latestApproval?: ComponentLog) => {
-  if (!latestApproval) {
-    return 'A exportação usa os dados formais de aprovação registrados no momento da publicação. Como esta disciplina ainda não possui publicação oficial com ata e data vinculadas, o documento sai sem esses metadados.';
+const componentComparableFields: Array<
+  | 'name'
+  | 'department'
+  | 'semester'
+  | 'academicLevel'
+  | 'modality'
+  | 'program'
+  | 'objective'
+  | 'syllabus'
+  | 'methodology'
+  | 'learningAssessment'
+  | 'bibliography'
+  | 'prerequeriments'
+> = [
+  'name',
+  'department',
+  'semester',
+  'academicLevel',
+  'modality',
+  'program',
+  'objective',
+  'syllabus',
+  'methodology',
+  'learningAssessment',
+  'bibliography',
+  'prerequeriments',
+];
+
+const workloadComparableFields: Array<
+  | 'studentTheory'
+  | 'studentPractice'
+  | 'studentTheoryPractice'
+  | 'studentExtension'
+  | 'studentInternship'
+  | 'studentPracticeInternship'
+  | 'teacherTheory'
+  | 'teacherPractice'
+  | 'teacherTheoryPractice'
+  | 'teacherExtension'
+  | 'teacherInternship'
+  | 'teacherPracticeInternship'
+  | 'moduleTheory'
+  | 'modulePractice'
+  | 'moduleTheoryPractice'
+  | 'moduleExtension'
+  | 'moduleInternship'
+  | 'modulePracticeInternship'
+> = [
+  'studentTheory',
+  'studentPractice',
+  'studentTheoryPractice',
+  'studentExtension',
+  'studentInternship',
+  'studentPracticeInternship',
+  'teacherTheory',
+  'teacherPractice',
+  'teacherTheoryPractice',
+  'teacherExtension',
+  'teacherInternship',
+  'teacherPracticeInternship',
+  'moduleTheory',
+  'modulePractice',
+  'moduleTheoryPractice',
+  'moduleExtension',
+  'moduleInternship',
+  'modulePracticeInternship',
+];
+
+const normalizeComparableText = (value?: string) => String(value || '').trim();
+
+const sanitizeAcademicText = (value?: string) => {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+
+  if (!normalized) {
+    return '';
   }
 
-  if (!latestApproval.agreementDate || !latestApproval.agreementNumber) {
-    return 'Existe um registro de publicação oficial, mas a ata ou a data de aprovação não foram preenchidas integralmente naquele momento. Por isso alguns campos podem aparecer como não informados na exportação.';
+  if (/^\/?descri[cç][aã]o\s*:\s*n[aã]o\s+definido/i.test(normalized)) {
+    return '';
   }
 
-  return 'A exportação oficial utiliza a última aprovação publicada no BDCP, com a ata e a data formalmente registradas.';
+  if (/^ementa\s+n[aã]o\s+dispon[ií]vel\s+na\s+listagem\s+p[úu]blica\s+do\s+sigaa\.?$/i.test(normalized)) {
+    return '';
+  }
+
+  if (/^conte[úu]do\s+program[aá]tico\s+n[aã]o\s+dispon[ií]vel\s+na\s+listagem\s+p[úu]blica\s+do\s+sigaa\.?$/i.test(normalized)) {
+    return '';
+  }
+
+  if (/^institucional\s*:/i.test(normalized) && /quantidade\s+de\s+avalia[cç][õo]es/i.test(normalized)) {
+    return '';
+  }
+
+  return normalized;
+};
+
+const splitReferences = (rawBibliography?: string, referencesBasic?: string, referencesComplementary?: string) => {
+  const basicFromField = sanitizeAcademicText(referencesBasic);
+  const complementaryFromField = sanitizeAcademicText(referencesComplementary);
+
+  if (basicFromField || complementaryFromField) {
+    return { basic: basicFromField, complementary: complementaryFromField };
+  }
+
+  const raw = sanitizeAcademicText(rawBibliography);
+
+  if (!raw) {
+    return { basic: '', complementary: '' };
+  }
+
+  const basicMatch = raw.match(/(?:REFERENCIAS\s+BASICAS|REFERÊNCIAS\s+BÁSICAS|BASICAS|BÁSICAS)\s*:\s*([\s\S]*?)(?=(?:REFERENCIAS\s+COMPLEMENTARES|REFERÊNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:|$)/i);
+  const complementaryMatch = raw.match(/(?:REFERENCIAS\s+COMPLEMENTARES|REFERÊNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:\s*([\s\S]*)$/i);
+
+  if (basicMatch || complementaryMatch) {
+    return {
+      basic: (basicMatch?.[1] || '').trim(),
+      complementary: (complementaryMatch?.[1] || '').trim(),
+    };
+  }
+
+  return { basic: raw, complementary: '' };
+};
+
+const formatModalityLabel = (value?: string) => {
+  const normalized = String(value || '').trim();
+
+  if (!normalized) {
+    return 'Não informada';
+  }
+
+  if (/^[A-Z0-9_\-\s]+$/.test(normalized)) {
+    return normalized
+      .toLowerCase()
+      .replace(/[_\-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  return normalized;
+};
+
+const hasMeaningfulDraftDifference = (component: Component) => {
+  if (!component.draft) {
+    return false;
+  }
+
+  const textFieldsChanged = componentComparableFields.some(
+    (field) => normalizeComparableText(component[field]) !== normalizeComparableText(component.draft?.[field])
+  );
+
+  if (textFieldsChanged) {
+    return true;
+  }
+
+  return workloadComparableFields.some(
+    (field) => Number(component.workload?.[field] ?? 0) !== Number(component.draft?.workload?.[field] ?? 0)
+  );
+};
+
+const getTodayIsoDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const suggestNextAgreementNumber = (approvalLogs: ComponentLog[]) => {
+  const sortedApprovals = [...approvalLogs]
+    .filter((log) => log.type === 'approval')
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+
+  const latestAgreementNumber = sortedApprovals[0]?.agreementNumber?.trim();
+
+  if (latestAgreementNumber) {
+    const numericCandidate = Number(latestAgreementNumber);
+
+    if (Number.isFinite(numericCandidate) && numericCandidate >= 0) {
+      return String(Math.floor(numericCandidate) + 1);
+    }
+  }
+
+  return String(sortedApprovals.length + 1);
 };
 
 export const DisciplineDetailsPage = () => {
@@ -230,6 +404,21 @@ export const DisciplineDetailsPage = () => {
     }
   };
 
+  const handleOpenApprovalDialog = () => {
+    const approvalLogs = [...(logs || component?.logs || [])];
+
+    if (!agreementDate) {
+      setAgreementDate(getTodayIsoDate());
+    }
+
+    if (!agreementNumber.trim()) {
+      setAgreementNumber(suggestNextAgreementNumber(approvalLogs));
+    }
+
+    setDialogError('');
+    setDialogOpen(true);
+  };
+
   const handleCreatePublicShare = async () => {
     if (!component?.id) {
       return;
@@ -353,9 +542,16 @@ export const DisciplineDetailsPage = () => {
   const latestApproval = [...(logs || component.logs || [])]
     .filter((log) => log.type === 'approval')
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
-  const approvalStatusMessage = getApprovalStatusMessage(latestApproval);
-  const showingDraft = auth.isAuthenticated && !showPublishedVersion && !!component.draft;
+  const hasDraftVersion = auth.isAuthenticated && hasMeaningfulDraftDifference(component);
+  const showingDraft = hasDraftVersion && !showPublishedVersion;
   const activeComponent = showingDraft && component.draft ? component.draft : component;
+  const displaySyllabus = sanitizeAcademicText(activeComponent.syllabus);
+  const displayProgram = sanitizeAcademicText(activeComponent.program);
+  const displayObjective = sanitizeAcademicText(activeComponent.objective);
+  const displayMethodology = sanitizeAcademicText(activeComponent.methodology);
+  const displayLearningAssessment = sanitizeAcademicText(activeComponent.learningAssessment);
+  const displayBibliography = sanitizeAcademicText(activeComponent.bibliography);
+  const references = splitReferences(displayBibliography, activeComponent.referencesBasic, activeComponent.referencesComplementary);
   const visibleLogs = auth.isAuthenticated ? logs || [] : component.logs || [];
   const normalizedPrerequeriments = activeComponent.prerequeriments?.trim().toUpperCase() || '';
   const isNotApplicable = ['NAO_SE_APLICA', 'N/A', 'NÃO SE APLICA', 'NAO SE APLICA'].includes(normalizedPrerequeriments);
@@ -375,9 +571,9 @@ export const DisciplineDetailsPage = () => {
             <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
               {activeComponent.code}
             </div>
-            <p className="text-sm font-medium text-ink/72">{activeComponent.name}</p>
+            <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">{activeComponent.name}</h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
-              {activeComponent.syllabus || activeComponent.program || 'Disciplina sem resumo publico informado.'}
+              {displaySyllabus || displayProgram || 'Disciplina sem resumo público informado.'}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -388,7 +584,7 @@ export const DisciplineDetailsPage = () => {
                 Semestre: {activeComponent.semester || 'Nao informado'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Modalidade: {activeComponent.modality || 'Nao informado'}
+                Modalidade: {formatModalityLabel(activeComponent.modality)}
               </span>
             </div>
 
@@ -400,7 +596,7 @@ export const DisciplineDetailsPage = () => {
                       <div className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Ações rápidas</div>
                       <div className="mt-1 text-sm text-ink/70">Edite, publique e alterne entre rascunho salvo e versão oficial.</div>
                     </div>
-                    {component.draft?.id ? (
+                    {hasDraftVersion ? (
                       <div className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
                         Mostrando agora: {showingDraft ? 'rascunho salvo' : 'publicacao oficial'}
                       </div>
@@ -419,7 +615,7 @@ export const DisciplineDetailsPage = () => {
                     {component.draft?.id ? (
                       <button
                         type="button"
-                        onClick={() => setDialogOpen(true)}
+                        onClick={handleOpenApprovalDialog}
                         className="inline-flex items-center gap-2 rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600"
                       >
                         <ScrollText className="h-4 w-4" />
@@ -427,7 +623,7 @@ export const DisciplineDetailsPage = () => {
                       </button>
                     ) : null}
 
-                    {component.draft?.id ? (
+                    {hasDraftVersion ? (
                       <button
                         type="button"
                         onClick={() => setShowPublishedVersion((current) => !current)}
@@ -632,10 +828,6 @@ export const DisciplineDetailsPage = () => {
               </div>
             </div>
 
-            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm leading-6 text-amber-900">
-              {approvalStatusMessage}
-            </div>
-
             <button
               type="button"
               onClick={handleExport}
@@ -656,12 +848,6 @@ export const DisciplineDetailsPage = () => {
               {exportingDoc ? 'Exportando DOCX...' : 'Exportar DOCX'}
             </button>
 
-            {showingDraft ? (
-              <div className="mt-3 rounded-2xl border border-white/40 bg-white/45 px-4 py-3 text-sm text-ink/75">
-                Visualizando rascunho autenticado. Alterne para a versao publicada quando quiser conferir o conteudo oficial.
-              </div>
-            ) : null}
-
             <Link
               to="/disciplinas"
               className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-white/45 bg-white/20 px-4 py-3 text-sm text-ink/80 transition hover:bg-white/45"
@@ -674,14 +860,15 @@ export const DisciplineDetailsPage = () => {
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <SectionCard title="Ementa">{activeComponent.syllabus || 'Nao informada.'}</SectionCard>
-          <SectionCard title="Objetivos">{activeComponent.objective || 'Nao informados.'}</SectionCard>
-          <SectionCard title="Conteudo programatico">{activeComponent.program || 'Nao informado.'}</SectionCard>
-          <SectionCard title="Metodologia">{activeComponent.methodology || 'Nao informada.'}</SectionCard>
+          <SectionCard title="Ementa">{displaySyllabus || 'Não informada.'}</SectionCard>
+          <SectionCard title="Objetivos">{displayObjective || 'Não informados.'}</SectionCard>
+          <SectionCard title="Conteúdo programático">{displayProgram || 'Não informado.'}</SectionCard>
+          <SectionCard title="Metodologia">{displayMethodology || 'Não informada.'}</SectionCard>
           <SectionCard title="Avaliacao da aprendizagem">
-            {activeComponent.learningAssessment || 'Nao informada.'}
+            {displayLearningAssessment || 'Não informada.'}
           </SectionCard>
-          <SectionCard title="Bibliografia">{activeComponent.bibliography || 'Nao informada.'}</SectionCard>
+          <SectionCard title="Referencias basicas">{references.basic || 'Não informadas.'}</SectionCard>
+          <SectionCard title="Referencias complementares">{references.complementary || 'Não informadas.'}</SectionCard>
         </div>
 
         <div className="space-y-6">
@@ -724,12 +911,27 @@ export const DisciplineDetailsPage = () => {
                 <div>Teoria: {formatWorkload(activeComponent.workload?.studentTheory)}</div>
                 <div>Pratica: {formatWorkload(activeComponent.workload?.studentPractice)}</div>
                 <div>T/P: {formatWorkload(activeComponent.workload?.studentTheoryPractice)}</div>
+                <div>PP: {formatWorkload(activeComponent.workload?.studentPracticeInternship)}</div>
+                <div>Ext: {formatWorkload(activeComponent.workload?.studentExtension)}</div>
+                <div>E: {formatWorkload(activeComponent.workload?.studentInternship)}</div>
               </div>
               <div className="rounded-2xl border border-line bg-slate-50 p-4">
                 <div className="mb-2 font-semibold">Docente</div>
                 <div>Teoria: {formatWorkload(activeComponent.workload?.teacherTheory)}</div>
                 <div>Pratica: {formatWorkload(activeComponent.workload?.teacherPractice)}</div>
                 <div>T/P: {formatWorkload(activeComponent.workload?.teacherTheoryPractice)}</div>
+                <div>PP: {formatWorkload(activeComponent.workload?.teacherPracticeInternship)}</div>
+                <div>Ext: {formatWorkload(activeComponent.workload?.teacherExtension)}</div>
+                <div>E: {formatWorkload(activeComponent.workload?.teacherInternship)}</div>
+              </div>
+              <div className="rounded-2xl border border-line bg-slate-50 p-4 sm:col-span-2">
+                <div className="mb-2 font-semibold">Modulo</div>
+                <div>Teoria: {formatWorkload(activeComponent.workload?.moduleTheory)}</div>
+                <div>Pratica: {formatWorkload(activeComponent.workload?.modulePractice)}</div>
+                <div>T/P: {formatWorkload(activeComponent.workload?.moduleTheoryPractice)}</div>
+                <div>PP: {formatWorkload(activeComponent.workload?.modulePracticeInternship)}</div>
+                <div>Ext: {formatWorkload(activeComponent.workload?.moduleExtension)}</div>
+                <div>E: {formatWorkload(activeComponent.workload?.moduleInternship)}</div>
               </div>
             </div>
           </SectionCard>
