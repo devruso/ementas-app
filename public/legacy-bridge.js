@@ -1,8 +1,6 @@
 (function () {
   try {
-    var cleanupFlag = 'bdcp:legacy-sw-cleanup-v2';
-    localStorage.removeItem('MATE85/token');
-    localStorage.removeItem('BDCP/token');
+    var cleanupFlag = 'ementas:sw-cleanup-v1';
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function (registrations) {

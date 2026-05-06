@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import { FormActions } from './FormActions';
 import { FormField } from './FormField';
 
@@ -43,6 +45,12 @@ export const ApproveDraftDialog = ({
           </div>
           <h2 className="text-2xl font-semibold text-ink">Publicar {componentCode}</h2>
           <p className="mt-2 text-sm leading-7 text-muted">Informe os dados formais da aprovacao antes de publicar a disciplina.</p>
+          <div className="mt-3 rounded-2xl border border-primary-100 bg-primary-50 px-3 py-2 text-xs leading-6 text-primary-900">
+            A assinatura de aprovação não é a senha de login. Ela é configurada no seu perfil para validação formal.
+            <Link to="/perfil" className="ml-1 font-semibold text-primary-700 underline">
+              Configurar assinatura agora
+            </Link>
+          </div>
         </div>
 
         <div className="space-y-4">

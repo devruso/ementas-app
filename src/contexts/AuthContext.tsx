@@ -28,7 +28,7 @@ interface AuthContextValue {
   refreshUser: () => Promise<void>;
 }
 
-const STORAGE_TOKEN_KEY = 'BDCP/token';
+const STORAGE_TOKEN_KEY = 'EMENTAS/token';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 

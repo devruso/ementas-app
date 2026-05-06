@@ -28,7 +28,7 @@ export const AuthLayout = () => {
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">UFBA Computacao</div>
-              <div className="text-2xl font-semibold">BDCP</div>
+              <div className="text-2xl font-semibold">Ementas</div>
             </div>
           </div>
 
@@ -40,10 +40,6 @@ export const AuthLayout = () => {
             <h2 className="max-w-lg text-4xl font-semibold leading-tight">
               Acesso institucional para editar, aprovar e publicar disciplinas.
             </h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-white/80">
-              O novo front-end preserva o backend atual, mas reorganiza a experiencia para funcionar bem em tela pequena,
-              desktop e uso administrativo continuo.
-            </p>
           </div>
         </div>
       </div>

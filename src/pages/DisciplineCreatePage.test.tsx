@@ -125,7 +125,7 @@ describe('DisciplineCreatePage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Importar do SIGAA público' }));
 
     await waitFor(() => {
-      expect(mockedImportComponentsFromSigaaPublic).toHaveBeenCalledWith('program', '1820', 'mestrado');
+      expect(mockedImportComponentsFromSigaaPublic).toHaveBeenCalledWith('program', '1820', 'mestrado', undefined);
     });
 
     expect(await screen.findByText('Resumo da importacao SIGAA público')).toBeInTheDocument();

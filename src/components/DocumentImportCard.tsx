@@ -55,6 +55,8 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
         methodology: preview.suggestedDraft.methodology,
         learningAssessment: preview.suggestedDraft.learningAssessment,
         bibliography: preview.suggestedDraft.bibliography,
+        referencesBasic: preview.suggestedDraft.referencesBasic,
+        referencesComplementary: preview.suggestedDraft.referencesComplementary,
         prerequeriments: preview.suggestedDraft.prerequeriments,
         workload: preview.suggestedDraft.workload,
       })

@@ -6,13 +6,7 @@ import { App } from './App';
 import './styles.css';
 
 const cleanupLegacyServiceWorkers = async () => {
-  const cleanupFlag = 'bdcp:legacy-sw-cleanup-v2';
-  const legacyTokenKey = 'MATE85/token';
-  const currentTokenKey = 'BDCP/token';
-
-  // Always remove known token keys to avoid replaying stale auth state.
-  window.localStorage.removeItem(legacyTokenKey);
-  window.localStorage.removeItem(currentTokenKey);
+  const cleanupFlag = 'ementas:sw-cleanup-v1';
 
   if (window.localStorage.getItem(cleanupFlag) === 'done') {
     return;

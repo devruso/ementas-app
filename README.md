@@ -1,6 +1,6 @@
 # Ementas App
 
-Interface web do BDCP em migracao incremental, preservando o backend atual e reorganizando a experiencia para mobile first.
+Interface web do Ementas em migracao incremental, preservando o backend atual e reorganizando a experiencia para mobile first.
 
 ## Escopo atual
 
@@ -28,7 +28,7 @@ Copie `.env.example` para `.env` e ajuste a URL da API quando necessario.
 
 Variaveis suportadas:
 
-- `VITE_API_URL`: base da API BDCP. Exemplo local: `http://localhost:3333/api`.
+- `VITE_API_URL`: base da API Ementas. Exemplo local: `http://localhost:3333/api`.
 
 ## Scripts
 

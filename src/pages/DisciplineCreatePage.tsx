@@ -24,7 +24,12 @@ export const DisciplineCreatePage = () => {
   const [semester, setSemester] = useState('');
   const [sigaaSourceType, setSigaaSourceType] = useState<'department' | 'program'>('department');
   const [sigaaSourceId, setSigaaSourceId] = useState('');
-  const [sigaaAcademicLevel, setSigaaAcademicLevel] = useState<'graduacao' | 'mestrado' | 'doutorado'>('graduacao');
+  const [sigaaAcademicLevel, setSigaaAcademicLevel] = useState<'graduacao' | 'mestrado' | 'doutorado' | 'all'>('all');
+  const [sigaaSourceIdsByLevel, setSigaaSourceIdsByLevel] = useState<{
+    graduacao: string;
+    mestrado: string;
+    doutorado: string;
+  }>({ graduacao: '', mestrado: '', doutorado: '' });
   const [siacMessage, setSiacMessage] = useState('');
   const [siacSummary, setSiacSummary] = useState<ImportComponentsSummary | null>(null);
   const [sigaaSummary, setSigaaSummary] = useState<ImportComponentsSummary | null>(null);
@@ -102,7 +107,18 @@ export const DisciplineCreatePage = () => {
       setSigaaSummary(null);
       setError('');
 
-      const summary = await importComponentsFromSigaaPublic(sigaaSourceType, sigaaSourceId.trim(), sigaaAcademicLevel);
+      const summary = await importComponentsFromSigaaPublic(
+        sigaaSourceType,
+        sigaaSourceId.trim(),
+        sigaaAcademicLevel,
+        sigaaAcademicLevel === 'all'
+          ? {
+              graduacao: sigaaSourceIdsByLevel.graduacao.trim(),
+              mestrado: sigaaSourceIdsByLevel.mestrado.trim(),
+              doutorado: sigaaSourceIdsByLevel.doutorado.trim(),
+            }
+          : undefined
+      );
       setSigaaSummary(summary);
     } catch (err) {
       const appError = err as AppError;
@@ -233,9 +249,10 @@ export const DisciplineCreatePage = () => {
             <span>Nível acadêmico</span>
             <select
               value={sigaaAcademicLevel}
-              onChange={(event) => setSigaaAcademicLevel(event.target.value as 'graduacao' | 'mestrado' | 'doutorado')}
+              onChange={(event) => setSigaaAcademicLevel(event.target.value as 'graduacao' | 'mestrado' | 'doutorado' | 'all')}
               className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
             >
+              <option value="all">Todos (graduação, mestrado e doutorado)</option>
               <option value="graduacao">Graduação</option>
               <option value="mestrado">Mestrado</option>
               <option value="doutorado">Doutorado</option>
@@ -243,11 +260,52 @@ export const DisciplineCreatePage = () => {
           </label>
         </div>
 
+        {sigaaAcademicLevel === 'all' ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
+              <span>ID fonte para Graduação</span>
+              <input
+                value={sigaaSourceIdsByLevel.graduacao}
+                onChange={(event) => setSigaaSourceIdsByLevel((current) => ({ ...current, graduacao: event.target.value }))}
+                placeholder="Ex: 1114"
+                className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
+              />
+            </label>
+
+            <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
+              <span>ID fonte para Mestrado</span>
+              <input
+                value={sigaaSourceIdsByLevel.mestrado}
+                onChange={(event) => setSigaaSourceIdsByLevel((current) => ({ ...current, mestrado: event.target.value }))}
+                placeholder="Ex: 1820"
+                className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
+              />
+            </label>
+
+            <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
+              <span>ID fonte para Doutorado</span>
+              <input
+                value={sigaaSourceIdsByLevel.doutorado}
+                onChange={(event) => setSigaaSourceIdsByLevel((current) => ({ ...current, doutorado: event.target.value }))}
+                placeholder="Ex: 1821"
+                className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
+              />
+            </label>
+          </div>
+        ) : null}
+
         <div className="mt-4">
           <button
             type="button"
             onClick={handleImportSigaa}
-            disabled={importingSigaa || !sigaaSourceId.trim()}
+            disabled={
+              importingSigaa
+              || (
+                sigaaAcademicLevel === 'all'
+                  ? !sigaaSourceId.trim() && !sigaaSourceIdsByLevel.graduacao.trim() && !sigaaSourceIdsByLevel.mestrado.trim() && !sigaaSourceIdsByLevel.doutorado.trim()
+                  : !sigaaSourceId.trim()
+              )
+            }
             className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {importingSigaa ? 'Importando...' : 'Importar do SIGAA público'}
