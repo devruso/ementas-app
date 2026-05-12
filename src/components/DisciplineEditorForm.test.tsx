@@ -62,8 +62,8 @@ describe('DisciplineEditorForm publish validation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvar e publicar' }));
 
     expect(onSaveAndPublish).not.toHaveBeenCalled();
-    expect(screen.getByText('Preencha a ementa para publicação oficial.')).toBeInTheDocument();
-    expect(screen.getByText('Preencha os objetivos para publicação oficial.')).toBeInTheDocument();
-    expect(screen.getByText('Preencha ao menos as referências básicas para publicação oficial.')).toBeInTheDocument();
+    expect(screen.getAllByText('Preencha a ementa para publicação oficial.').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Preencha os objetivos para publicação oficial.').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Preencha ao menos as referências básicas para publicação oficial.').length).toBeGreaterThan(0);
   });
 });

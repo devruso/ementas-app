@@ -16,6 +16,7 @@ import {
   revokeAllPublicShares,
   revokePublicShare,
 } from '../lib/api';
+import { AppError } from '../lib/errors';
 import { DisciplineDetailsPage } from './DisciplineDetailsPage';
 
 const navigateMock = vi.fn();
@@ -201,6 +202,40 @@ describe('DisciplineDetailsPage', () => {
       })
     );
     expect(payload.agreementDate).toContain('2026-05-01');
+  });
+
+  it('deve mostrar mensagem amigável quando a publicação falha por referência sem ano', async () => {
+    mockedApproveComponentDraft.mockRejectedValueOnce(
+      new AppError('Publicação oficial bloqueada. Referências complementares não web devem conter ano de publicação.', 400)
+    );
+
+    render(
+      <MemoryRouter>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Compiladores draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    const dialogTitle = await screen.findByRole('heading', { name: 'Publicar IC045' });
+    const dialogContainer = dialogTitle.closest('div.panel');
+
+    expect(dialogContainer).not.toBeNull();
+
+    const dialog = within(dialogContainer as HTMLElement);
+    fireEvent.change(dialog.getByLabelText('Data da ATA'), { target: { value: '2026-05-01' } });
+    await userEvent.clear(dialog.getByLabelText('Numero da ATA'));
+    await userEvent.type(dialog.getByLabelText('Numero da ATA'), 'ATA-124');
+    await userEvent.type(dialog.getByLabelText('Assinatura de aprovação'), 'Assina123!');
+    await userEvent.click(dialog.getByRole('button', { name: 'Publicar' }));
+
+    expect(
+      await dialog.findByText(/inclua ano nas referências complementares não web/i)
+    ).toBeInTheDocument();
+    expect(
+      dialog.getByText(/você pode salvar como rascunho e publicar após ajustar/i)
+    ).toBeInTheDocument();
   });
 
   it('deve exportar PDF e DOCX na tela de detalhe', async () => {

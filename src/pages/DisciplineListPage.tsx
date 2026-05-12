@@ -4,6 +4,7 @@ import { DisciplineCard } from '../components/DisciplineCard';
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
 import { getComponents } from '../lib/api';
+import { AppError } from '../lib/errors';
 import type { Component, ListData, ListFilter } from '../types';
 
 const initialFilter: ListFilter = {
@@ -28,6 +29,7 @@ export const DisciplineListPage = () => {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [loadingDepartmentDataset, setLoadingDepartmentDataset] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   const [components, setComponents] = useState<ListData<Component>>({
     results: [],
@@ -45,12 +47,17 @@ export const DisciplineListPage = () => {
 
   useEffect(() => {
     setLoading(true);
+    setErrorMessage('');
     getComponents({
       ...filter,
       academicLevel: academicLevelFilter === 'all' ? undefined : academicLevelFilter,
       department: departmentFilter === 'all' ? undefined : departmentFilter,
     })
       .then(setComponents)
+      .catch((err) => {
+        const appError = err as AppError;
+        setErrorMessage(appError.message || 'Não foi possível carregar as disciplinas agora.');
+      })
       .finally(() => setLoading(false));
   }, [filter, academicLevelFilter, departmentFilter]);
 
@@ -88,6 +95,12 @@ export const DisciplineListPage = () => {
 
         if (active) {
           setDepartmentDataset(dataset);
+        }
+      } catch (err) {
+        if (active) {
+          const appError = err as AppError;
+          setErrorMessage(appError.message || 'Falha ao carregar os dados completos do departamento.');
+          setDepartmentDataset([]);
         }
       } finally {
         if (active) {
@@ -329,7 +342,11 @@ export const DisciplineListPage = () => {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {isLoadingGrid ? (
+        {errorMessage ? (
+          <div className="panel col-span-full border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+            {errorMessage}
+          </div>
+        ) : isLoadingGrid ? (
           <div className="panel col-span-full p-10 text-center text-sm text-muted">
             Carregando disciplinas...
           </div>

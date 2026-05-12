@@ -210,6 +210,32 @@ const suggestNextAgreementNumber = (approvalLogs: ComponentLog[]) => {
   return String(sortedApprovals.length + 1);
 };
 
+const normalizePublishErrorText = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const toFriendlyPublishError = (rawMessage?: string) => {
+  const fallback = 'Não foi possível publicar a disciplina agora. Revise os dados e tente novamente.';
+
+  if (!rawMessage?.trim()) {
+    return fallback;
+  }
+
+  const normalized = normalizePublishErrorText(rawMessage);
+
+  if (normalized.includes('referencias basicas nao web devem conter ano')) {
+    return 'Publicação oficial bloqueada: inclua ano nas referências básicas não web (ex.: SILVA, J. Título. Salvador: Editora X, 2020). Você pode salvar como rascunho e publicar após ajustar.';
+  }
+
+  if (normalized.includes('referencias complementares nao web devem conter ano')) {
+    return 'Publicação oficial bloqueada: inclua ano nas referências complementares não web (ex.: SOUZA, M. Título. São Paulo: Editora Y, 2021). Você pode salvar como rascunho e publicar após ajustar.';
+  }
+
+  return rawMessage;
+};
+
 export const DisciplineDetailsPage = () => {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -398,7 +424,7 @@ export const DisciplineDetailsPage = () => {
       await loadComponent();
     } catch (err) {
       const appError = err as AppError;
-      setDialogError(appError.message);
+      setDialogError(toFriendlyPublishError(appError.message));
     } finally {
       setPublishing(false);
     }
@@ -539,7 +565,12 @@ export const DisciplineDetailsPage = () => {
     );
   }
 
-  const latestApproval = [...(logs || component.logs || [])]
+  const approvalHistory = [
+    ...(component.logs || []),
+    ...(logs || []),
+  ].filter((log, index, list) => list.findIndex((item) => item.id === log.id) === index);
+
+  const latestApproval = [...approvalHistory]
     .filter((log) => log.type === 'approval')
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
   const hasDraftVersion = auth.isAuthenticated && hasMeaningfulDraftDifference(component);

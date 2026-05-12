@@ -68,6 +68,7 @@ export const DisciplineEditorForm = ({
   }>({});
   const [prereqSearch, setPrereqSearch] = useState('');
   const [pendingCodeInput, setPendingCodeInput] = useState('');
+  const [publishReadinessWarnings, setPublishReadinessWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     setValues(initialValues);
@@ -134,6 +135,39 @@ export const DisciplineEditorForm = ({
 
   const basicReferencesChecklist = buildReferenceChecklist(values.referencesBasic);
   const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
+
+  const getPublishBlockingMessages = (currentValues: DisciplineFormValues) => {
+    const warnings: string[] = [];
+
+    if (!currentValues.syllabus.trim()) {
+      warnings.push('Preencha a ementa para publicação oficial.');
+    }
+    if (!currentValues.objective.trim()) {
+      warnings.push('Preencha os objetivos para publicação oficial.');
+    }
+    if (!currentValues.program.trim()) {
+      warnings.push('Preencha o conteúdo programático para publicação oficial.');
+    }
+    if (!currentValues.methodology.trim()) {
+      warnings.push('Preencha a metodologia para publicação oficial.');
+    }
+    if (!currentValues.learningAssessment.trim()) {
+      warnings.push('Preencha a avaliação da aprendizagem para publicação oficial.');
+    }
+    if (!currentValues.referencesBasic.trim()) {
+      warnings.push('Preencha ao menos as referências básicas para publicação oficial.');
+    } else if (hasNonWebReferenceWithoutYear(currentValues.referencesBasic)) {
+      warnings.push('Ajuste referências básicas sem ano (ABNT).');
+    }
+
+    if (currentValues.referencesComplementary.trim() && hasNonWebReferenceWithoutYear(currentValues.referencesComplementary)) {
+      warnings.push('Ajuste referências complementares sem ano (ABNT).');
+    }
+
+    return warnings;
+  };
+
+  const publishBlockingMessages = getPublishBlockingMessages(values);
 
   const handleAddPrerequeriment = (code: string) => {
     const nextCodes = Array.from(new Set([...selectedPrerequeriments, code]));
@@ -225,6 +259,9 @@ export const DisciplineEditorForm = ({
     }
 
     await onSave(values);
+
+    const warnings = getPublishBlockingMessages(values);
+    setPublishReadinessWarnings(warnings);
   };
 
   const submitSaveAndPublish = async () => {
@@ -253,15 +290,18 @@ export const DisciplineEditorForm = ({
       publishErrors.referencesBasic = 'Preencha ao menos as referências básicas para publicação oficial.';
     } else if (hasNonWebReferenceWithoutYear(values.referencesBasic)) {
       publishErrors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
-    } else if (values.referencesComplementary.trim() && hasNonWebReferenceWithoutYear(values.referencesComplementary)) {
+    }
+    if (values.referencesComplementary.trim() && hasNonWebReferenceWithoutYear(values.referencesComplementary)) {
       publishErrors.referencesComplementary = 'As referências complementares não web devem incluir ano (ABNT).';
     }
 
     if (Object.keys(publishErrors).length > 0) {
       setFieldErrors((current) => ({ ...current, ...publishErrors }));
+      setPublishReadinessWarnings(getPublishBlockingMessages(values));
       return;
     }
 
+    setPublishReadinessWarnings([]);
     await onSaveAndPublish(values);
   };
 
@@ -371,6 +411,12 @@ export const DisciplineEditorForm = ({
               error={fieldErrors.referencesComplementary}
               placeholder="Liste materiais adicionais recomendados."
             />
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
+              <div className="mb-1 font-semibold uppercase tracking-[0.12em]">Exemplo rápido (ABNT)</div>
+              <div>Livro: SILVA, J. Título do livro. Salvador: Editora X, 2020.</div>
+              <div>Site: UFBA. Guia institucional. Disponível em: https://www.ufba.br. Acesso em: 11/05/2026.</div>
+              <div className="mt-1 text-sky-800/80">Observação: referências complementares são opcionais, mas se preenchidas precisam seguir o mesmo padrão de ano para fontes não web.</div>
+            </div>
             {complementaryReferencesChecklist.length > 0 ? (
               <div className="rounded-2xl border border-line bg-background px-4 py-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referencias complementares</div>
@@ -492,6 +538,31 @@ export const DisciplineEditorForm = ({
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="panel interactive-lift p-4 sm:p-5">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Pronto para publicar?</div>
+        {publishBlockingMessages.length === 0 ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            Sem bloqueios identificados para publicação oficial.
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className="font-semibold">Ainda há {publishBlockingMessages.length} ponto(s) para publicação oficial:</div>
+            <ul className="mt-2 list-disc pl-5">
+              {publishBlockingMessages.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+            <div className="mt-2 text-xs text-amber-800/90">Você pode salvar rascunho mesmo assim. A publicação só será liberada após corrigir os pontos acima.</div>
+          </div>
+        )}
+
+        {publishReadinessWarnings.length > 0 ? (
+          <div className="mt-3 rounded-2xl border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-900">
+            Rascunho salvo com sucesso. Publicação oficial ainda bloqueada enquanto houver pendências acima.
+          </div>
+        ) : null}
       </section>
 
       {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
