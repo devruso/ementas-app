@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import type {
   BulkRevokePublicSharesResult,
@@ -22,6 +22,29 @@ interface ApiValidationDetail {
 interface ApiErrorPayload {
   message?: string;
   error?: ApiValidationDetail[] | string;
+}
+
+interface AuthSessionResponse {
+  token: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  refreshExpiresIn: number;
+}
+
+interface ApiSessionSnapshot {
+  accessToken: string | null;
+  refreshToken: string | null;
+}
+
+interface ApiAuthListeners {
+  onSessionUpdate?: (session: { accessToken: string; refreshToken: string }) => void;
+  onSessionClear?: () => void;
+}
+
+interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+  skipAuthRefresh?: boolean;
 }
 
 const apiMessageMap: Record<string, string> = {
@@ -74,6 +97,45 @@ const api = axios.create({
 });
 
 let authToken: string | null = null;
+let refreshToken: string | null = null;
+let listeners: ApiAuthListeners = {};
+let refreshSessionPromise: Promise<AuthSessionResponse> | null = null;
+
+const toAppError = (error: AxiosError<ApiErrorPayload>) => {
+  const payload = error.response?.data;
+  const validationReason = extractValidationReason(payload);
+  const message = validationReason || normalizeApiMessage(payload?.message);
+  const statusCode = error.response?.status || 500;
+
+  return new AppError(message, statusCode);
+};
+
+const isAuthEndpoint = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+
+  return url.includes('/auth/login') || url.includes('/auth/refresh');
+};
+
+const setSessionFromTokens = (session?: Partial<ApiSessionSnapshot> | null) => {
+  authToken = session?.accessToken || null;
+  refreshToken = session?.refreshToken || null;
+};
+
+const requestSessionRefresh = async () => {
+  if (!refreshToken) {
+    throw new AppError('Sessão expirada. Faça login novamente.', 401);
+  }
+
+  const response = await api.post<AuthSessionResponse>(
+    '/auth/refresh',
+    { refreshToken },
+    { skipAuthRefresh: true } as RetryableAxiosRequestConfig
+  );
+
+  return response.data;
+};
 
 api.interceptors.request.use((config) => {
   if (authToken) {
@@ -86,22 +148,81 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiErrorPayload>) => {
-    const payload = error.response?.data;
-    const validationReason = extractValidationReason(payload);
-    const message = validationReason || normalizeApiMessage(payload?.message);
-    const statusCode = error.response?.status || 500;
+  async (error: AxiosError<ApiErrorPayload>) => {
+    const originalRequest = (error.config || {}) as RetryableAxiosRequestConfig;
+    const shouldTryRefresh =
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.skipAuthRefresh &&
+      !isAuthEndpoint(originalRequest.url) &&
+      Boolean(refreshToken);
 
-    return Promise.reject(new AppError(message, statusCode));
+    if (shouldTryRefresh) {
+      try {
+        originalRequest._retry = true;
+
+        if (!refreshSessionPromise) {
+          refreshSessionPromise = requestSessionRefresh().finally(() => {
+            refreshSessionPromise = null;
+          });
+        }
+
+        const refreshedSession = await refreshSessionPromise;
+
+        setSessionFromTokens({
+          accessToken: refreshedSession.accessToken || refreshedSession.token,
+          refreshToken: refreshedSession.refreshToken,
+        });
+
+        if (authToken && refreshToken) {
+          listeners.onSessionUpdate?.({ accessToken: authToken, refreshToken });
+        }
+
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${authToken}`;
+
+        return api.request(originalRequest);
+      } catch (refreshError) {
+        setSessionFromTokens(null);
+        listeners.onSessionClear?.();
+
+        if (refreshError instanceof AppError) {
+          return Promise.reject(refreshError);
+        }
+
+        return Promise.reject(toAppError(refreshError as AxiosError<ApiErrorPayload>));
+      }
+    }
+
+    return Promise.reject(toAppError(error));
   }
 );
 
 export const setApiToken = (token?: string | null) => {
-  authToken = token || null;
+  setSessionFromTokens({ accessToken: token || null, refreshToken });
+};
+
+export const setApiSession = (session?: Partial<ApiSessionSnapshot> | null) => {
+  setSessionFromTokens(session);
+};
+
+export const setApiAuthListeners = (apiAuthListeners: ApiAuthListeners) => {
+  listeners = {
+    ...listeners,
+    ...apiAuthListeners,
+  };
 };
 
 export const login = async (email: string, password: string) => {
-  const response = await api.post<{ token: string }>('/auth/login', { email, password });
+  const response = await api.post<AuthSessionResponse>('/auth/login', { email, password });
+
+  return response.data;
+};
+
+export const refreshAuthSession = async (sessionRefreshToken: string) => {
+  const response = await api.post<AuthSessionResponse>('/auth/refresh', {
+    refreshToken: sessionRefreshToken,
+  });
 
   return response.data;
 };
@@ -284,10 +405,26 @@ export const createTeacherByAdmin = async (
     name: string;
     email: string;
     temporaryPassword: string;
+    emailDeliveryStatus?: 'sent' | 'mock' | 'failed' | 'disabled';
+    emailDeliveryError?: string;
   }>('/users/create-teacher', {
     name,
     email,
     sendCredentialsByEmail,
+  });
+
+  return response.data;
+};
+
+export const sendInviteByEmail = async (email: string, registrationBaseUrl: string) => {
+  const response = await api.post<{
+    email: string;
+    token: string;
+    inviteLink: string;
+    emailDeliveryStatus: 'sent' | 'mock';
+  }>('/users/invite-email', {
+    email,
+    registrationBaseUrl,
   });
 
   return response.data;

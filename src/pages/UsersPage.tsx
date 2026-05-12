@@ -6,7 +6,7 @@ import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
 import { UsersTable } from '../components/UsersTable';
 import { useAuth } from '../contexts/AuthContext';
-import { createTeacherByAdmin, deleteUserById, generateInvite, getUsers, updateUserRole } from '../lib/api';
+import { createTeacherByAdmin, deleteUserById, generateInvite, getUsers, sendInviteByEmail, updateUserRole } from '../lib/api';
 import { AppError } from '../lib/errors';
 import { isValidEmail } from '../lib/validation';
 import type { ListData, ListFilter, User } from '../types';
@@ -29,6 +29,8 @@ export const UsersPage = () => {
   const [removingUserId, setRemovingUserId] = useState('');
   const [roleDraftByUserId, setRoleDraftByUserId] = useState<Record<string, User['role']>>({});
   const [inviteToken, setInviteToken] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [sendingInviteEmail, setSendingInviteEmail] = useState(false);
   const [teacherName, setTeacherName] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
   const [sendCredentialsByEmail, setSendCredentialsByEmail] = useState(true);
@@ -66,6 +68,14 @@ export const UsersPage = () => {
       setError(appError.message);
     });
   }, [filter]);
+
+  useEffect(() => {
+    if (!auth.user?.email) {
+      return;
+    }
+
+    setInviteEmail((current) => current || auth.user?.email || '');
+  }, [auth.user?.email]);
 
   const totalPages = useMemo(() => users.meta?.totalPages ?? Math.ceil(users.total / filter.limit), [users, filter.limit]);
 
@@ -109,7 +119,17 @@ export const UsersPage = () => {
       );
 
       setLastGeneratedPassword(createdTeacher.temporaryPassword);
-      setSuccess('Professor criado com sucesso. Guarde a senha provisória com segurança.');
+
+      if (createdTeacher.emailDeliveryStatus === 'sent') {
+        setSuccess('Professor criado com sucesso. Credenciais enviadas por e-mail institucional.');
+      } else if (createdTeacher.emailDeliveryStatus === 'mock') {
+        setSuccess('Professor criado com sucesso. Aviso: envio de e-mail está em modo de simulação (MAILER_MOCK=true).');
+      } else if (createdTeacher.emailDeliveryStatus === 'failed') {
+        setSuccess('Professor criado com sucesso, mas o envio de e-mail falhou. Compartilhe a senha provisória manualmente.');
+        setError(createdTeacher.emailDeliveryError || 'Falha no envio do e-mail institucional.');
+      } else {
+        setSuccess('Professor criado com sucesso. Guarde a senha provisória com segurança.');
+      }
 
       setTeacherName('');
       setTeacherEmail('');
@@ -121,6 +141,37 @@ export const UsersPage = () => {
       setError(appError.message);
     } finally {
       setCreatingTeacher(false);
+    }
+  };
+
+  const handleSendInviteByEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!isValidEmail(inviteEmail)) {
+      setSuccess('');
+      setError('Informe um e-mail institucional válido para envio do convite.');
+      return;
+    }
+
+    try {
+      setSendingInviteEmail(true);
+      setError('');
+      setSuccess('');
+
+      const inviteDelivery = await sendInviteByEmail(inviteEmail.trim(), window.location.origin);
+
+      setInviteToken(inviteDelivery.token);
+
+      if (inviteDelivery.emailDeliveryStatus === 'mock') {
+        setSuccess('Convite gerado e enviado em modo simulado (MAILER_MOCK/fallback). Verifique o log da API para validar o conteúdo.');
+      } else {
+        setSuccess(`Convite enviado com sucesso para ${inviteDelivery.email}.`);
+      }
+    } catch (err) {
+      const appError = err as AppError;
+      setError(appError.message);
+    } finally {
+      setSendingInviteEmail(false);
     }
   };
 
@@ -194,6 +245,27 @@ export const UsersPage = () => {
             {loadingInvite ? 'Gerando convite...' : 'Gerar convite'}
           </button>
         </div>
+
+        <form className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]" onSubmit={handleSendInviteByEmail}>
+          <FormField
+            label="Enviar convite para e-mail institucional"
+            type="email"
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            placeholder="jamilsonj@ufba.br"
+          />
+          <button
+            type="submit"
+            disabled={sendingInviteEmail}
+            className="inline-flex h-14 items-center justify-center self-end rounded-2xl border border-primary-200 bg-white px-5 py-3 font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {sendingInviteEmail ? 'Enviando convite...' : 'Enviar convite por e-mail'}
+          </button>
+        </form>
+
+        <p className="mt-3 text-xs text-muted">
+          Dica: você pode usar seu próprio e-mail UFBA para validar o envio agora e depois repetir para o professor.
+        </p>
       </section>
 
       {inviteToken ? (

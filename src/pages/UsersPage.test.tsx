@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createTeacherByAdmin, deleteUserById, generateInvite, getUsers, updateUserRole } from '../lib/api';
+import { createTeacherByAdmin, deleteUserById, generateInvite, getUsers, sendInviteByEmail, updateUserRole } from '../lib/api';
 import { UsersPage } from './UsersPage';
 
 const useAuthMock = vi.fn();
@@ -16,6 +16,7 @@ vi.mock('../lib/api', () => ({
   generateInvite: vi.fn(),
   deleteUserById: vi.fn(),
   createTeacherByAdmin: vi.fn(),
+  sendInviteByEmail: vi.fn(),
   updateUserRole: vi.fn(),
 }));
 
@@ -23,6 +24,7 @@ const mockedGetUsers = vi.mocked(getUsers);
 const mockedGenerateInvite = vi.mocked(generateInvite);
 const mockedDeleteUserById = vi.mocked(deleteUserById);
 const mockedCreateTeacherByAdmin = vi.mocked(createTeacherByAdmin);
+const mockedSendInviteByEmail = vi.mocked(sendInviteByEmail);
 const mockedUpdateUserRole = vi.mocked(updateUserRole);
 
 describe('UsersPage', () => {
@@ -71,6 +73,28 @@ describe('UsersPage', () => {
 
     expect(await screen.findByText('Convite gerado')).toBeInTheDocument();
     expect(screen.getByText(`${window.location.origin}/cadastrar/invite-token-123`)).toBeInTheDocument();
+  });
+
+  it('deve enviar convite por e-mail institucional', async () => {
+    mockedSendInviteByEmail.mockResolvedValueOnce({
+      email: 'jamilsonj@ufba.br',
+      token: 'invite-token-email-1',
+      inviteLink: `${window.location.origin}/cadastrar/invite-token-email-1`,
+      emailDeliveryStatus: 'mock',
+    });
+
+    render(<UsersPage />);
+
+    await screen.findByText('Professor Teste');
+    await userEvent.clear(screen.getByLabelText('Enviar convite para e-mail institucional'));
+    await userEvent.type(screen.getByLabelText('Enviar convite para e-mail institucional'), 'jamilsonj@ufba.br');
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite por e-mail' }));
+
+    await waitFor(() => {
+      expect(mockedSendInviteByEmail).toHaveBeenCalledWith('jamilsonj@ufba.br', window.location.origin);
+    });
+
+    expect(await screen.findByText('Convite gerado')).toBeInTheDocument();
   });
 
   it('deve remover usuário após confirmação', async () => {
