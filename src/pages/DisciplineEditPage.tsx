@@ -3,19 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
+import { getTodayIsoDate, suggestNextAgreementNumber } from '../lib/approval';
 import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponents, updateComponentDraft } from '../lib/api';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
-import type { ComponentDraft } from '../types';
-
-const getTodayIsoDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-};
+import type { ComponentDraft, ComponentLog } from '../types';
 
 export const DisciplineEditPage = () => {
   const navigate = useNavigate();
@@ -30,7 +22,7 @@ export const DisciplineEditPage = () => {
   const [agreementNumber, setAgreementNumber] = useState('');
   const [approvalSignature, setApprovalSignature] = useState('');
   const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
-  const [approvalHistoryCount, setApprovalHistoryCount] = useState(0);
+  const [approvalLogs, setApprovalLogs] = useState<ComponentLog[]>([]);
   const [liveValues, setLiveValues] = useState<DisciplineFormValues | null>(null);
   const [lastSavedPayload, setLastSavedPayload] = useState('');
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -75,15 +67,15 @@ export const DisciplineEditPage = () => {
     setAvailablePrerequisites(Array.from(mapped.values()));
 
     const currentComponent = componentsResult.results.find((item) => item.code.toUpperCase() === code);
-    const approvalLogs = (currentComponent?.logs || []).filter((log) => log.type === 'approval');
-    setApprovalHistoryCount(approvalLogs.length);
+    const normalizedApprovalLogs = (currentComponent?.logs || []).filter((log) => log.type === 'approval');
+    setApprovalLogs(normalizedApprovalLogs);
 
     if (!agreementDate) {
       setAgreementDate(getTodayIsoDate());
     }
 
     if (!agreementNumber) {
-      setAgreementNumber(String(approvalLogs.length + 1));
+      setAgreementNumber(suggestNextAgreementNumber(normalizedApprovalLogs, agreementDate || getTodayIsoDate()));
     }
   };
 
@@ -160,7 +152,7 @@ export const DisciplineEditPage = () => {
         setAgreementDate(getTodayIsoDate());
       }
       if (!agreementNumber) {
-        setAgreementNumber(String(approvalHistoryCount + 1));
+        setAgreementNumber(suggestNextAgreementNumber(approvalLogs, agreementDate || getTodayIsoDate()));
       }
       setDialogOpen(true);
     } catch (err) {

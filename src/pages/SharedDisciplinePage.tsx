@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { SectionCard } from '../components/SectionCard';
@@ -21,8 +21,8 @@ const splitReferences = (bibliography?: string, referencesBasic?: string, refere
     return { basic: '', complementary: '' };
   }
 
-  const basicMatch = raw.match(/(?:REFERENCIAS\s+BASICAS|REFERÊNCIAS\s+BÁSICAS|BASICAS|BÁSICAS)\s*:\s*([\s\S]*?)(?=(?:REFERENCIAS\s+COMPLEMENTARES|REFERÊNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:|$)/i);
-  const complementaryMatch = raw.match(/(?:REFERENCIAS\s+COMPLEMENTARES|REFERÊNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:\s*([\s\S]*)$/i);
+  const basicMatch = raw.match(/(?:REFERENCIAS\s+BASICAS|REFERÃŠNCIAS\s+BÃSICAS|BASICAS|BÃSICAS)\s*:\s*([\s\S]*?)(?=(?:REFERENCIAS\s+COMPLEMENTARES|REFERÃŠNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:|$)/i);
+  const complementaryMatch = raw.match(/(?:REFERENCIAS\s+COMPLEMENTARES|REFERÃŠNCIAS\s+COMPLEMENTARES|COMPLEMENTARES)\s*:\s*([\s\S]*)$/i);
 
   if (basicMatch || complementaryMatch) {
     return {
@@ -42,7 +42,7 @@ export const SharedDisciplinePage = () => {
 
   useEffect(() => {
     if (!shareToken) {
-      setError('Link público inválido.');
+      setError('Link pÃºblico invÃ¡lido.');
       setLoading(false);
       return;
     }
@@ -55,7 +55,7 @@ export const SharedDisciplinePage = () => {
       })
       .catch((err) => {
         const appError = err as AppError;
-        setError(appError.message || 'Não foi possível carregar a disciplina compartilhada.');
+        setError(appError.message || 'NÃ£o foi possÃ­vel carregar a disciplina compartilhada.');
       })
       .finally(() => setLoading(false));
   }, [shareToken]);
@@ -67,7 +67,7 @@ export const SharedDisciplinePage = () => {
   if (!component) {
     return (
       <div className="panel p-10 text-center text-sm text-muted">
-        {error || 'Disciplina não disponível para compartilhamento público.'}
+        {error || 'Disciplina nÃ£o disponÃ­vel para compartilhamento pÃºblico.'}
       </div>
     );
   }
@@ -82,24 +82,24 @@ export const SharedDisciplinePage = () => {
           <div className="pointer-events-none absolute right-0 top-0 h-36 w-36 rounded-full bg-primary-300/20 blur-3xl" />
           <div className="relative">
             <div className="mb-3 inline-flex rounded-full border border-primary-200 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700 shadow-sm">
-              Compartilhamento temporário
+              Compartilhamento temporÃ¡rio
             </div>
             <div className="max-w-4xl">
               <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl md:text-4xl">{component.code} - {component.name}</h2>
               <p className="mt-3 text-sm leading-7 text-muted sm:text-base">
-                Versão oficial publicada para acesso público temporário, preservando leitura institucional, contexto acadêmico e integridade do conteúdo compartilhado.
+                VersÃ£o oficial publicada para acesso pÃºblico temporÃ¡rio, preservando leitura institucional, contexto acadÃªmico e integridade do conteÃºdo compartilhado.
               </p>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2.5">
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Departamento: {component.department || 'Não informado'}
+                Departamento: {component.department || 'NÃ£o informado'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Semestre: {component.semester || 'Não informado'}
+                Semestre: {component.semester || 'NÃ£o informado'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Modalidade: {component.modality || 'Não informada'}
+                Modalidade: {component.modality || 'NÃ£o informada'}
               </span>
             </div>
           </div>
@@ -108,24 +108,24 @@ export const SharedDisciplinePage = () => {
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <SectionCard title="Ementa">{component.syllabus || 'Não informada.'}</SectionCard>
-          <SectionCard title="Conteúdo programático">{component.program || 'Não informado.'}</SectionCard>
-          <SectionCard title="Objetivos">{component.objective || 'Não informados.'}</SectionCard>
-          <SectionCard title="Metodologia">{component.methodology || 'Não informada.'}</SectionCard>
-          <SectionCard title="Referencias basicas">{references.basic || 'Não informadas.'}</SectionCard>
-          <SectionCard title="Referencias complementares">{references.complementary || 'Não informadas.'}</SectionCard>
+          <SectionCard title="Ementa">{component.syllabus || 'NÃ£o informada.'}</SectionCard>
+          <SectionCard title="ConteÃºdo programÃ¡tico">{component.program || 'NÃ£o informado.'}</SectionCard>
+          <SectionCard title="Objetivos">{component.objective || 'NÃ£o informados.'}</SectionCard>
+          <SectionCard title="Metodologia">{component.methodology || 'NÃ£o informada.'}</SectionCard>
+          <SectionCard title="Referencias basicas">{references.basic || 'NÃ£o informadas.'}</SectionCard>
+          <SectionCard title="Referencias complementares">{references.complementary || 'NÃ£o informadas.'}</SectionCard>
         </div>
 
         <div className="space-y-6">
           <section className="panel interactive-lift overflow-hidden">
             <div className="border-b border-line bg-slate-50/70 px-5 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/70">
-              Carga horária
+              Carga horÃ¡ria
             </div>
             <div className="grid grid-cols-1 gap-3 px-5 py-5 text-sm sm:grid-cols-2 xl:grid-cols-1">
               <div className="rounded-2xl border border-line bg-slate-50 p-4 shadow-sm">
                 <div className="mb-2 font-semibold text-ink">Estudante</div>
                 <div>Teoria: {formatWorkload(component.workload?.studentTheory)}</div>
-                <div>Prática: {formatWorkload(component.workload?.studentPractice)}</div>
+                <div>PrÃ¡tica: {formatWorkload(component.workload?.studentPractice)}</div>
                 <div>T/P: {formatWorkload(component.workload?.studentTheoryPractice)}</div>
                 <div>PP: {formatWorkload(component.workload?.studentPracticeInternship)}</div>
                 <div>Ext: {formatWorkload(component.workload?.studentExtension)}</div>
@@ -134,7 +134,7 @@ export const SharedDisciplinePage = () => {
               <div className="rounded-2xl border border-line bg-slate-50 p-4 shadow-sm">
                 <div className="mb-2 font-semibold text-ink">Professor</div>
                 <div>Teoria: {formatWorkload(component.workload?.teacherTheory)}</div>
-                <div>Prática: {formatWorkload(component.workload?.teacherPractice)}</div>
+                <div>PrÃ¡tica: {formatWorkload(component.workload?.teacherPractice)}</div>
                 <div>T/P: {formatWorkload(component.workload?.teacherTheoryPractice)}</div>
                 <div>PP: {formatWorkload(component.workload?.teacherPracticeInternship)}</div>
                 <div>Ext: {formatWorkload(component.workload?.teacherExtension)}</div>
@@ -148,7 +148,7 @@ export const SharedDisciplinePage = () => {
               Acesso institucional
             </div>
             <p className="text-sm leading-7 text-muted">
-              Para editar disciplinas, acompanhar histórico e publicar versões oficiais, acesse com sua conta institucional.
+              Para editar disciplinas, acompanhar histÃ³rico e publicar versÃµes oficiais, acesse com sua conta institucional.
             </p>
             <div className="mt-4">
               <Link
@@ -165,16 +165,17 @@ export const SharedDisciplinePage = () => {
               Leitura oficial
             </div>
             <div className="space-y-3 px-5 py-5 text-sm leading-7 text-ink/78">
-              <p>Este compartilhamento exibe a versão oficial publicada do componente curricular.</p>
-              <p>O conteúdo exibido não concede permissão de edição, alteração de estado ou decisão acadêmica fora do fluxo institucional autenticado.</p>
+              <p>Este compartilhamento exibe a versÃ£o oficial publicada do componente curricular.</p>
+              <p>O conteÃºdo exibido nÃ£o concede permissÃ£o de ediÃ§Ã£o, alteraÃ§Ã£o de estado ou decisÃ£o acadÃªmica fora do fluxo institucional autenticado.</p>
             </div>
           </section>
         </div>
       </section>
 
       <div className="rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-sm text-primary-800 shadow-sm">
-        Este link é temporário e pode ser revogado a qualquer momento pelo responsável da publicação.
+        Este link Ã© temporÃ¡rio e pode ser revogado a qualquer momento pelo responsÃ¡vel da publicaÃ§Ã£o.
       </div>
     </div>
   );
 };
+

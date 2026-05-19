@@ -135,6 +135,17 @@ export const DisciplineEditorForm = ({
 
   const basicReferencesChecklist = buildReferenceChecklist(values.referencesBasic);
   const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
+  const allReferenceChecklistItems = [...basicReferencesChecklist, ...complementaryReferencesChecklist];
+  const referenceOkItems = allReferenceChecklistItems.filter((item) => item.status === 'ok').length;
+  const referenceWarningItems = allReferenceChecklistItems.length - referenceOkItems;
+  const referenceQualityScore = allReferenceChecklistItems.length === 0
+    ? 100
+    : Math.max(0, Math.round((referenceOkItems / allReferenceChecklistItems.length) * 100));
+  const referenceScoreToneClass = referenceQualityScore >= 80
+    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+    : referenceQualityScore >= 60
+      ? 'text-amber-700 bg-amber-50 border-amber-200'
+      : 'text-danger bg-red-50 border-red-200';
 
   const getPublishBlockingMessages = (currentValues: DisciplineFormValues) => {
     const warnings: string[] = [];
@@ -385,6 +396,31 @@ export const DisciplineEditorForm = ({
               error={fieldErrors.referencesBasic}
               placeholder="Liste autores, títulos e dados editoriais essenciais."
             />
+            <div className="rounded-2xl border border-line bg-background px-4 py-3 text-xs text-ink/85">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="font-semibold uppercase tracking-[0.12em] text-ink/70">Assistente de qualidade ABNT</div>
+                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${referenceScoreToneClass}`}>
+                  Score {referenceQualityScore}%
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-line/70 bg-white px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-ink/60">Linhas avaliadas</div>
+                  <div className="mt-1 text-sm font-semibold text-ink">{allReferenceChecklistItems.length}</div>
+                </div>
+                <div className="rounded-xl border border-line/70 bg-white px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-ink/60">Sem pendências</div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-700">{referenceOkItems}</div>
+                </div>
+                <div className="rounded-xl border border-line/70 bg-white px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-ink/60">Com ajuste</div>
+                  <div className="mt-1 text-sm font-semibold text-amber-700">{referenceWarningItems}</div>
+                </div>
+              </div>
+              <div className="mt-2 text-[11px] text-ink/70">
+                Indicativo: priorize linhas marcadas como "Ajustar" antes da publicação oficial para reduzir retrabalho na aprovação.
+              </div>
+            </div>
             {basicReferencesChecklist.length > 0 ? (
               <div className="rounded-2xl border border-line bg-background px-4 py-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referencias basicas</div>

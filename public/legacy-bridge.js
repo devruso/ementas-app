@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   try {
     var cleanupFlag = 'ementas:sw-cleanup-v1';
 
@@ -29,3 +29,4 @@
 
   window.location.reload();
 })();
+

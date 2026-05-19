@@ -69,6 +69,11 @@ export interface User {
   email: string;
   role: 'super_admin' | 'admin' | 'teacher';
   signatureUpdatedAt?: string;
+  signatureFileKey?: string;
+  signatureFileProvider?: string;
+  signatureFileContentType?: string;
+  signatureFileSize?: number;
+  signatureFileHash?: string;
   createdAt?: string;
 }
 

@@ -1,4 +1,4 @@
-# Ementas App
+﻿# Ementas App
 
 Interface web do Ementas em migracao incremental, preservando o backend atual e reorganizando a experiencia para mobile first.
 

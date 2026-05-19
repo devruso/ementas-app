@@ -1,4 +1,4 @@
-import { BookOpenText, FilePlus2, FileSearch2, GraduationCap, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
+﻿import { BookOpenText, FilePlus2, FileSearch2, GraduationCap, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
@@ -27,7 +27,7 @@ export const AppShell = () => {
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
-                Instituto de Computação
+                Instituto de ComputaÃ§Ã£o
               </div>
               <div className="text-lg font-semibold">Ementas e Conteudos Programaticos</div>
             </div>
@@ -56,7 +56,7 @@ export const AppShell = () => {
                   <NavLink to="/usuarios" className={navPillClass}>
                     <span className="inline-flex items-center gap-2">
                       <Users2 className="h-4 w-4" />
-                      Usuários
+                      UsuÃ¡rios
                     </span>
                   </NavLink>
                 ) : null}
@@ -129,7 +129,7 @@ export const AppShell = () => {
                       className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Usuários
+                      UsuÃ¡rios
                     </NavLink>
                   ) : null}
                   <NavLink

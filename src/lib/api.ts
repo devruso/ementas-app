@@ -102,6 +102,13 @@ let listeners: ApiAuthListeners = {};
 let refreshSessionPromise: Promise<AuthSessionResponse> | null = null;
 
 const toAppError = (error: AxiosError<ApiErrorPayload>) => {
+  if (!error.response) {
+    return new AppError(
+      'Nao foi possivel conectar na API. Verifique se o frontend foi configurado com VITE_API_URL correto e se o backend esta online.',
+      503
+    );
+  }
+
   const payload = error.response?.data;
   const validationReason = extractValidationReason(payload);
   const message = validationReason || normalizeApiMessage(payload?.message);
@@ -260,6 +267,29 @@ export const updateUserPassword = async (password: string) => {
 
 export const updateUserSignature = async (signature: string) => {
   await api.put('/users/update/signature', { signature });
+};
+
+export const uploadUserSignatureFile = async (signatureFile: File, signature?: string) => {
+  const formData = new FormData();
+  formData.append('signatureFile', signatureFile);
+
+  if (signature?.trim()) {
+    formData.append('signature', signature.trim());
+  }
+
+  await api.put('/users/update/signature/file', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+export const getUserSignatureFilePreview = async () => {
+  const response = await api.get<Blob>('/users/signature/file', {
+    responseType: 'blob',
+  });
+
+  return response.data;
 };
 
 export const updateUserRole = async (userId: string, role: 'super_admin' | 'admin' | 'teacher') => {

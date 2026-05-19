@@ -18,6 +18,7 @@ import {
   revokeAllPublicShares,
   revokePublicShare,
 } from '../lib/api';
+import { getTodayIsoDate, suggestNextAgreementNumber } from '../lib/approval';
 import { formatDate, formatWorkload } from '../lib/format';
 import { AppError } from '../lib/errors';
 import type { Component, ComponentLog, PublicShare } from '../types';
@@ -181,33 +182,6 @@ const hasMeaningfulDraftDifference = (component: Component) => {
   return workloadComparableFields.some(
     (field) => Number(component.workload?.[field] ?? 0) !== Number(component.draft?.workload?.[field] ?? 0)
   );
-};
-
-const getTodayIsoDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-};
-
-const suggestNextAgreementNumber = (approvalLogs: ComponentLog[]) => {
-  const sortedApprovals = [...approvalLogs]
-    .filter((log) => log.type === 'approval')
-    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
-
-  const latestAgreementNumber = sortedApprovals[0]?.agreementNumber?.trim();
-
-  if (latestAgreementNumber) {
-    const numericCandidate = Number(latestAgreementNumber);
-
-    if (Number.isFinite(numericCandidate) && numericCandidate >= 0) {
-      return String(Math.floor(numericCandidate) + 1);
-    }
-  }
-
-  return String(sortedApprovals.length + 1);
 };
 
 const normalizePublishErrorText = (value: string) =>
@@ -438,7 +412,7 @@ export const DisciplineDetailsPage = () => {
     }
 
     if (!agreementNumber.trim()) {
-      setAgreementNumber(suggestNextAgreementNumber(approvalLogs));
+      setAgreementNumber(suggestNextAgreementNumber(approvalLogs, agreementDate || getTodayIsoDate()));
     }
 
     setDialogError('');
