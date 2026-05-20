@@ -92,8 +92,11 @@ const extractValidationReason = (payload?: ApiErrorPayload) => {
     .replace(/^([a-zA-Z]+) deve ser informado.*$/i, 'Preencha os campos obrigatórios para continuar.');
 };
 
+const defaultApiBaseUrl =
+  typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:3333/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3333/api',
+  baseURL: import.meta.env.VITE_API_URL || defaultApiBaseUrl,
 });
 
 let authToken: string | null = null;
