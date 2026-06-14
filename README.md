@@ -30,6 +30,20 @@ Variaveis suportadas:
 
 - `VITE_API_URL`: base da API Ementas. Exemplo local: `http://localhost:3333/api`.
 
+## Deploy e configuracao em runtime
+
+- O frontend agora aceita `VITE_API_URL` tanto no build quanto em runtime dentro do container Nginx.
+- Em producao, a imagem gera automaticamente o arquivo `/runtime-config.js` a partir de `VITE_API_URL` ou `API_URL`.
+- Se nenhuma dessas variaveis for definida, o app usa `window.location.origin + /api` como fallback.
+
+Exemplo de configuracao para deploy:
+
+```sh
+VITE_API_URL=https://api.ementas.app.ic.ufba.com.br/api
+```
+
+Ou, se frontend e backend estiverem servidos no mesmo dominio com reverse proxy de `/api`, basta nao definir a variavel.
+
 ## Scripts
 
 - `npm install`
