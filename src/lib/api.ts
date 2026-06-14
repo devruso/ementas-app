@@ -47,12 +47,6 @@ interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
   skipAuthRefresh?: boolean;
 }
 
-interface RuntimeConfigWindow extends Window {
-  __EMENTAS_RUNTIME_CONFIG__?: {
-    apiUrl?: string;
-  };
-}
-
 const apiMessageMap: Record<string, string> = {
   'Validation failed': 'Existem campos inválidos. Revise os dados informados.',
   'Incorrect username and/or password. Please try again!': 'E-mail ou senha inválidos. Confira os dados e tente novamente.',
@@ -98,20 +92,8 @@ const extractValidationReason = (payload?: ApiErrorPayload) => {
     .replace(/^([a-zA-Z]+) deve ser informado.*$/i, 'Preencha os campos obrigatórios para continuar.');
 };
 
-const runtimeApiBaseUrl =
-  typeof window !== 'undefined'
-    ? (window as RuntimeConfigWindow).__EMENTAS_RUNTIME_CONFIG__?.apiUrl?.trim() || ''
-    : '';
-
-const productionFallbackApiBaseUrl =
-  typeof window !== 'undefined' && /ementas\.app\.ic\.ufba\.br$/i.test(window.location.hostname)
-    ? 'https://ementas-api.app.ic.ufba.br/api'
-    : '';
-
 const defaultApiBaseUrl =
-  runtimeApiBaseUrl ||
-  productionFallbackApiBaseUrl ||
-  (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:3333/api');
+  typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:3333/api';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || defaultApiBaseUrl,

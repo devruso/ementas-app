@@ -1,1 +1,0 @@
-window.__EMENTAS_RUNTIME_CONFIG__ = Object.freeze({});
