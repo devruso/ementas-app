@@ -103,8 +103,14 @@ const runtimeApiBaseUrl =
     ? (window as RuntimeConfigWindow).__EMENTAS_RUNTIME_CONFIG__?.apiUrl?.trim() || ''
     : '';
 
+const productionFallbackApiBaseUrl =
+  typeof window !== 'undefined' && /ementas\.app\.ic\.ufba\.br$/i.test(window.location.hostname)
+    ? 'https://ementas-api.app.ic.ufba.br/api'
+    : '';
+
 const defaultApiBaseUrl =
   runtimeApiBaseUrl ||
+  productionFallbackApiBaseUrl ||
   (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:3333/api');
 
 const api = axios.create({
