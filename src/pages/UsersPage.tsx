@@ -20,6 +20,7 @@ const initialFilter: ListFilter = {
 
 export const UsersPage = () => {
   const auth = useAuth();
+  const canDeleteUsers = auth.user?.role === 'super_admin';
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   const [users, setUsers] = useState<ListData<User>>({ results: [], total: 0 });
@@ -162,7 +163,10 @@ export const UsersPage = () => {
 
       setInviteToken(inviteDelivery.token);
 
-      if (inviteDelivery.emailDeliveryStatus === 'mock') {
+      if (inviteDelivery.emailDeliveryStatus === 'failed') {
+        setSuccess('Convite gerado, mas o envio por e-mail falhou. Compartilhe o link manualmente.');
+        setError(inviteDelivery.emailDeliveryError || 'Falha no envio de convite por e-mail.');
+      } else if (inviteDelivery.emailDeliveryStatus === 'mock') {
         setSuccess('Convite gerado e enviado em modo simulado (MAILER_MOCK/fallback). Verifique o log da API para validar o conteúdo.');
       } else {
         setSuccess(`Convite enviado com sucesso para ${inviteDelivery.email}.`);
@@ -176,6 +180,16 @@ export const UsersPage = () => {
   };
 
   const handleRemoveUser = async (user: User) => {
+    if (!canDeleteUsers) {
+      setError('Apenas super admin pode remover usuarios.');
+      return;
+    }
+
+    if (user.id === auth.user?.id) {
+      setError('Nao e permitido remover o proprio usuario.');
+      return;
+    }
+
     const confirmed = window.confirm(`Deseja remover o usuário ${user.name}?`);
 
     if (!confirmed) {
@@ -360,6 +374,7 @@ export const UsersPage = () => {
         totalPages={Math.max(totalPages, 1)}
         currentUserId={auth.user?.id}
         currentUserRole={auth.user?.role}
+        canDeleteUsers={canDeleteUsers}
         roleDraftByUserId={roleDraftByUserId}
         updatingRoleUserId={updatingRoleUserId}
         removingUserId={removingUserId}

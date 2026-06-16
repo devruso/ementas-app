@@ -12,6 +12,7 @@ interface UsersTableProps {
   totalPages: number;
   currentUserId?: string;
   currentUserRole?: User['role'];
+  canDeleteUsers?: boolean;
   roleDraftByUserId?: Record<string, User['role']>;
   updatingRoleUserId?: string;
   removingUserId?: string;
@@ -27,6 +28,7 @@ export const UsersTable = ({
   totalPages,
   currentUserId,
   currentUserRole,
+  canDeleteUsers,
   roleDraftByUserId,
   updatingRoleUserId,
   removingUserId,
@@ -104,10 +106,20 @@ export const UsersTable = ({
               <button
                 type="button"
                 onClick={() => onRemoveUser(user)}
-                disabled={removingUserId === user.id}
+                disabled={
+                  removingUserId === user.id
+                  || !canDeleteUsers
+                  || user.id === currentUserId
+                }
                 className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-danger transition hover:-translate-y-0.5 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {removingUserId === user.id ? 'Removendo...' : 'Remover'}
+                {removingUserId === user.id
+                  ? 'Removendo...'
+                  : user.id === currentUserId
+                    ? 'Usuario atual'
+                    : !canDeleteUsers
+                      ? 'Sem permissao'
+                      : 'Remover'}
               </button>
             </div>
           </div>

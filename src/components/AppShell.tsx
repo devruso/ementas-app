@@ -27,9 +27,9 @@ export const AppShell = () => {
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
-                Instituto de ComputaÃ§Ã£o
+                Instituto de Computacao
               </div>
-              <div className="text-lg font-semibold">Ementas e Conteudos Programaticos</div>
+              <div className="text-lg font-semibold">Ementas</div>
             </div>
           </NavLink>
 
@@ -56,7 +56,7 @@ export const AppShell = () => {
                   <NavLink to="/usuarios" className={navPillClass}>
                     <span className="inline-flex items-center gap-2">
                       <Users2 className="h-4 w-4" />
-                      UsuÃ¡rios
+                      Usuarios
                     </span>
                   </NavLink>
                 ) : null}
@@ -129,7 +129,7 @@ export const AppShell = () => {
                       className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      UsuÃ¡rios
+                      Usuarios
                     </NavLink>
                   ) : null}
                   <NavLink

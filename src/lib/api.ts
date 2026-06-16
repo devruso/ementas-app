@@ -52,21 +52,34 @@ const apiMessageMap: Record<string, string> = {
   'Incorrect username and/or password. Please try again!': 'E-mail ou senha inválidos. Confira os dados e tente novamente.',
   'Username or password missing. Please try again!': 'Informe e-mail e senha para continuar.',
   'User does not exists!': 'Usuário não encontrado.',
+  'User not found.': 'Usuário não encontrado.',
+  'User already exists.': 'Já existe uma conta cadastrada com esse e-mail.',
+  'Only UFBA institutional email addresses are allowed.': 'Use um e-mail institucional da UFBA (@ufba.br).',
+  'Invalid registration base URL. Use a full URL, e.g. http://localhost:3000.': 'URL de cadastro inválida para gerar convite por e-mail.',
+  'Only super admin can remove users.': 'Apenas super admin pode remover usuarios.',
+  'Super admin cannot remove own account.': 'Nao e permitido remover o proprio usuario.',
   'This invite is invalid or already expired.': 'Convite inválido ou expirado.',
   'An error has been occurred.': 'Não foi possível concluir a operação. Tente novamente.',
   'An error has been occurred!': 'Não foi possível concluir a operação. Tente novamente.',
+  'Internal Server Error': 'Não foi possível concluir a operação. Tente novamente.',
 };
 
 const normalizeApiMessage = (message?: string) => {
-  if (!message) {
+  const normalizedMessage = message?.trim();
+
+  if (!normalizedMessage) {
     return 'Erro interno no servidor.';
   }
 
-  if (Object.prototype.hasOwnProperty.call(apiMessageMap, message)) {
-    return apiMessageMap[message];
+  if (Object.prototype.hasOwnProperty.call(apiMessageMap, normalizedMessage)) {
+    return apiMessageMap[normalizedMessage];
   }
 
-  return 'Não foi possível concluir a operação. Tente novamente em instantes.';
+  if (/^internal server error$/i.test(normalizedMessage)) {
+    return 'Não foi possível concluir a operação. Tente novamente.';
+  }
+
+  return normalizedMessage;
 };
 
 const extractValidationReason = (payload?: ApiErrorPayload) => {
@@ -89,6 +102,11 @@ const extractValidationReason = (payload?: ApiErrorPayload) => {
       /^code\s+deve\s+estar\s+de\s+acordo\s+com\s+a\s+expressão\s+regular\s+\/\^\[A-Z\]\{3,4\}\[0-9\]\{2,4\}\$\/$/i,
       'Código inválido. Use o formato AAA999 ou AAAA9999 (ex.: MAT245 ou IC045).'
     )
+    .replace(/^email\s+deve\s+ser\s+um\s+endere[cç]o\s+de\s+email$/i, 'Informe um e-mail válido.')
+    .replace(/^name\s+deve\s+ser\s+informado.*$/i, 'Informe seu nome.')
+    .replace(/^email\s+deve\s+ser\s+informado.*$/i, 'Informe seu e-mail.')
+    .replace(/^password\s+deve\s+ser\s+informado.*$/i, 'Informe sua senha.')
+    .replace(/^password\s+deve\s+estar\s+de\s+acordo\s+com\s+a\s+expressão\s+regular.*$/i, 'A senha deve ter de 8 a 20 caracteres e incluir letra maiúscula, minúscula, número e caractere especial.')
     .replace(/^([a-zA-Z]+) deve ser informado.*$/i, 'Preencha os campos obrigatórios para continuar.');
 };
 
@@ -454,7 +472,8 @@ export const sendInviteByEmail = async (email: string, registrationBaseUrl: stri
     email: string;
     token: string;
     inviteLink: string;
-    emailDeliveryStatus: 'sent' | 'mock';
+    emailDeliveryStatus: 'sent' | 'mock' | 'failed';
+    emailDeliveryError?: string;
   }>('/users/invite-email', {
     email,
     registrationBaseUrl,
