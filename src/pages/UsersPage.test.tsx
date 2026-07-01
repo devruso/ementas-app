@@ -79,7 +79,9 @@ describe('UsersPage', () => {
     mockedSendInviteByEmail.mockResolvedValueOnce({
       email: 'jamilsonj@ufba.br',
       token: 'invite-token-email-1',
-      inviteLink: `${window.location.origin}/cadastrar/invite-token-email-1`,
+      inviteLink: `${window.location.origin}/i/short123abc`,
+      directInviteLink: `${window.location.origin}/cadastrar/invite-token-email-1`,
+      inviteShortCode: 'short123abc',
       emailDeliveryStatus: 'mock',
     });
 
