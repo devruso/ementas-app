@@ -14,6 +14,7 @@ import { DepartmentsPage } from './pages/DepartmentsPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { InviteShortRedirectPage } from './pages/InviteShortRedirectPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SharedDisciplinePage } from './pages/SharedDisciplinePage';
 import { UsersPage } from './pages/UsersPage';
@@ -44,6 +45,7 @@ export const App = () => {
           <Route element={<AuthLayout />}>
             <Route path="/entrar" element={<LoginPage />} />
             <Route path="/novasenha" element={<ForgotPasswordPage />} />
+            <Route path="/i/:shortCode" element={<InviteShortRedirectPage />} />
             <Route path="/cadastrar/:inviteToken" element={<RegisterPage />} />
           </Route>
         </Route>

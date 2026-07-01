@@ -279,6 +279,12 @@ export const validateInviteToken = async (inviteToken: string) => {
   await api.get(`/invite/validate/${inviteToken}`);
 };
 
+export const resolveInviteShortCode = async (shortCode: string) => {
+  const response = await api.get<{ inviteToken: string }>(`/invite/resolve/${shortCode}`);
+
+  return response.data.inviteToken;
+};
+
 export const updateUserEmail = async (email: string) => {
   await api.put('/users/update/email', { email });
 };
@@ -506,6 +512,8 @@ export const sendInviteByEmail = async (email: string, registrationBaseUrl: stri
     email: string;
     token: string;
     inviteLink: string;
+    directInviteLink: string;
+    inviteShortCode: string;
     emailDeliveryStatus: 'sent' | 'mock' | 'failed';
     emailDeliveryError?: string;
   }>('/users/invite-email', {
