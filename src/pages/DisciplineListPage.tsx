@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-import { DisciplineCard } from '../components/DisciplineCard';
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
 import { getComponents } from '../lib/api';
@@ -153,29 +154,6 @@ export const DisciplineListPage = () => {
       });
   }, [components.results, departmentDataset]);
 
-  const sortDirectionMeta = useMemo(() => {
-    switch (filter.sortBy) {
-      case 'name':
-        return {
-          label: 'Sentido do nome',
-          asc: 'A a Z',
-          desc: 'Z a A',
-        };
-      case 'updatedAt':
-        return {
-          label: 'Sentido da atualização',
-          asc: 'Mais antiga primeiro',
-          desc: 'Mais recente primeiro',
-        };
-      default:
-        return {
-          label: 'Sentido da ordenação',
-          asc: 'Crescente',
-          desc: 'Decrescente',
-        };
-    }
-  }, [filter.sortBy]);
-
   const sourceResults = useMemo(() => {
     if (departmentFilter !== 'all') {
       return departmentDataset || [];
@@ -215,16 +193,42 @@ export const DisciplineListPage = () => {
 
   const isLoadingGrid = loading || (usingHybridDepartmentPagination && loadingDepartmentDataset);
 
+  const toggleSort = (sortBy: NonNullable<ListFilter['sortBy']>) => {
+    setFilter((current) => {
+      if (current.sortBy === sortBy) {
+        return {
+          ...current,
+          page: 0,
+          sortOrder: current.sortOrder === 'ASC' ? 'DESC' : 'ASC',
+        };
+      }
+
+      return {
+        ...current,
+        page: 0,
+        sortBy,
+        sortOrder: 'ASC',
+      };
+    });
+  };
+
+  const SortIcon = ({ sortBy }: { sortBy: NonNullable<ListFilter['sortBy']> }) => {
+    if (filter.sortBy !== sortBy) {
+      return <ArrowUpDown className="h-4 w-4 text-muted" />;
+    }
+
+    return filter.sortOrder === 'ASC'
+      ? <ArrowUp className="h-4 w-4 text-primary-700" />
+      : <ArrowDown className="h-4 w-4 text-primary-700" />;
+  };
+
   return (
     <div className="space-y-6 motion-fade">
       <section className="panel interactive-lift p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-              Catálogo acadêmico
-            </div>
             <h2 className="text-xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
-            <p className="mt-2 text-sm text-muted">Ordene em ordem alfabética pelo nome ou em ordem crescente pelo código.</p>
+            <p className="mt-2 text-sm text-muted">Resultados exibidos em tabela. Clique nos títulos das colunas para ordenar.</p>
             {usingHybridDepartmentPagination ? (
               <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
@@ -239,72 +243,13 @@ export const DisciplineListPage = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.5fr)_240px_220px]">
+        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.5fr)_300px]">
           <SearchBar
             value={search}
             label="Buscar por código ou nome"
             placeholder="Ex.: IC0009 ou tópicos em computação"
             onChange={setSearch}
           />
-
-          <SelectField
-            label="Ordenar por"
-            value={filter.sortBy}
-            onChange={(event) =>
-              setFilter((current) => ({ ...current, page: 0, sortBy: event.target.value }))
-            }
-          >
-            <option value="code">Codigo da disciplina</option>
-            <option value="name">Nome (ordem alfabetica)</option>
-            <option value="department">Departamento</option>
-            <option value="updatedAt">Atualizacao</option>
-          </SelectField>
-
-          <SelectField
-            label={sortDirectionMeta.label}
-            value={filter.sortOrder}
-            onChange={(event) =>
-              setFilter((current) => ({
-                ...current,
-                page: 0,
-                sortOrder: event.target.value as 'ASC' | 'DESC',
-              }))
-            }
-          >
-            <option value="ASC">{sortDirectionMeta.asc}</option>
-            <option value="DESC">{sortDirectionMeta.desc}</option>
-          </SelectField>
-        </div>
-
-        <div className="mt-2 grid gap-3 px-5 pb-5 md:grid-cols-2">
-          <div className="rounded-2xl border border-line/70 bg-white px-3 py-3">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Nível acadêmico</div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: 'all', label: 'Todos' },
-                { value: 'graduacao', label: 'Graduação' },
-                { value: 'mestrado', label: 'Mestrado' },
-                { value: 'doutorado', label: 'Doutorado' },
-              ].map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => {
-                    setFilter((current) => ({ ...current, page: 0 }));
-                    setAcademicLevelFilter(item.value as 'all' | 'graduacao' | 'mestrado' | 'doutorado');
-                  }}
-                  className={[
-                    'rounded-full border px-3 py-1 text-xs font-semibold transition',
-                    academicLevelFilter === item.value
-                      ? 'border-primary-300 bg-primary-500 text-white'
-                      : 'border-line bg-white text-ink hover:border-primary-200',
-                  ].join(' ')}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <SelectField
             label="Departamento"
@@ -339,23 +284,115 @@ export const DisciplineListPage = () => {
             ) : null}
           </SelectField>
         </div>
+
+        <div className="mt-2 grid gap-3 px-5 pb-5 md:grid-cols-1">
+          <div className="rounded-2xl border border-line/70 bg-white px-3 py-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Nível acadêmico</div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'all', label: 'Todos' },
+                { value: 'graduacao', label: 'Graduação' },
+                { value: 'mestrado', label: 'Mestrado' },
+                { value: 'doutorado', label: 'Doutorado' },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => {
+                    setFilter((current) => ({ ...current, page: 0 }));
+                    setAcademicLevelFilter(item.value as 'all' | 'graduacao' | 'mestrado' | 'doutorado');
+                  }}
+                  className={[
+                    'rounded-full border px-3 py-1 text-xs font-semibold transition',
+                    academicLevelFilter === item.value
+                      ? 'border-primary-300 bg-primary-500 text-white'
+                      : 'border-line bg-white text-ink hover:border-primary-200',
+                  ].join(' ')}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="panel overflow-hidden">
         {errorMessage ? (
-          <div className="panel col-span-full border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+          <div className="border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : isLoadingGrid ? (
-          <div className="panel col-span-full p-10 text-center text-sm text-muted">
+          <div className="p-10 text-center text-sm text-muted">
             Carregando disciplinas...
           </div>
         ) : displayResults.length > 0 ? (
-          displayResults.map((component) => (
-            <DisciplineCard key={component.id} component={component} />
-          ))
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line bg-slate-50/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('code')}
+                      className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                    >
+                      Código
+                      <SortIcon sortBy="code" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('name')}
+                      className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                    >
+                      Nome
+                      <SortIcon sortBy="name" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort('department')}
+                      className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                    >
+                      Departamento
+                      <SortIcon sortBy="department" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">Semestre</th>
+                  <th className="px-4 py-3 text-right font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayResults.map((component) => (
+                  <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-primary-50/35">
+                    <td className="px-4 py-4 font-semibold text-primary-700">{component.code}</td>
+                    <td className="px-4 py-4">
+                      <div className="font-medium text-ink">{component.name}</div>
+                      <div className="mt-1 max-w-[56ch] text-xs text-muted">
+                        {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-ink/85">{component.department || 'Departamento não informado'}</td>
+                    <td className="px-4 py-4 text-ink/85">{component.semester || 'Semestre não informado'}</td>
+                    <td className="px-4 py-4 text-right">
+                      <Link
+                        to={`/disciplinas/${component.code.toLowerCase()}`}
+                        className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-3 py-1 font-semibold text-primary-700 transition hover:bg-primary-50"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Abrir
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <div className="panel col-span-full p-10 text-center text-sm text-muted">
+          <div className="p-10 text-center text-sm text-muted">
             Nenhuma disciplina encontrada para os filtros atuais.
           </div>
         )}

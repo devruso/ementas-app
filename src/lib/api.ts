@@ -5,6 +5,7 @@ import type {
   Component,
   ComponentDraft,
   ComponentLog,
+  Department,
   ImportDraftPreviewResponse,
   ImportComponentsSummary,
   ListData,
@@ -395,6 +396,39 @@ export const getUsers = async (filter: ListFilter) => {
   });
 
   return response.data;
+};
+
+export const getDepartments = async (filter: Pick<ListFilter, 'page' | 'limit' | 'search' | 'sortBy' | 'sortOrder'>) => {
+  const response = await api.get<ListData<Department>>('/departments', {
+    params: {
+      page: filter.page,
+      limit: filter.limit,
+      search: filter.search?.trim() || undefined,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
+    },
+  });
+
+  return response.data;
+};
+
+export const createDepartment = async (name: string, code?: string) => {
+  const response = await api.post<Department>('/departments', {
+    name,
+    code,
+  });
+
+  return response.data;
+};
+
+export const updateDepartment = async (departmentId: string, payload: { name: string; code?: string }) => {
+  const response = await api.put<Department>(`/departments/${departmentId}`, payload);
+
+  return response.data;
+};
+
+export const deleteDepartment = async (departmentId: string) => {
+  await api.delete(`/departments/${departmentId}`);
 };
 
 export const generateInvite = async () => {

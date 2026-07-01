@@ -40,9 +40,6 @@ export const ApproveDraftDialog = ({
     <div className="fixed inset-0 z-30 flex items-end bg-slate-950/55 p-3 sm:items-center sm:justify-center sm:p-6">
       <div className="panel w-full max-w-lg p-5 sm:p-6">
         <div className="mb-6">
-          <div className="mb-2 inline-flex rounded-full bg-secondary-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-secondary-700">
-            Publicacao oficial
-          </div>
           <h2 className="text-2xl font-semibold text-ink">Publicar {componentCode}</h2>
           <p className="mt-2 text-sm leading-7 text-muted">Informe os dados formais da aprovacao antes de publicar a disciplina.</p>
           <div className="mt-3 rounded-2xl border border-primary-100 bg-primary-50 px-3 py-2 text-xs leading-6 text-primary-900">

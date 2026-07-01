@@ -125,6 +125,14 @@ export interface WorkloadEntry {
   modulePracticeInternship?: number;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  code?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ComponentDraft {
   id: string;
   code: string;

@@ -1,4 +1,4 @@
-﻿import { BookOpenText, FilePlus2, FileSearch2, GraduationCap, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
+﻿import { BookOpenText, Building2, FilePlus2, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
@@ -57,6 +57,15 @@ export const AppShell = () => {
                     <span className="inline-flex items-center gap-2">
                       <Users2 className="h-4 w-4" />
                       Usuarios
+                    </span>
+                  </NavLink>
+                ) : null}
+
+                {isAdminProfile ? (
+                  <NavLink to="/departamentos" className={navPillClass}>
+                    <span className="inline-flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Departamentos
                     </span>
                   </NavLink>
                 ) : null}
@@ -130,6 +139,15 @@ export const AppShell = () => {
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Usuarios
+                    </NavLink>
+                  ) : null}
+                  {isAdminProfile ? (
+                    <NavLink
+                      to="/departamentos"
+                      className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Departamentos
                     </NavLink>
                   ) : null}
                   <NavLink
