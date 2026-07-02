@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
@@ -10,7 +10,7 @@ import type { Component, ListData, ListFilter } from '../types';
 
 const initialFilter: ListFilter = {
   page: 0,
-  limit: 12,
+  limit: 20,
   sortBy: 'code',
   sortOrder: 'ASC',
 };
@@ -193,13 +193,42 @@ export const DisciplineListPage = () => {
 
   const isLoadingGrid = loading || (usingHybridDepartmentPagination && loadingDepartmentDataset);
 
+  const toggleSort = (sortBy: NonNullable<ListFilter['sortBy']>) => {
+    setFilter((current) => {
+      if (current.sortBy === sortBy) {
+        return {
+          ...current,
+          page: 0,
+          sortOrder: current.sortOrder === 'ASC' ? 'DESC' : 'ASC',
+        };
+      }
+
+      return {
+        ...current,
+        page: 0,
+        sortBy,
+        sortOrder: 'ASC',
+      };
+    });
+  };
+
+  const SortIcon = ({ sortBy }: { sortBy: NonNullable<ListFilter['sortBy']> }) => {
+    if (filter.sortBy !== sortBy) {
+      return <ArrowUpDown className="h-4 w-4 text-muted" />;
+    }
+
+    return filter.sortOrder === 'ASC'
+      ? <ArrowUp className="h-4 w-4 text-primary-700" />
+      : <ArrowDown className="h-4 w-4 text-primary-700" />;
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 motion-fade">
       <section className="panel interactive-lift p-4 sm:p-6">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2 sm:mb-4 sm:gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
-            <p className="mt-2 text-sm text-muted">Catálogo público em blocos. Use os filtros para navegar por código, nome, nível e unidade.</p>
+            <p className="mt-2 text-sm text-muted">Catálogo público em lista com ordenação por coluna. Exibição padrão de 20 itens por página.</p>
             {usingHybridDepartmentPagination ? (
               <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
@@ -298,43 +327,82 @@ export const DisciplineListPage = () => {
             Carregando disciplinas...
           </div>
         ) : displayResults.length > 0 ? (
-          <div className="p-3 sm:p-6">
-            <div className="grid gap-3 sm:gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {displayResults.map((component) => (
-                <article
-                  key={component.id}
-                  className="group flex min-h-[210px] flex-col rounded-3xl border border-line/70 bg-gradient-to-b from-white via-white to-slate-50/70 p-4 shadow-[0_8px_30px_rgba(2,6,23,0.06)] transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-[0_12px_34px_rgba(37,99,235,0.14)] sm:min-h-[238px] sm:p-6"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2 sm:mb-4">
-                    <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-                      {component.code}
-                    </span>
-                    <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-muted">
-                      {component.semester || 'Semestre não informado'}
-                    </span>
-                  </div>
-
-                  <h3 className="text-[16px] font-semibold leading-6 text-ink">{component.name}</h3>
-
-                  <p className="mt-2 line-clamp-4 text-xs leading-6 text-muted sm:mt-3">
-                    {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
-                  </p>
-
-                  <div className="mt-3 border-t border-line/70 pt-3 text-xs font-medium text-ink/80 sm:mt-4 sm:pt-4">
-                    Departamento: {component.department || 'Não informado'}
-                  </div>
-
-                  <div className="mt-auto pt-4 sm:pt-5">
-                    <Link
-                      to={`/disciplinas/${component.code.toLowerCase()}`}
-                      className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Abrir disciplina
-                    </Link>
-                  </div>
-                </article>
-              ))}
+          <div className="p-2 sm:p-5">
+            <div className="overflow-x-auto rounded-2xl border border-line/70 bg-white">
+              <table className="min-w-[980px] w-full border-collapse text-sm">
+                <thead className="bg-slate-50/90">
+                  <tr className="border-b border-line/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
+                    <th className="px-4 py-3 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort('code')}
+                        className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                      >
+                        Código
+                        <SortIcon sortBy="code" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort('name')}
+                        className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                      >
+                        Disciplina
+                        <SortIcon sortBy="name" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort('department')}
+                        className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                      >
+                        Departamento
+                        <SortIcon sortBy="department" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-semibold">Nível</th>
+                    <th className="px-4 py-3 font-semibold">Semestre</th>
+                    <th className="px-4 py-3 text-right font-semibold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayResults.map((component) => (
+                    <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-primary-50/30">
+                      <td className="px-4 py-4">
+                        <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                          {component.code}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="font-semibold text-ink">{component.name}</div>
+                        <div className="mt-1 max-w-[48ch] line-clamp-2 text-xs text-muted">
+                          {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 max-w-[30ch] text-sm text-ink/90">
+                        {component.department || 'Não informado'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-ink/85 capitalize">
+                        {component.academicLevel || 'não informado'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-ink/85">
+                        {component.semester || 'Semestre não informado'}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <Link
+                          to={`/disciplinas/${component.code.toLowerCase()}`}
+                          className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Abrir disciplina
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         ) : (
