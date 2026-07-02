@@ -221,6 +221,9 @@ export const DisciplineCreatePage = () => {
         <p className="mt-2 text-sm leading-7 text-muted">
           Utilize o ID da fonte SIGAA e o nível acadêmico para buscar e importar em lote com telemetria de falhas.
         </p>
+        <p className="mt-1 text-xs text-muted">
+          Em produção, caso os IDs estejam configurados no ambiente do backend, você pode importar mesmo deixando os campos de ID em branco.
+        </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
@@ -298,14 +301,7 @@ export const DisciplineCreatePage = () => {
           <button
             type="button"
             onClick={handleImportSigaa}
-            disabled={
-              importingSigaa
-              || (
-                sigaaAcademicLevel === 'all'
-                  ? !sigaaSourceId.trim() && !sigaaSourceIdsByLevel.graduacao.trim() && !sigaaSourceIdsByLevel.mestrado.trim() && !sigaaSourceIdsByLevel.doutorado.trim()
-                  : !sigaaSourceId.trim()
-              )
-            }
+            disabled={importingSigaa}
             className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {importingSigaa ? 'Importando...' : 'Importar do SIGAA público'}

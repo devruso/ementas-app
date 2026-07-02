@@ -1,18 +1,36 @@
 ﻿import { BookOpenText, Building2, FilePlus2, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
-import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
 export const AppShell = () => {
   const auth = useAuth();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdminProfile = auth.user?.role === 'admin' || auth.user?.role === 'super_admin';
   const navPillClass = ({ isActive }: { isActive: boolean }) => `nav-pill ${isActive ? 'nav-pill-active' : ''}`;
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   return (
-    <div className="min-h-screen">
-      <header className="glass-header sticky top-0 z-30 motion-fade">
+    <div className="min-h-dvh">
+      <header className="glass-header sticky top-0 z-50 motion-fade">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 text-white sm:px-6 md:gap-6 md:px-10 md:py-4">
           <NavLink to="/disciplinas" className="flex items-center gap-4">
             <div className="logo-orb bg-white">
@@ -104,7 +122,7 @@ export const AppShell = () => {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((current) => !current)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/25 bg-white/10 transition hover:bg-white/20 md:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/10 transition hover:bg-white/20 md:hidden"
             aria-label="Abrir menu"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -112,8 +130,15 @@ export const AppShell = () => {
         </div>
 
         {mobileMenuOpen ? (
-          <div className="mobile-sheet motion-rise md:hidden">
-            <div className="flex flex-col gap-2 text-sm">
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-40 bg-slate-900/35 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Fechar menu"
+            />
+            <div className="mobile-sheet motion-rise fixed inset-x-3 top-[74px] z-50 max-h-[calc(100dvh-90px)] overflow-y-auto md:hidden">
+              <div className="flex flex-col gap-2 text-sm">
               <NavLink
                 to="/disciplinas"
                 className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
@@ -178,13 +203,14 @@ export const AppShell = () => {
                 </NavLink>
               )}
             </div>
-          </div>
+            </div>
+          </>
         ) : null}
       </header>
 
       <main className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-hero-grid opacity-40" />
-        <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 md:px-10 md:py-10">
+        <div className="relative mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6 md:px-10 md:py-10">
           <Outlet />
         </div>
       </main>

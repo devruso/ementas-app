@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
@@ -193,42 +193,13 @@ export const DisciplineListPage = () => {
 
   const isLoadingGrid = loading || (usingHybridDepartmentPagination && loadingDepartmentDataset);
 
-  const toggleSort = (sortBy: NonNullable<ListFilter['sortBy']>) => {
-    setFilter((current) => {
-      if (current.sortBy === sortBy) {
-        return {
-          ...current,
-          page: 0,
-          sortOrder: current.sortOrder === 'ASC' ? 'DESC' : 'ASC',
-        };
-      }
-
-      return {
-        ...current,
-        page: 0,
-        sortBy,
-        sortOrder: 'ASC',
-      };
-    });
-  };
-
-  const SortIcon = ({ sortBy }: { sortBy: NonNullable<ListFilter['sortBy']> }) => {
-    if (filter.sortBy !== sortBy) {
-      return <ArrowUpDown className="h-4 w-4 text-muted" />;
-    }
-
-    return filter.sortOrder === 'ASC'
-      ? <ArrowUp className="h-4 w-4 text-primary-700" />
-      : <ArrowDown className="h-4 w-4 text-primary-700" />;
-  };
-
   return (
-    <div className="space-y-6 motion-fade">
-      <section className="panel interactive-lift p-5 sm:p-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-4 sm:space-y-6 motion-fade">
+      <section className="panel interactive-lift p-4 sm:p-6">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 sm:mb-4 sm:gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
-            <p className="mt-2 text-sm text-muted">Resultados exibidos em tabela. Clique nos títulos das colunas para ordenar.</p>
+            <h2 className="text-2xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
+            <p className="mt-2 text-sm text-muted">Catálogo público em blocos. Use os filtros para navegar por código, nome, nível e unidade.</p>
             {usingHybridDepartmentPagination ? (
               <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
@@ -243,7 +214,7 @@ export const DisciplineListPage = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.5fr)_300px]">
+        <div className="grid gap-3 p-1 pt-4 sm:gap-4 sm:p-5 lg:grid-cols-[minmax(0,1.5fr)_300px]">
           <SearchBar
             value={search}
             label="Buscar por código ou nome"
@@ -285,8 +256,8 @@ export const DisciplineListPage = () => {
           </SelectField>
         </div>
 
-        <div className="mt-2 grid gap-3 px-5 pb-5 md:grid-cols-1">
-          <div className="rounded-2xl border border-line/70 bg-white px-3 py-3">
+        <div className="mt-2 grid gap-3 px-1 pb-1 sm:px-5 sm:pb-5 md:grid-cols-1">
+          <div className="rounded-2xl border border-line/70 bg-white px-3 py-3 sm:px-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Nível acadêmico</div>
             <div className="flex flex-wrap gap-2">
               {[
@@ -323,73 +294,48 @@ export const DisciplineListPage = () => {
             {errorMessage}
           </div>
         ) : isLoadingGrid ? (
-          <div className="p-10 text-center text-sm text-muted">
+          <div className="p-8 text-center text-sm text-muted sm:p-10">
             Carregando disciplinas...
           </div>
         ) : displayResults.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-line bg-slate-50/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => toggleSort('code')}
-                      className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+          <div className="p-3 sm:p-6">
+            <div className="grid gap-3 sm:gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {displayResults.map((component) => (
+                <article
+                  key={component.id}
+                  className="group flex min-h-[210px] flex-col rounded-3xl border border-line/70 bg-gradient-to-b from-white via-white to-slate-50/70 p-4 shadow-[0_8px_30px_rgba(2,6,23,0.06)] transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-[0_12px_34px_rgba(37,99,235,0.14)] sm:min-h-[238px] sm:p-6"
+                >
+                  <div className="mb-3 flex items-start justify-between gap-2 sm:mb-4">
+                    <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                      {component.code}
+                    </span>
+                    <span className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-muted">
+                      {component.semester || 'Semestre não informado'}
+                    </span>
+                  </div>
+
+                  <h3 className="text-[16px] font-semibold leading-6 text-ink">{component.name}</h3>
+
+                  <p className="mt-2 line-clamp-4 text-xs leading-6 text-muted sm:mt-3">
+                    {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
+                  </p>
+
+                  <div className="mt-3 border-t border-line/70 pt-3 text-xs font-medium text-ink/80 sm:mt-4 sm:pt-4">
+                    Departamento: {component.department || 'Não informado'}
+                  </div>
+
+                  <div className="mt-auto pt-4 sm:pt-5">
+                    <Link
+                      to={`/disciplinas/${component.code.toLowerCase()}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
                     >
-                      Código
-                      <SortIcon sortBy="code" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => toggleSort('name')}
-                      className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                    >
-                      Nome
-                      <SortIcon sortBy="name" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => toggleSort('department')}
-                      className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                    >
-                      Departamento
-                      <SortIcon sortBy="department" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">Semestre</th>
-                  <th className="px-4 py-3 text-right font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayResults.map((component) => (
-                  <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-primary-50/35">
-                    <td className="px-4 py-4 font-semibold text-primary-700">{component.code}</td>
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-ink">{component.name}</div>
-                      <div className="mt-1 max-w-[56ch] text-xs text-muted">
-                        {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-ink/85">{component.department || 'Departamento não informado'}</td>
-                    <td className="px-4 py-4 text-ink/85">{component.semester || 'Semestre não informado'}</td>
-                    <td className="px-4 py-4 text-right">
-                      <Link
-                        to={`/disciplinas/${component.code.toLowerCase()}`}
-                        className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-3 py-1 font-semibold text-primary-700 transition hover:bg-primary-50"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Abrir
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <Eye className="h-4 w-4" />
+                      Abrir disciplina
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="p-10 text-center text-sm text-muted">
@@ -398,12 +344,12 @@ export const DisciplineListPage = () => {
         )}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-5 py-4 text-sm text-ink/80 md:flex-row md:items-center md:justify-between">
+      <section className="flex flex-col gap-3 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-4 py-3 text-sm text-ink/80 md:flex-row md:items-center md:justify-between md:px-5 md:py-4">
         <div>
           <strong>{effectiveTotal}</strong> disciplina(s) encontrada(s).
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             type="button"
             disabled={filter.page <= 0}
@@ -412,7 +358,7 @@ export const DisciplineListPage = () => {
           >
             Anterior
           </button>
-          <span>
+          <span className="text-xs sm:text-sm">
             Pagina {filter.page + 1} de {Math.max(effectiveTotalPages, 1)}
           </span>
           <button
