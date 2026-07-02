@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Eye, MoreHorizontal } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
@@ -16,6 +16,41 @@ const initialFilter: ListFilter = {
 };
 
 const instituteDepartmentRegex = /(computa[cç][aã]o|pgcomp|dcc|dci)/i;
+const pageSizeOptions = [20, 50, 100] as const;
+
+const parsePositiveInt = (value: string | null, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parseSortBy = (value: string | null): NonNullable<ListFilter['sortBy']> => {
+  if (value === 'name' || value === 'department' || value === 'code') {
+    return value;
+  }
+
+  return 'code';
+};
+
+const parseSortOrder = (value: string | null): NonNullable<ListFilter['sortOrder']> => {
+  return value === 'DESC' ? 'DESC' : 'ASC';
+};
+
+const parseAcademicLevel = (value: string | null): 'all' | 'graduacao' | 'mestrado' | 'doutorado' => {
+  if (value === 'graduacao' || value === 'mestrado' || value === 'doutorado') {
+    return value;
+  }
+
+  return 'all';
+};
+
+const parsePageSize = (value: string | null): number => {
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && pageSizeOptions.includes(parsed as typeof pageSizeOptions[number])) {
+    return parsed;
+  }
+
+  return initialFilter.limit;
+};
 
 type DepartmentOption = {
   value: string;
@@ -24,14 +59,33 @@ type DepartmentOption = {
   group: 'ic' | 'external';
 };
 
+type PaginationToken = number | 'ellipsis';
+
 export const DisciplineListPage = () => {
-  const [search, setSearch] = useState('');
-  const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'mestrado' | 'doutorado'>('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialSearch = searchParams.get('q') || '';
+  const initialAcademicLevel = parseAcademicLevel(searchParams.get('level'));
+  const initialDepartment = (searchParams.get('department') || 'all').trim() || 'all';
+  const initialLimit = parsePageSize(searchParams.get('limit'));
+  const initialPage = Math.max(0, parsePositiveInt(searchParams.get('page'), 1) - 1);
+  const initialSortBy = parseSortBy(searchParams.get('sortBy'));
+  const initialSortOrder = parseSortOrder(searchParams.get('sortOrder'));
+
+  const [search, setSearch] = useState(initialSearch);
+  const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'mestrado' | 'doutorado'>(initialAcademicLevel);
+  const [departmentFilter, setDepartmentFilter] = useState(initialDepartment);
   const [loading, setLoading] = useState(true);
   const [loadingDepartmentDataset, setLoadingDepartmentDataset] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [filter, setFilter] = useState<ListFilter>(initialFilter);
+  const [filter, setFilter] = useState<ListFilter>({
+    ...initialFilter,
+    page: initialPage,
+    limit: initialLimit,
+    sortBy: initialSortBy,
+    sortOrder: initialSortOrder,
+    search: initialSearch || undefined,
+  });
   const [components, setComponents] = useState<ListData<Component>>({
     results: [],
     total: 0,
@@ -193,6 +247,103 @@ export const DisciplineListPage = () => {
 
   const isLoadingGrid = loading || (usingHybridDepartmentPagination && loadingDepartmentDataset);
 
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    if (search) {
+      nextParams.set('q', search);
+    }
+    if (academicLevelFilter !== 'all') {
+      nextParams.set('level', academicLevelFilter);
+    }
+    if (departmentFilter !== 'all') {
+      nextParams.set('department', departmentFilter);
+    }
+    if (filter.page > 0) {
+      nextParams.set('page', String(filter.page + 1));
+    }
+    if (filter.limit !== initialFilter.limit) {
+      nextParams.set('limit', String(filter.limit));
+    }
+    if (filter.sortBy !== initialFilter.sortBy) {
+      nextParams.set('sortBy', filter.sortBy || initialFilter.sortBy);
+    }
+    if (filter.sortOrder !== initialFilter.sortOrder) {
+      nextParams.set('sortOrder', filter.sortOrder || initialFilter.sortOrder);
+    }
+
+    const currentParamsSerialized = searchParams.toString();
+    const nextParamsSerialized = nextParams.toString();
+    if (currentParamsSerialized !== nextParamsSerialized) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    academicLevelFilter,
+    departmentFilter,
+    filter.limit,
+    filter.page,
+    filter.sortBy,
+    filter.sortOrder,
+    search,
+    searchParams,
+    setSearchParams,
+  ]);
+
+  useEffect(() => {
+    setFilter((current) => {
+      const maxPage = Math.max(0, effectiveTotalPages - 1);
+      if (current.page <= maxPage) {
+        return current;
+      }
+
+      return {
+        ...current,
+        page: maxPage,
+      };
+    });
+  }, [effectiveTotalPages]);
+
+  const paginationTokens = useMemo<PaginationToken[]>(() => {
+    const totalPages = Math.max(1, effectiveTotalPages);
+    const currentPage = Math.min(filter.page, totalPages - 1);
+
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index);
+    }
+
+    const visiblePages = new Set<number>([0, totalPages - 1, currentPage]);
+    if (currentPage - 1 > 0) {
+      visiblePages.add(currentPage - 1);
+    }
+    if (currentPage + 1 < totalPages - 1) {
+      visiblePages.add(currentPage + 1);
+    }
+    if (currentPage <= 1) {
+      visiblePages.add(1);
+      visiblePages.add(2);
+    }
+    if (currentPage >= totalPages - 2) {
+      visiblePages.add(totalPages - 2);
+      visiblePages.add(totalPages - 3);
+    }
+
+    const orderedPages = Array.from(visiblePages)
+      .filter((page) => page >= 0 && page < totalPages)
+      .sort((left, right) => left - right);
+
+    const tokens: PaginationToken[] = [];
+    orderedPages.forEach((page, index) => {
+      if (index > 0 && page - orderedPages[index - 1] > 1) {
+        tokens.push('ellipsis');
+      }
+      tokens.push(page);
+    });
+
+    return tokens;
+  }, [effectiveTotalPages, filter.page]);
+
+  const pageStart = effectiveTotal === 0 ? 0 : (filter.page * filter.limit) + 1;
+  const pageEnd = Math.min(effectiveTotal, (filter.page + 1) * filter.limit);
+
   const toggleSort = (sortBy: NonNullable<ListFilter['sortBy']>) => {
     setFilter((current) => {
       if (current.sortBy === sortBy) {
@@ -323,86 +474,130 @@ export const DisciplineListPage = () => {
             {errorMessage}
           </div>
         ) : isLoadingGrid ? (
-          <div className="p-8 text-center text-sm text-muted sm:p-10">
-            Carregando disciplinas...
+          <div className="p-2 sm:p-5">
+            <div className="overflow-hidden rounded-2xl border border-line/70 bg-white">
+              <div className="max-h-[68vh] overflow-auto">
+                <table className="min-w-[980px] w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-line/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
+                      {['Código', 'Disciplina', 'Departamento', 'Nível', 'Semestre', 'Ações'].map((label) => (
+                        <th
+                          key={label}
+                          className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80"
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: Math.min(8, filter.limit) }, (_, index) => (
+                      <tr key={`skeleton-${index}`} className="animate-pulse border-b border-line/70 align-top">
+                        <td className="px-4 py-4">
+                          <div className="h-6 w-20 rounded-full bg-slate-200" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 w-11/12 rounded bg-slate-200" />
+                          <div className="mt-2 h-3 w-9/12 rounded bg-slate-100" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 w-10/12 rounded bg-slate-200" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 w-20 rounded bg-slate-200" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 w-28 rounded bg-slate-200" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="ml-auto h-9 w-36 rounded-full bg-slate-200" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         ) : displayResults.length > 0 ? (
           <div className="p-2 sm:p-5">
-            <div className="overflow-x-auto rounded-2xl border border-line/70 bg-white">
-              <table className="min-w-[980px] w-full border-collapse text-sm">
-                <thead className="bg-slate-50/90">
-                  <tr className="border-b border-line/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
-                    <th className="px-4 py-3 font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort('code')}
-                        className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                      >
-                        Código
-                        <SortIcon sortBy="code" />
-                      </button>
-                    </th>
-                    <th className="px-4 py-3 font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort('name')}
-                        className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                      >
-                        Disciplina
-                        <SortIcon sortBy="name" />
-                      </button>
-                    </th>
-                    <th className="px-4 py-3 font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort('department')}
-                        className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                      >
-                        Departamento
-                        <SortIcon sortBy="department" />
-                      </button>
-                    </th>
-                    <th className="px-4 py-3 font-semibold">Nível</th>
-                    <th className="px-4 py-3 font-semibold">Semestre</th>
-                    <th className="px-4 py-3 text-right font-semibold">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayResults.map((component) => (
-                    <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-primary-50/30">
-                      <td className="px-4 py-4">
-                        <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-                          {component.code}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="font-semibold text-ink">{component.name}</div>
-                        <div className="mt-1 max-w-[48ch] line-clamp-2 text-xs text-muted">
-                          {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 max-w-[30ch] text-sm text-ink/90">
-                        {component.department || 'Não informado'}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-ink/85 capitalize">
-                        {component.academicLevel || 'não informado'}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-ink/85">
-                        {component.semester || 'Semestre não informado'}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <Link
-                          to={`/disciplinas/${component.code.toLowerCase()}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
+            <div className="overflow-hidden rounded-2xl border border-line/70 bg-white">
+              <div className="max-h-[68vh] overflow-auto">
+                <table className="min-w-[980px] w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-line/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
+                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
+                        <button
+                          type="button"
+                          onClick={() => toggleSort('code')}
+                          className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
                         >
-                          <Eye className="h-4 w-4" />
-                          Abrir disciplina
-                        </Link>
-                      </td>
+                          Código
+                          <SortIcon sortBy="code" />
+                        </button>
+                      </th>
+                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
+                        <button
+                          type="button"
+                          onClick={() => toggleSort('name')}
+                          className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                        >
+                          Disciplina
+                          <SortIcon sortBy="name" />
+                        </button>
+                      </th>
+                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
+                        <button
+                          type="button"
+                          onClick={() => toggleSort('department')}
+                          className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
+                        >
+                          Departamento
+                          <SortIcon sortBy="department" />
+                        </button>
+                      </th>
+                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">Nível</th>
+                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">Semestre</th>
+                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 text-right font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {displayResults.map((component) => (
+                      <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-primary-50/30">
+                        <td className="px-4 py-4">
+                          <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                            {component.code}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-semibold text-ink">{component.name}</div>
+                          <div className="mt-1 max-w-[48ch] line-clamp-2 text-xs text-muted">
+                            {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 max-w-[30ch] text-sm text-ink/90">
+                          {component.department || 'Não informado'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-ink/85 capitalize">
+                          {component.academicLevel || 'não informado'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-ink/85">
+                          {component.semester || 'Semestre não informado'}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <Link
+                            to={`/disciplinas/${component.code.toLowerCase()}`}
+                            className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Abrir disciplina
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         ) : (
@@ -412,30 +607,94 @@ export const DisciplineListPage = () => {
         )}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-4 py-3 text-sm text-ink/80 md:flex-row md:items-center md:justify-between md:px-5 md:py-4">
-        <div>
-          <strong>{effectiveTotal}</strong> disciplina(s) encontrada(s).
+      <section className="flex flex-col gap-4 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-4 py-4 text-sm text-ink/80 md:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <strong>{effectiveTotal}</strong> disciplina(s) encontrada(s).
+          </div>
+          <div className="text-xs text-muted sm:text-sm">
+            Mostrando {pageStart} - {pageEnd} de {effectiveTotal}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs text-ink/80 sm:text-sm">
+            Itens por página
+            <select
+              value={filter.limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                if (!Number.isNaN(nextLimit)) {
+                  setFilter((current) => ({
+                    ...current,
+                    page: 0,
+                    limit: nextLimit,
+                  }));
+                }
+              }}
+              className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink outline-none transition focus:border-primary-300"
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
             disabled={filter.page <= 0}
             onClick={() => setFilter((current) => ({ ...current, page: current.page - 1 }))}
-            className="rounded-full border border-line px-4 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
+            <ChevronLeft className="h-4 w-4" />
             Anterior
           </button>
-          <span className="text-xs sm:text-sm">
-            Pagina {filter.page + 1} de {Math.max(effectiveTotalPages, 1)}
-          </span>
+
+          <div className="flex flex-wrap items-center gap-1">
+            {paginationTokens.map((token, index) => {
+              if (token === 'ellipsis') {
+                return (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-muted"
+                    aria-hidden="true"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </span>
+                );
+              }
+
+              const isActive = token === filter.page;
+              return (
+                <button
+                  key={token}
+                  type="button"
+                  onClick={() => setFilter((current) => ({ ...current, page: token }))}
+                  aria-label={`Ir para página ${token + 1}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={[
+                    'inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-semibold transition',
+                    isActive
+                      ? 'border-primary-300 bg-primary-500 text-white shadow-sm'
+                      : 'border-line bg-white text-ink hover:border-primary-200 hover:bg-primary-50',
+                  ].join(' ')}
+                >
+                  {token + 1}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             type="button"
             disabled={filter.page + 1 >= effectiveTotalPages}
             onClick={() => setFilter((current) => ({ ...current, page: current.page + 1 }))}
-            className="rounded-full border border-line px-4 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Proxima
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </section>
