@@ -47,7 +47,7 @@
   }
 
   p {
-    text-align: justify;
+    text-align: left;
   }
 }
 
@@ -75,8 +75,8 @@
   }
 
   .mobile-sheet {
-    @apply border-t border-white/20 px-5 py-4 backdrop-blur-2xl;
-    background-color: rgba(12, 69, 146, 0.6);
+    @apply rounded-3xl border border-white/20 px-3 py-3 shadow-2xl backdrop-blur-2xl;
+    background-color: rgba(12, 69, 146, 0.92);
   }
 
   .logo-orb {
@@ -125,5 +125,15 @@
   .interactive-lift,
   .nav-pill {
     transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    border-radius: 20px;
+  }
+
+  .interactive-lift:hover {
+    transform: none;
   }
 }
