@@ -264,11 +264,11 @@ export const DisciplineListPage = () => {
     if (filter.limit !== initialFilter.limit) {
       nextParams.set('limit', String(filter.limit));
     }
-    if (filter.sortBy !== initialFilter.sortBy) {
-      nextParams.set('sortBy', filter.sortBy || initialFilter.sortBy);
+    if (filter.sortBy && filter.sortBy !== initialFilter.sortBy) {
+      nextParams.set('sortBy', filter.sortBy);
     }
-    if (filter.sortOrder !== initialFilter.sortOrder) {
-      nextParams.set('sortOrder', filter.sortOrder || initialFilter.sortOrder);
+    if (filter.sortOrder && filter.sortOrder !== initialFilter.sortOrder) {
+      nextParams.set('sortOrder', filter.sortOrder);
     }
 
     const currentParamsSerialized = searchParams.toString();
