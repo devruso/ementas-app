@@ -154,9 +154,6 @@ export const DisciplineCreatePage = () => {
   return (
     <div className="space-y-6 motion-fade">
       <section className="panel interactive-lift p-5 sm:p-8">
-        <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-          Cadastro completo
-        </div>
         <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Adicionar disciplina</h1>
         <p className="mt-2 text-sm leading-7 text-muted">Crie um novo rascunho do componente curricular e, se quiser, pré-preencha os campos com importação documental.</p>
       </section>
@@ -164,9 +161,6 @@ export const DisciplineCreatePage = () => {
       <DocumentImportCard onApplyPreview={setInitialValues} />
 
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
-        <div className="mb-4 inline-flex rounded-full bg-secondary-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-secondary-700">
-          Importação SIAC
-        </div>
         <h2 className="text-xl font-semibold text-ink">Importar disciplinas por curso e semestre</h2>
         <p className="mt-2 text-sm leading-7 text-muted">
           Fluxo legado mantido no novo frontend para acelerar carga inicial de disciplinas.
@@ -214,9 +208,6 @@ export const DisciplineCreatePage = () => {
       </section>
 
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
-        <div className="mb-4 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700">
-          Importação SIGAA público
-        </div>
         <h2 className="text-xl font-semibold text-ink">Importar por departamento ou programa</h2>
         <p className="mt-2 text-sm leading-7 text-muted">
           Utilize o ID da fonte SIGAA e o nível acadêmico para buscar e importar em lote com telemetria de falhas.

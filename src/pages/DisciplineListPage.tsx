@@ -11,12 +11,27 @@ import type { Component, ListData, ListFilter } from '../types';
 const initialFilter: ListFilter = {
   page: 0,
   limit: 20,
-  sortBy: 'code',
+  sortBy: 'name',
   sortOrder: 'ASC',
 };
 
-const instituteDepartmentRegex = /(computa[cç][aã]o|pgcomp|dcc|dci)/i;
 const pageSizeOptions = [20, 50, 100] as const;
+const DEPARTMENT_DCC = '__dcc__';
+const DEPARTMENT_DCI = '__dci__';
+
+const parseDepartmentFilter = (value: string | null) => {
+  if (value === DEPARTMENT_DCC || value === DEPARTMENT_DCI) {
+    return value;
+  }
+
+  const normalizedValue = String(value || '').trim().toLowerCase();
+
+  if (normalizedValue.includes('interdisciplinar') || normalizedValue.includes('dci')) {
+    return DEPARTMENT_DCI;
+  }
+
+  return DEPARTMENT_DCC;
+};
 
 const parsePositiveInt = (value: string | null, fallback: number) => {
   const parsed = Number(value);
@@ -28,7 +43,7 @@ const parseSortBy = (value: string | null): NonNullable<ListFilter['sortBy']> =>
     return value;
   }
 
-  return 'code';
+  return 'name';
 };
 
 const parseSortOrder = (value: string | null): NonNullable<ListFilter['sortOrder']> => {
@@ -52,13 +67,6 @@ const parsePageSize = (value: string | null): number => {
   return initialFilter.limit;
 };
 
-type DepartmentOption = {
-  value: string;
-  label: string;
-  count: number;
-  group: 'ic' | 'external';
-};
-
 type PaginationToken = number | 'ellipsis';
 
 export const DisciplineListPage = () => {
@@ -66,7 +74,7 @@ export const DisciplineListPage = () => {
 
   const initialSearch = searchParams.get('q') || '';
   const initialAcademicLevel = parseAcademicLevel(searchParams.get('level'));
-  const initialDepartment = (searchParams.get('department') || 'all').trim() || 'all';
+  const initialDepartment = parseDepartmentFilter(searchParams.get('department'));
   const initialLimit = parsePageSize(searchParams.get('limit'));
   const initialPage = Math.max(0, parsePositiveInt(searchParams.get('page'), 1) - 1);
   const initialSortBy = parseSortBy(searchParams.get('sortBy'));
@@ -76,7 +84,6 @@ export const DisciplineListPage = () => {
   const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'mestrado' | 'doutorado'>(initialAcademicLevel);
   const [departmentFilter, setDepartmentFilter] = useState(initialDepartment);
   const [loading, setLoading] = useState(true);
-  const [loadingDepartmentDataset, setLoadingDepartmentDataset] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState<ListFilter>({
     ...initialFilter,
@@ -90,7 +97,6 @@ export const DisciplineListPage = () => {
     results: [],
     total: 0,
   });
-  const [departmentDataset, setDepartmentDataset] = useState<Component[] | null>(null);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -106,7 +112,7 @@ export const DisciplineListPage = () => {
     getComponents({
       ...filter,
       academicLevel: academicLevelFilter === 'all' ? undefined : academicLevelFilter,
-      department: departmentFilter === 'all' ? undefined : departmentFilter,
+      department: departmentFilter,
     })
       .then(setComponents)
       .catch((err) => {
@@ -116,61 +122,6 @@ export const DisciplineListPage = () => {
       .finally(() => setLoading(false));
   }, [filter, academicLevelFilter, departmentFilter]);
 
-  useEffect(() => {
-    if (departmentFilter === 'all') {
-      setDepartmentDataset(null);
-      setLoadingDepartmentDataset(false);
-      return;
-    }
-
-    let active = true;
-    const pageSize = 100;
-
-    const loadDepartmentDataset = async () => {
-      try {
-        setLoadingDepartmentDataset(true);
-
-        const dataset: Component[] = [];
-        let currentPage = 0;
-        let totalPages = 1;
-
-        while (currentPage < totalPages) {
-          const response = await getComponents({
-            ...filter,
-            page: currentPage,
-            limit: pageSize,
-            academicLevel: academicLevelFilter === 'all' ? undefined : academicLevelFilter,
-            department: departmentFilter === 'all' ? undefined : departmentFilter,
-          });
-
-          dataset.push(...response.results);
-          totalPages = response.meta?.totalPages ?? Math.max(1, Math.ceil(response.total / pageSize));
-          currentPage += 1;
-        }
-
-        if (active) {
-          setDepartmentDataset(dataset);
-        }
-      } catch (err) {
-        if (active) {
-          const appError = err as AppError;
-          setErrorMessage(appError.message || 'Falha ao carregar os dados completos do departamento.');
-          setDepartmentDataset([]);
-        }
-      } finally {
-        if (active) {
-          setLoadingDepartmentDataset(false);
-        }
-      }
-    };
-
-    loadDepartmentDataset();
-
-    return () => {
-      active = false;
-    };
-  }, [departmentFilter, academicLevelFilter, filter.search, filter.sortBy, filter.sortOrder]);
-
   const totalPagesFromServer = useMemo(() => {
     if (components.meta?.totalPages !== undefined) {
       return components.meta.totalPages;
@@ -179,73 +130,10 @@ export const DisciplineListPage = () => {
     return Math.max(1, Math.ceil(components.total / filter.limit));
   }, [components, filter.limit]);
 
-  const departmentOptions = useMemo(() => {
-    const values = new Map<string, number>();
-    const source = departmentDataset && departmentDataset.length > 0
-      ? departmentDataset
-      : components.results;
-
-    source.forEach((component) => {
-      if (component.department?.trim()) {
-        const normalizedDepartment = component.department.trim();
-        values.set(normalizedDepartment, (values.get(normalizedDepartment) || 0) + 1);
-      }
-    });
-
-    return Array.from(values.entries())
-      .map(([value, count]) => ({
-        value,
-        count,
-        group: instituteDepartmentRegex.test(value) ? 'ic' as const : 'external' as const,
-        label: `${value} (${count})`,
-      }))
-      .sort((left, right) => {
-        if (left.group !== right.group) {
-          return left.group === 'ic' ? -1 : 1;
-        }
-
-        return left.value.localeCompare(right.value, 'pt-BR');
-      });
-  }, [components.results, departmentDataset]);
-
-  const sourceResults = useMemo(() => {
-    if (departmentFilter !== 'all') {
-      return departmentDataset || [];
-    }
-
-    return components.results;
-  }, [components.results, departmentDataset, departmentFilter]);
-
-  const filteredResults = useMemo(() => {
-    return sourceResults.filter((component) => {
-      const matchesAcademicLevel = academicLevelFilter === 'all' || component.academicLevel === academicLevelFilter;
-      const matchesDepartment = departmentFilter === 'all' || (component.department || '').trim() === departmentFilter;
-
-      return matchesAcademicLevel && matchesDepartment;
-    });
-  }, [academicLevelFilter, sourceResults, departmentFilter]);
-
-  const usingHybridDepartmentPagination = departmentFilter !== 'all';
-  const displayResults = useMemo(() => {
-    if (!usingHybridDepartmentPagination) {
-      return filteredResults;
-    }
-
-    const start = filter.page * filter.limit;
-    const end = start + filter.limit;
-
-    return filteredResults.slice(start, end);
-  }, [filter.limit, filter.page, filteredResults, usingHybridDepartmentPagination]);
-
-  const effectiveTotal = usingHybridDepartmentPagination
-    ? filteredResults.length
-    : components.total;
-
-  const effectiveTotalPages = usingHybridDepartmentPagination
-    ? Math.max(1, Math.ceil(effectiveTotal / filter.limit))
-    : totalPagesFromServer;
-
-  const isLoadingGrid = loading || (usingHybridDepartmentPagination && loadingDepartmentDataset);
+  const effectiveTotal = components.total;
+  const effectiveTotalPages = totalPagesFromServer;
+  const isLoadingGrid = loading;
+  const displayResults = components.results;
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -255,7 +143,7 @@ export const DisciplineListPage = () => {
     if (academicLevelFilter !== 'all') {
       nextParams.set('level', academicLevelFilter);
     }
-    if (departmentFilter !== 'all') {
+    if (departmentFilter !== DEPARTMENT_DCC) {
       nextParams.set('department', departmentFilter);
     }
     if (filter.page > 0) {
@@ -380,18 +268,30 @@ export const DisciplineListPage = () => {
           <div>
             <h2 className="text-2xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
             <p className="mt-2 text-sm text-muted">Catálogo público em lista com ordenação por coluna. Exibição padrão de 20 itens por página.</p>
-            {usingHybridDepartmentPagination ? (
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                {loadingDepartmentDataset
-                  ? 'Modo híbrido ativo: carregando dataset global por departamento...'
-                  : `Modo híbrido ativo: paginação local na página ${filter.page + 1} sobre dataset global filtrado (${filteredResults.length} item(ns)).`}
-              </div>
-            ) : null}
           </div>
-          <div className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-600">
-            {effectiveTotal} resultado(s)
-          </div>
+          <label className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs text-ink/80 sm:text-sm">
+            Itens por página
+            <select
+              value={filter.limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                if (!Number.isNaN(nextLimit)) {
+                  setFilter((current) => ({
+                    ...current,
+                    page: 0,
+                    limit: nextLimit,
+                  }));
+                }
+              }}
+              className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink outline-none transition focus:border-primary-300"
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="grid gap-3 p-1 pt-4 sm:gap-4 sm:p-5 lg:grid-cols-[minmax(0,1.5fr)_300px]">
@@ -410,29 +310,8 @@ export const DisciplineListPage = () => {
               setDepartmentFilter(event.target.value);
             }}
           >
-            <option value="all">Todas as unidades do catálogo</option>
-            {departmentOptions.some((department) => department.group === 'ic') ? (
-              <optgroup label="Instituto de Computação e programas relacionados">
-                {departmentOptions
-                  .filter((department) => department.group === 'ic')
-                  .map((department) => (
-                    <option key={department.value} value={department.value}>
-                      {department.label}
-                    </option>
-                  ))}
-              </optgroup>
-            ) : null}
-            {departmentOptions.some((department) => department.group === 'external') ? (
-              <optgroup label="Outras unidades acadêmicas do currículo">
-                {departmentOptions
-                  .filter((department) => department.group === 'external')
-                  .map((department) => (
-                    <option key={department.value} value={department.value}>
-                      {department.label}
-                    </option>
-                  ))}
-              </optgroup>
-            ) : null}
+            <option value={DEPARTMENT_DCC}>Ciência da Computação</option>
+            <option value={DEPARTMENT_DCI}>Computação Interdisciplinar</option>
           </SelectField>
         </div>
 
@@ -618,30 +497,6 @@ export const DisciplineListPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs text-ink/80 sm:text-sm">
-            Itens por página
-            <select
-              value={filter.limit}
-              onChange={(event) => {
-                const nextLimit = Number(event.target.value);
-                if (!Number.isNaN(nextLimit)) {
-                  setFilter((current) => ({
-                    ...current,
-                    page: 0,
-                    limit: nextLimit,
-                  }));
-                }
-              }}
-              className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink outline-none transition focus:border-primary-300"
-            >
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <button
             type="button"
             disabled={filter.page <= 0}

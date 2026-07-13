@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { FormField } from '../components/FormField';
 import { SearchBar } from '../components/SearchBar';
@@ -19,6 +19,7 @@ const initialFilter: ListFilter = {
 };
 
 export const DepartmentsPage = () => {
+  const formSectionRef = useRef<HTMLElement | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   const [departments, setDepartments] = useState<ListData<Department>>({ results: [], total: 0 });
@@ -119,6 +120,8 @@ export const DepartmentsPage = () => {
     setCode(department.code || '');
     setError('');
     setSuccess('');
+
+    formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleDelete = async (department: Department) => {
@@ -145,11 +148,17 @@ export const DepartmentsPage = () => {
 
   return (
     <div className="space-y-6 motion-fade">
-      <section className="panel interactive-lift p-5 sm:p-6">
+      <section ref={formSectionRef} className="panel interactive-lift p-5 sm:p-6">
         <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Departamentos</h1>
         <p className="mt-2 text-sm leading-7 text-muted">
           CRUD de departamentos para perfil administrativo.
         </p>
+
+        {editingDepartmentId ? (
+          <div className="mt-4 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700">
+            Modo edição ativo. Atualize os campos e clique em Salvar alterações.
+          </div>
+        ) : null}
 
         <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={handleSubmit}>
           <FormField

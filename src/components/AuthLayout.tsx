@@ -8,12 +8,9 @@ export const AuthLayout = () => {
           <div className="mb-6 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-primary-700">
             <div className="h-10 w-10 overflow-hidden rounded-full bg-white">
               <img
-                src="https://computacao.ufba.br/imagem"
+                src="/computacao-logo.png"
                 alt="Instituto de Computacao UFBA"
                 className="h-full w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.src = '/computacao-logo.png';
-                }}
               />
             </div>
             <div>

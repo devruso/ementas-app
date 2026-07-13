@@ -35,12 +35,9 @@ export const AppShell = () => {
           <NavLink to="/disciplinas" className="flex items-center gap-4">
             <div className="logo-orb bg-white">
               <img
-                src="https://computacao.ufba.br/imagem"
+                src="/computacao-logo.png"
                 alt="Instituto de Computacao UFBA"
                 className="h-full w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.src = '/computacao-logo.png';
-                }}
               />
             </div>
             <div className="hidden sm:block">

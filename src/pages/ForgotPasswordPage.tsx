@@ -34,7 +34,7 @@ export const ForgotPasswordPage = () => {
       setLoading(true);
       setError('');
       await auth.resetPassword(normalizedEmail);
-      setSuccess('Se o e-mail existir, uma nova senha sera enviada pelo backend atual.');
+      setSuccess('Se sua conta existir, você receberá uma nova senha no e-mail informado.');
     } catch (err) {
       const appError = err as AppError;
       setError(appError.message);
@@ -49,12 +49,22 @@ export const ForgotPasswordPage = () => {
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Esqueci minha senha</h1>
         <p className="text-sm leading-7 text-ink/80">
-          <strong>Digite o e-mail cadastrado para solicitar uma nova senha. Recuperação restrita a contas @ufba.br.</strong>
+          Digite o e-mail cadastrado para solicitar uma nova senha.
         </p>
       </div>
 
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <FormField label="E-mail" type="email" value={email} onChange={(event) => setEmail(event.target.value)} error={error && !success ? error : undefined} />
+        <div>
+          <FormField
+            label="E-mail"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="suaconta@ufba.br"
+            error={error && !success ? error : undefined}
+          />
+          <p className="mt-2 text-xs font-semibold text-danger">Apenas conta @ufba.br.</p>
+        </div>
         {success ? <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div> : null}
         <FormActions>
           <button

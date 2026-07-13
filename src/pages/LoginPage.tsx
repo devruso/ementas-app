@@ -58,18 +58,22 @@ export const LoginPage = () => {
   return (
     <div className="space-y-8 text-ink">
       <div className="space-y-3">
-        <div className="inline-flex rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700">
-          Login institucional
-        </div>
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Entrar</h1>
         <p className="text-sm leading-7 text-ink/80">Acesse o sistema para editar disciplinas, revisar rascunhos e publicar aprovacoes.</p>
-        <div className="inline-flex rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-          Acesso restrito a contas institucionais @ufba.br
-        </div>
       </div>
 
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <FormField label="E-mail" type="email" value={email} onChange={(event) => setEmail(event.target.value)} error={fieldErrors.email} />
+        <div>
+          <FormField
+            label="E-mail"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="suaconta@ufba.br"
+            error={fieldErrors.email}
+          />
+          <p className="mt-2 text-xs font-semibold text-danger">Apenas conta @ufba.br.</p>
+        </div>
         <FormField label="Senha" type="password" value={password} onChange={(event) => setPassword(event.target.value)} error={fieldErrors.password} />
 
         {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}

@@ -25,6 +25,8 @@ describe('LoginPage institutional flow', () => {
     await userEvent.type(screen.getByLabelText('Senha'), 'Abc123!@#');
     await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
+    expect(screen.getByPlaceholderText('suaconta@ufba.br')).toBeInTheDocument();
+    expect(screen.getByText('Apenas conta @ufba.br.')).toBeInTheDocument();
     expect(await screen.findByText('Use seu e-mail institucional da UFBA (@ufba.br).')).toBeInTheDocument();
     expect(loginMock).not.toHaveBeenCalled();
   });
