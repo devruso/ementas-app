@@ -68,6 +68,8 @@ export interface User {
   name: string;
   email: string;
   role: 'super_admin' | 'admin' | 'teacher';
+  hasSignatureConfigured?: boolean;
+  hasSignatureFileConfigured?: boolean;
   signatureUpdatedAt?: string;
   signatureFileKey?: string;
   signatureFileProvider?: string;
@@ -75,6 +77,7 @@ export interface User {
   signatureFileSize?: number;
   signatureFileHash?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PublicShare {

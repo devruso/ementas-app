@@ -8,6 +8,9 @@ import { getUserSignatureFilePreview, updateUserEmail, updateUserPassword, updat
 import { AppError } from '../lib/errors';
 import { isValidEmail, isValidPassword } from '../lib/validation';
 
+const MAX_SIGNATURE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+const supportedSignatureFileTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
 export const ProfilePage = () => {
   const auth = useAuth();
   const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
@@ -29,6 +32,10 @@ export const ProfilePage = () => {
   const [updatingEmail, setUpdatingEmail] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [updatingSignature, setUpdatingSignature] = useState(false);
+
+  useEffect(() => {
+    setEmail(auth.user?.email || '');
+  }, [auth.user?.email]);
 
   useEffect(() => {
     if (!signatureFile) {
@@ -92,6 +99,36 @@ export const ProfilePage = () => {
   }, [auth.user?.signatureFileContentType, auth.user?.signatureFileKey]);
 
   const activeSignaturePreviewUrl = localSignaturePreviewUrl || persistedSignaturePreviewUrl;
+  const hasSignatureConfigured = Boolean(auth.user?.hasSignatureConfigured);
+  const hasSignatureFileConfigured = Boolean(auth.user?.hasSignatureFileConfigured);
+
+  const handleSignatureFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0] || null;
+
+    if (!selectedFile) {
+      setSignatureFile(null);
+      return;
+    }
+
+    if (!supportedSignatureFileTypes.has(selectedFile.type)) {
+      setSignatureFile(null);
+      setSignatureMessage('');
+      setSignatureError('Formato de assinatura nao suportado. Envie PNG, JPG ou WEBP.');
+      event.target.value = '';
+      return;
+    }
+
+    if (selectedFile.size > MAX_SIGNATURE_FILE_SIZE_BYTES) {
+      setSignatureFile(null);
+      setSignatureMessage('');
+      setSignatureError('Arquivo de assinatura excede 2MB.');
+      event.target.value = '';
+      return;
+    }
+
+    setSignatureFile(selectedFile);
+    setSignatureError('');
+  };
 
   const handleCaptureDrawnSignature = async () => {
     const signatureCanvas = signatureCanvasRef.current;
@@ -291,7 +328,7 @@ export const ProfilePage = () => {
             <input
               type="file"
               accept=".png,.jpg,.jpeg,.webp"
-              onChange={(event) => setSignatureFile(event.target.files?.[0] || null)}
+              onChange={handleSignatureFileSelection}
               className="soft-ring h-14 min-w-0 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
             />
           </label>
@@ -330,6 +367,8 @@ export const ProfilePage = () => {
             <div className="rounded-2xl border border-line bg-background px-4 py-3 text-xs text-ink/80">
               <div className="font-semibold uppercase tracking-[0.12em] text-ink/70">Status atual da assinatura</div>
               <div className="mt-2 space-y-1">
+                <div>Assinatura textual para publicar: {hasSignatureConfigured ? 'Pronta' : 'Pendente'}</div>
+                <div>Assinatura visual para DOCX: {hasSignatureFileConfigured ? 'Pronta' : 'Pendente'}</div>
                 <div>Assinatura textual atualizada em: {auth.user?.signatureUpdatedAt ? new Date(auth.user.signatureUpdatedAt).toLocaleString('pt-BR') : 'Não configurada'}</div>
                 <div>Arquivo persistido: {auth.user?.signatureFileKey || 'Não configurado'}</div>
                 <div>Tipo de arquivo: {auth.user?.signatureFileContentType || 'Não informado'}</div>
@@ -340,7 +379,7 @@ export const ProfilePage = () => {
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Preview visual</div>
                   <div className="mt-1 text-xs text-ink/70">
-                    {signatureFile ? 'Prévia local do arquivo selecionado para envio.' : 'Assinatura persistida atualmente no perfil.'}
+                    {signatureFile ? 'Prévia local do arquivo selecionado para envio.' : 'Assinatura persistida atualmente no perfil e usada no DOCX oficial quando você for o aprovador.'}
                   </div>
                 </div>
                 {loadingPersistedSignaturePreview && !signatureFile ? (

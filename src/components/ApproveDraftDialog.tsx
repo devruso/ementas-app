@@ -9,6 +9,8 @@ interface ApproveDraftDialogProps {
   agreementDate: string;
   agreementNumber: string;
   signature: string;
+  hasSignatureConfigured?: boolean;
+  hasSignatureFileConfigured?: boolean;
   submitting: boolean;
   error?: string;
   onChangeAgreementDate: (value: string) => void;
@@ -24,6 +26,8 @@ export const ApproveDraftDialog = ({
   agreementDate,
   agreementNumber,
   signature,
+  hasSignatureConfigured,
+  hasSignatureFileConfigured,
   submitting,
   error,
   onChangeAgreementDate,
@@ -47,6 +51,19 @@ export const ApproveDraftDialog = ({
             <Link to="/perfil" className="ml-1 font-semibold text-primary-700 underline">
               Configurar assinatura agora
             </Link>
+          </div>
+          <div className="mt-3 rounded-2xl border border-line bg-slate-50 px-3 py-3 text-xs leading-6 text-ink/80">
+            <div>
+              Assinatura textual para publicar: <strong>{hasSignatureConfigured ? 'pronta' : 'pendente'}</strong>
+            </div>
+            <div>
+              Assinatura visual para aparecer no DOCX oficial: <strong>{hasSignatureFileConfigured ? 'pronta' : 'pendente'}</strong>
+            </div>
+            {!hasSignatureConfigured ? (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                Sem assinatura textual configurada, a publicacao oficial sera bloqueada pelo backend.
+              </div>
+            ) : null}
           </div>
         </div>
 

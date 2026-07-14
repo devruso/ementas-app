@@ -72,7 +72,14 @@ describe('DisciplineDetailsPage', () => {
     useAuthMock.mockReturnValue({
       isLoading: false,
       isAuthenticated: true,
-      user: { id: 'u1', name: 'Admin', email: 'admin@test.com', role: 'admin' },
+      user: {
+        id: 'u1',
+        name: 'Admin',
+        email: 'admin@test.com',
+        role: 'admin',
+        hasSignatureConfigured: true,
+        hasSignatureFileConfigured: false,
+      },
     });
 
     mockedGetComponentByCode.mockResolvedValue({
@@ -202,6 +209,22 @@ describe('DisciplineDetailsPage', () => {
       })
     );
     expect(payload.agreementDate).toContain('2026-05-01');
+  });
+
+  it('deve exibir status das assinaturas no dialogo de publicacao', async () => {
+    render(
+      <MemoryRouter>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Compiladores draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(await screen.findByText('Assinatura textual para publicar:')).toBeInTheDocument();
+    expect(screen.getByText('pronta')).toBeInTheDocument();
+    expect(screen.getByText('pendente')).toBeInTheDocument();
+    expect(screen.queryByText(/será bloqueada pelo backend/i)).not.toBeInTheDocument();
   });
 
   it('deve mostrar mensagem amigável quando a publicação falha por referência sem ano', async () => {

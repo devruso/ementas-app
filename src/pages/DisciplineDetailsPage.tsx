@@ -966,6 +966,8 @@ export const DisciplineDetailsPage = () => {
         agreementDate={agreementDate}
         agreementNumber={agreementNumber}
         signature={approvalSignature}
+        hasSignatureConfigured={auth.user?.hasSignatureConfigured}
+        hasSignatureFileConfigured={auth.user?.hasSignatureFileConfigured}
         submitting={publishing}
         error={dialogError}
         onChangeAgreementDate={setAgreementDate}

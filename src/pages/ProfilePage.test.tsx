@@ -15,6 +15,8 @@ vi.mock('../contexts/AuthContext', () => ({
       name: 'Professor Teste',
       email: 'professor@ufba.br',
       role: 'teacher',
+      hasSignatureConfigured: true,
+      hasSignatureFileConfigured: true,
       signatureUpdatedAt: '2026-05-10T10:00:00.000Z',
       signatureFileKey: 'signatures/u1-old.png',
       signatureFileContentType: 'image/png',
@@ -113,5 +115,17 @@ describe('ProfilePage signature integration', () => {
     });
 
     expect(screen.getByRole('img', { name: 'Prévia da assinatura' })).toHaveAttribute('src', 'blob:signature-preview');
+  });
+
+  it('deve bloquear arquivo de assinatura acima de 2MB no front', async () => {
+    const user = userEvent.setup();
+
+    render(<ProfilePage />);
+
+    const oversizedFile = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'assinatura.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText('Arquivo de assinatura (PNG, JPG ou WEBP)'), oversizedFile);
+
+    expect(await screen.findByText('Arquivo de assinatura excede 2MB.')).toBeInTheDocument();
+    expect(mockedUploadUserSignatureFile).not.toHaveBeenCalled();
   });
 });
