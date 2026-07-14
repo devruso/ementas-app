@@ -77,6 +77,11 @@ const parsePageSize = (value: string | null): number => {
   return initialFilter.limit;
 };
 
+const normalizeText = (value?: string) =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 const formatAcademicLevelLabel = (value?: Component['academicLevel']) => {
   if (value === 'graduacao') {
     return 'Graduacao';
@@ -93,7 +98,85 @@ const formatAcademicLevelLabel = (value?: Component['academicLevel']) => {
   return 'Nao informado';
 };
 
+const formatSemesterLabel = (value?: string) => {
+  const normalized = normalizeText(value);
+  return normalized || 'Semestre nao informado';
+};
+
+const formatDepartmentDisplay = (value?: string) => {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return {
+      eyebrow: 'Departamento',
+      value: 'Nao informado',
+    };
+  }
+
+  if (/^programa sigaa$/i.test(normalized)) {
+    return {
+      eyebrow: 'Origem',
+      value: 'SIGAA publico',
+    };
+  }
+
+  return {
+    eyebrow: 'Departamento',
+    value: normalized,
+  };
+};
+
+const formatSummary = (component: Component) => {
+  const rawSummary = normalizeText(component.syllabus || component.program);
+
+  if (!rawSummary) {
+    return 'Resumo academico indisponivel na fonte publica.';
+  }
+
+  const cleanedSummary = rawSummary
+    .replace(/^\/?\s*descri[cç][aã]o\s*:\s*/i, '')
+    .replace(/^ementa\s*:\s*/i, '')
+    .replace(/^conte[uú]do program[aá]tico\s*:\s*/i, '')
+    .trim();
+
+  if (
+    !cleanedSummary ||
+    /nao informado pela fonte/i.test(cleanedSummary) ||
+    /nao disponivel/i.test(cleanedSummary)
+  ) {
+    return 'Resumo academico indisponivel na fonte publica.';
+  }
+
+  return cleanedSummary;
+};
+
+const levelAccentClassMap: Record<string, string> = {
+  graduacao: 'from-emerald-400 via-teal-500 to-cyan-500',
+  mestrado: 'from-sky-400 via-blue-500 to-indigo-500',
+  doutorado: 'from-amber-400 via-orange-500 to-red-400',
+  default: 'from-slate-300 via-slate-400 to-slate-500',
+};
+
+const getLevelAccentClass = (value?: Component['academicLevel']) => {
+  if (value && levelAccentClassMap[value]) {
+    return levelAccentClassMap[value];
+  }
+
+  return levelAccentClassMap.default;
+};
+
 type PaginationToken = number | 'ellipsis';
+
+type SortOption = {
+  key: NonNullable<ListFilter['sortBy']>;
+  label: string;
+};
+
+const sortOptions: SortOption[] = [
+  { key: 'name', label: 'Disciplina' },
+  { key: 'code', label: 'Codigo' },
+  { key: 'department', label: 'Departamento' },
+];
 
 export const DisciplineListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -148,7 +231,7 @@ export const DisciplineListPage = () => {
       .finally(() => setLoading(false));
   }, [filter, academicLevelFilter, departmentFilter]);
 
-  const totalPagesFromServer = useMemo(() => {
+  const effectiveTotalPages = useMemo(() => {
     if (components.meta?.totalPages !== undefined) {
       return Math.max(components.meta.totalPages, 1);
     }
@@ -157,7 +240,6 @@ export const DisciplineListPage = () => {
   }, [components, filter.limit]);
 
   const effectiveTotal = components.total;
-  const effectiveTotalPages = totalPagesFromServer;
   const displayResults = components.results;
 
   useEffect(() => {
@@ -297,283 +379,262 @@ export const DisciplineListPage = () => {
       : <ArrowDown className="h-4 w-4 text-primary-700" />;
   };
 
-  return (
-    <div className="space-y-4 sm:space-y-6 motion-fade">
-      <section className="panel interactive-lift p-4 sm:p-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold text-ink">Disciplinas publicadas</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
-              Catalogo publico com busca, filtros e paginacao real. A visualizacao agora mostra os resultados completos sem scroll preso dentro da tabela.
+  const renderSkeletonList = () => (
+    <div className="space-y-3 p-3 sm:p-4">
+      {Array.from({ length: Math.min(6, filter.limit) }, (_, index) => (
+        <div
+          key={`row-skeleton-${index}`}
+          className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/90 shadow-[0_16px_40px_-30px_rgba(15,23,42,0.35)]"
+        >
+          <div className="animate-pulse p-4 md:p-5">
+            <div className="grid gap-4 md:grid-cols-[110px_minmax(0,2.2fr)_170px_130px_150px_132px] md:items-center">
+              <div className="h-10 w-24 rounded-full bg-slate-200" />
+              <div>
+                <div className="h-4 w-10/12 rounded bg-slate-200" />
+                <div className="mt-3 h-3 w-8/12 rounded bg-slate-100" />
+              </div>
+              <div className="h-10 w-full rounded-2xl bg-slate-100" />
+              <div className="h-8 w-24 rounded-full bg-slate-100" />
+              <div className="h-10 w-full rounded-2xl bg-slate-100" />
+              <div className="h-11 w-full rounded-2xl bg-slate-100" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderDisciplineRow = (component: Component) => {
+    const department = formatDepartmentDisplay(component.department);
+    const summary = formatSummary(component);
+    const academicLevelLabel = formatAcademicLevelLabel(component.academicLevel);
+    const semesterLabel = formatSemesterLabel(component.semester);
+    const levelAccentClass = getLevelAccentClass(component.academicLevel);
+
+    return (
+      <article
+        key={component.id}
+        className="group relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,1)_0%,rgba(248,251,255,0.98)_58%,rgba(242,246,251,0.96)_100%)] shadow-[0_18px_44px_-34px_rgba(15,23,42,0.42)] transition duration-300 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-[0_24px_56px_-34px_rgba(37,99,235,0.28)]"
+      >
+        <div className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${levelAccentClass}`} />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+
+        <div className="grid gap-4 p-4 pl-5 md:grid-cols-[110px_minmax(0,2.2fr)_170px_130px_150px_132px] md:items-center md:gap-5 md:p-5 md:pl-6">
+          <div className="flex items-center gap-3 md:block">
+            <span className="inline-flex rounded-full border border-primary-200 bg-white/90 px-4 py-2 text-sm font-semibold tracking-[0.08em] text-primary-700 shadow-sm">
+              {component.code}
+            </span>
+          </div>
+
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-600/70">
+              Disciplina
+            </div>
+            <h3 className="mt-1 text-base font-semibold leading-6 text-slate-900 md:text-[1.05rem]">
+              {component.name}
+            </h3>
+            <p className="mt-2 max-w-[50ch] line-clamp-2 text-sm leading-6 text-slate-500">
+              {summary}
             </p>
           </div>
 
-          <label className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs text-ink/80 sm:text-sm">
-            Itens por pagina
-            <select
-              aria-label="Itens por página"
-              value={filter.limit}
-              onChange={(event) => {
-                const nextLimit = Number(event.target.value);
-
-                if (!Number.isNaN(nextLimit)) {
-                  setFilter((current) => ({
-                    ...current,
-                    page: 0,
-                    limit: nextLimit,
-                  }));
-                }
-              }}
-              className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink outline-none transition focus:border-primary-300"
-            >
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="grid gap-3 p-1 pt-4 sm:gap-4 sm:p-5 lg:grid-cols-[minmax(0,1.5fr)_300px]">
-          <SearchBar
-            value={search}
-            label="Buscar por código ou nome"
-            placeholder="Ex.: IC0009 ou tópicos em computação"
-            onChange={setSearch}
-          />
-
-          <SelectField
-            label="Departamento"
-            value={departmentFilter}
-            onChange={(event) => {
-              setFilter((current) => ({ ...current, page: 0 }));
-              setDepartmentFilter(event.target.value);
-            }}
-          >
-            <option value={DEPARTMENT_ALL}>Todos os departamentos</option>
-            <option value={DEPARTMENT_DCC}>Ciência da Computação</option>
-            <option value={DEPARTMENT_DCI}>Computação Interdisciplinar</option>
-          </SelectField>
-        </div>
-
-        <div className="mt-2 grid gap-3 px-1 pb-1 sm:px-5 sm:pb-5">
-          <div className="rounded-2xl border border-line/70 bg-white px-3 py-3 sm:px-4">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Nível acadêmico</div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: 'all', label: 'Todos' },
-                { value: 'graduacao', label: 'Graduacao' },
-                { value: 'mestrado', label: 'Mestrado' },
-                { value: 'doutorado', label: 'Doutorado' },
-              ].map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => {
-                    setFilter((current) => ({ ...current, page: 0 }));
-                    setAcademicLevelFilter(item.value as 'all' | 'graduacao' | 'mestrado' | 'doutorado');
-                  }}
-                  className={[
-                    'rounded-full border px-3 py-1 text-xs font-semibold transition',
-                    academicLevelFilter === item.value
-                      ? 'border-primary-300 bg-primary-500 text-white'
-                      : 'border-line bg-white text-ink hover:border-primary-200',
-                  ].join(' ')}
-                >
-                  {item.label}
-                </button>
-              ))}
+          <div className="rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              {department.eyebrow}
+            </div>
+            <div className="mt-1 text-sm font-medium leading-5 text-slate-700">
+              {department.value}
             </div>
           </div>
-        </div>
-      </section>
 
+          <div className="flex items-center md:justify-center">
+            <span className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
+              {academicLevelLabel}
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Semestre
+            </div>
+            <div className="mt-1 text-sm font-medium leading-5 text-slate-700">
+              {semesterLabel}
+            </div>
+          </div>
+
+          <div className="md:flex md:justify-end">
+            <Link
+              to={`/disciplinas/${component.code.toLowerCase()}`}
+              className="inline-flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 md:w-[132px]"
+            >
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:bg-primary-100 group-hover:text-primary-700">
+                <Eye className="h-4 w-4" />
+              </span>
+              <span className="truncate">Abrir</span>
+            </Link>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  return (
+    <div className="space-y-4 sm:space-y-6 motion-fade">
       <section className="panel overflow-hidden">
+        <div className="border-b border-line/70 bg-[linear-gradient(180deg,rgba(248,251,255,0.95),rgba(255,255,255,0.92))] p-4 sm:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary-600/70">
+                Catalogo publico
+              </div>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Disciplinas publicadas</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
+                Busca, filtros e listagem com leitura mais limpa. Menos ruído visual, menos texto bruto e mais foco no que importa.
+              </p>
+            </div>
+
+            <label className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-2 text-xs text-slate-600 shadow-sm sm:text-sm">
+              Itens por pagina
+              <select
+                aria-label="Itens por página"
+                value={filter.limit}
+                onChange={(event) => {
+                  const nextLimit = Number(event.target.value);
+
+                  if (!Number.isNaN(nextLimit)) {
+                    setFilter((current) => ({
+                      ...current,
+                      page: 0,
+                      limit: nextLimit,
+                    }));
+                  }
+                }}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 outline-none transition focus:border-primary-300"
+              >
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_300px]">
+            <SearchBar
+              value={search}
+              label="Buscar por codigo ou nome"
+              placeholder="Ex.: IC0009 ou topicos em computacao"
+              onChange={setSearch}
+            />
+
+            <SelectField
+              label="Departamento"
+              value={departmentFilter}
+              onChange={(event) => {
+                setFilter((current) => ({ ...current, page: 0 }));
+                setDepartmentFilter(event.target.value);
+              }}
+            >
+              <option value={DEPARTMENT_ALL}>Todos os departamentos</option>
+              <option value={DEPARTMENT_DCC}>Ciencia da Computacao</option>
+              <option value={DEPARTMENT_DCI}>Computacao Interdisciplinar</option>
+            </SelectField>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              { value: 'all', label: 'Todos' },
+              { value: 'graduacao', label: 'Graduacao' },
+              { value: 'mestrado', label: 'Mestrado' },
+              { value: 'doutorado', label: 'Doutorado' },
+            ].map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => {
+                  setFilter((current) => ({ ...current, page: 0 }));
+                  setAcademicLevelFilter(item.value as 'all' | 'graduacao' | 'mestrado' | 'doutorado');
+                }}
+                className={[
+                  'rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                  academicLevelFilter === item.value
+                    ? 'border-primary-300 bg-primary-500 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:text-primary-700',
+                ].join(' ')}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {errorMessage ? (
-          <div className="border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+          <div className="border-t border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
             {errorMessage}
           </div>
-        ) : loading ? (
-          <div className="p-3 sm:p-5">
-            <div className="overflow-hidden rounded-2xl border border-line/70 bg-white">
-              <div className="hidden overflow-x-auto md:block">
-                <table className="min-w-[980px] w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-line/80 bg-slate-50 text-left text-xs uppercase tracking-[0.12em] text-muted">
-                      {['Código', 'Disciplina', 'Departamento', 'Nível', 'Semestre', 'Ações'].map((label) => (
-                        <th key={label} className="px-4 py-3 font-semibold">
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: Math.min(8, filter.limit) }, (_, index) => (
-                      <tr key={`skeleton-${index}`} className="animate-pulse border-b border-line/70 align-top">
-                        <td className="px-4 py-4"><div className="h-6 w-20 rounded-full bg-slate-200" /></td>
-                        <td className="px-4 py-4">
-                          <div className="h-4 w-11/12 rounded bg-slate-200" />
-                          <div className="mt-2 h-3 w-9/12 rounded bg-slate-100" />
-                        </td>
-                        <td className="px-4 py-4"><div className="h-4 w-10/12 rounded bg-slate-200" /></td>
-                        <td className="px-4 py-4"><div className="h-4 w-20 rounded bg-slate-200" /></td>
-                        <td className="px-4 py-4"><div className="h-4 w-28 rounded bg-slate-200" /></td>
-                        <td className="px-4 py-4"><div className="ml-auto h-9 w-36 rounded-full bg-slate-200" /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="divide-y divide-line/70 md:hidden">
-                {Array.from({ length: Math.min(6, filter.limit) }, (_, index) => (
-                  <div key={`mobile-skeleton-${index}`} className="animate-pulse p-4">
-                    <div className="h-5 w-20 rounded-full bg-slate-200" />
-                    <div className="mt-3 h-4 w-10/12 rounded bg-slate-200" />
-                    <div className="mt-2 h-3 w-8/12 rounded bg-slate-100" />
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="h-9 rounded-xl bg-slate-100" />
-                      <div className="h-9 rounded-xl bg-slate-100" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : displayResults.length > 0 ? (
-          <div className="p-3 sm:p-5">
-            <div className="overflow-hidden rounded-2xl border border-line/70 bg-white">
-              <div className="border-b border-line/70 bg-slate-50 px-4 py-3 text-sm text-ink/75">
-                {effectiveTotal} disciplina(s) encontradas. Pagina {filter.page + 1} de {effectiveTotalPages}.
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="min-w-[980px] w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-line/80 bg-white text-left text-xs uppercase tracking-[0.12em] text-muted">
-                      <th className="px-4 py-3 font-semibold">
-                        <button
-                          type="button"
-                          onClick={() => toggleSort('code')}
-                          className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                        >
-                          Código
-                          <SortIcon sortBy="code" />
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 font-semibold">
-                        <button
-                          type="button"
-                          onClick={() => toggleSort('name')}
-                          className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                        >
-                          Disciplina
-                          <SortIcon sortBy="name" />
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 font-semibold">
-                        <button
-                          type="button"
-                          onClick={() => toggleSort('department')}
-                          className="inline-flex items-center gap-2 font-semibold text-muted transition hover:text-primary-700"
-                        >
-                          Departamento
-                          <SortIcon sortBy="department" />
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 font-semibold">Nível</th>
-                      <th className="px-4 py-3 font-semibold">Semestre</th>
-                      <th className="px-4 py-3 text-right font-semibold">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayResults.map((component) => (
-                      <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-slate-50">
-                        <td className="px-4 py-4">
-                          <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-                            {component.code}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="font-semibold text-ink">{component.name}</div>
-                          <div className="mt-1 max-w-[56ch] line-clamp-2 text-xs leading-6 text-muted">
-                            {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
-                          </div>
-                        </td>
-                        <td className="max-w-[30ch] px-4 py-4 text-sm text-ink/90">
-                          {component.department || 'Não informado'}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-ink/85">
-                          <span className="rounded-full border border-line bg-slate-50 px-3 py-1 text-xs font-semibold text-ink/80">
-                            {formatAcademicLevelLabel(component.academicLevel)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-ink/85">
-                          {component.semester || 'Semestre não informado'}
-                        </td>
-                        <td className="px-4 py-4 text-right">
-                          <Link
-                            to={`/disciplinas/${component.code.toLowerCase()}`}
-                            className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
-                          >
-                            <Eye className="h-4 w-4" />
-                            Abrir disciplina
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="divide-y divide-line/70 md:hidden">
-                {displayResults.map((component) => (
-                  <Link
-                    key={component.id}
-                    to={`/disciplinas/${component.code.toLowerCase()}`}
-                    className="block p-4 transition hover:bg-slate-50"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="inline-flex rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-                          {component.code}
-                        </div>
-                        <h3 className="mt-3 text-base font-semibold leading-6 text-ink">{component.name}</h3>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted">
-                          {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink/80">
-                        {formatAcademicLevelLabel(component.academicLevel)}
-                      </span>
-                    </div>
-                    <div className="mt-4 grid gap-2 text-sm text-ink/75">
-                      <div><strong>Departamento:</strong> {component.department || 'Não informado'}</div>
-                      <div><strong>Semestre:</strong> {component.semester || 'Semestre não informado'}</div>
-                    </div>
-                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
-                      <Eye className="h-4 w-4" />
-                      Abrir disciplina
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
         ) : (
-          <div className="p-10 text-center text-sm text-muted">
-            Nenhuma disciplina encontrada para os filtros atuais.
-          </div>
+          <>
+            <div className="border-t border-line/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.88))] px-3 py-3 sm:px-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800">
+                    {effectiveTotal} disciplina(s) encontradas
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Pagina {filter.page + 1} de {effectiveTotalPages} · Mostrando {pageStart} - {pageEnd}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Ordenar por
+                  </span>
+                  {sortOptions.map((option) => {
+                    const isActive = filter.sortBy === option.key;
+
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => toggleSort(option.key)}
+                        className={[
+                          'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                          isActive
+                            ? 'border-primary-300 bg-primary-50 text-primary-700'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:text-primary-700',
+                        ].join(' ')}
+                      >
+                        {option.label}
+                        <SortIcon sortBy={option.key} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {loading ? (
+              renderSkeletonList()
+            ) : displayResults.length > 0 ? (
+              <div className="space-y-3 p-3 sm:p-4">
+                {displayResults.map(renderDisciplineRow)}
+              </div>
+            ) : (
+              <div className="p-10 text-center text-sm text-slate-500">
+                Nenhuma disciplina encontrada para os filtros atuais.
+              </div>
+            )}
+          </>
         )}
       </section>
 
-      <section className="flex flex-col gap-4 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-4 py-4 text-sm text-ink/80 md:px-5">
+      <section className="flex flex-col gap-4 rounded-3xl border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.9))] px-4 py-4 text-sm text-slate-700 shadow-panel md:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <strong>{effectiveTotal}</strong> disciplina(s) encontrada(s).
           </div>
-          <div className="text-xs text-muted sm:text-sm">
+          <div className="text-xs text-slate-500 sm:text-sm">
             Mostrando {pageStart} - {pageEnd} de {effectiveTotal}
           </div>
         </div>
@@ -583,7 +644,7 @@ export const DisciplineListPage = () => {
             type="button"
             disabled={filter.page <= 0}
             onClick={() => setFilter((current) => ({ ...current, page: current.page - 1 }))}
-            className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" />
             Anterior
@@ -595,7 +656,7 @@ export const DisciplineListPage = () => {
                 return (
                   <span
                     key={`ellipsis-${index}`}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-muted"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-slate-400"
                     aria-hidden="true"
                   >
                     <MoreHorizontal className="h-4 w-4" />
@@ -604,6 +665,7 @@ export const DisciplineListPage = () => {
               }
 
               const isActive = token === filter.page;
+
               return (
                 <button
                   key={token}
@@ -615,7 +677,7 @@ export const DisciplineListPage = () => {
                     'inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-semibold transition',
                     isActive
                       ? 'border-primary-300 bg-primary-500 text-white shadow-sm'
-                      : 'border-line bg-white text-ink hover:border-primary-200 hover:bg-primary-50',
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-primary-200 hover:bg-primary-50',
                   ].join(' ')}
                 >
                   {token + 1}
@@ -628,9 +690,9 @@ export const DisciplineListPage = () => {
             type="button"
             disabled={filter.page + 1 >= effectiveTotalPages}
             onClick={() => setFilter((current) => ({ ...current, page: current.page + 1 }))}
-            className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Próxima
+            Proxima
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
