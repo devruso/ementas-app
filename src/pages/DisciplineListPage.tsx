@@ -16,10 +16,15 @@ const initialFilter: ListFilter = {
 };
 
 const pageSizeOptions = [20, 50, 100] as const;
+const DEPARTMENT_ALL = '__all__';
 const DEPARTMENT_DCC = '__dcc__';
 const DEPARTMENT_DCI = '__dci__';
 
 const parseDepartmentFilter = (value: string | null) => {
+  if (!value || value === DEPARTMENT_ALL) {
+    return DEPARTMENT_ALL;
+  }
+
   if (value === DEPARTMENT_DCC || value === DEPARTMENT_DCI) {
     return value;
   }
@@ -30,7 +35,11 @@ const parseDepartmentFilter = (value: string | null) => {
     return DEPARTMENT_DCI;
   }
 
-  return DEPARTMENT_DCC;
+  if (normalizedValue.includes('computacao') || normalizedValue.includes('dcc')) {
+    return DEPARTMENT_DCC;
+  }
+
+  return DEPARTMENT_ALL;
 };
 
 const parsePositiveInt = (value: string | null, fallback: number) => {
@@ -60,11 +69,28 @@ const parseAcademicLevel = (value: string | null): 'all' | 'graduacao' | 'mestra
 
 const parsePageSize = (value: string | null): number => {
   const parsed = Number(value);
+
   if (Number.isInteger(parsed) && pageSizeOptions.includes(parsed as typeof pageSizeOptions[number])) {
     return parsed;
   }
 
   return initialFilter.limit;
+};
+
+const formatAcademicLevelLabel = (value?: Component['academicLevel']) => {
+  if (value === 'graduacao') {
+    return 'Graduacao';
+  }
+
+  if (value === 'mestrado') {
+    return 'Mestrado';
+  }
+
+  if (value === 'doutorado') {
+    return 'Doutorado';
+  }
+
+  return 'Nao informado';
 };
 
 type PaginationToken = number | 'ellipsis';
@@ -112,19 +138,19 @@ export const DisciplineListPage = () => {
     getComponents({
       ...filter,
       academicLevel: academicLevelFilter === 'all' ? undefined : academicLevelFilter,
-      department: departmentFilter,
+      department: departmentFilter === DEPARTMENT_ALL ? undefined : departmentFilter,
     })
       .then(setComponents)
       .catch((err) => {
         const appError = err as AppError;
-        setErrorMessage(appError.message || 'Não foi possível carregar as disciplinas agora.');
+        setErrorMessage(appError.message || 'Nao foi possivel carregar as disciplinas agora.');
       })
       .finally(() => setLoading(false));
   }, [filter, academicLevelFilter, departmentFilter]);
 
   const totalPagesFromServer = useMemo(() => {
     if (components.meta?.totalPages !== undefined) {
-      return components.meta.totalPages;
+      return Math.max(components.meta.totalPages, 1);
     }
 
     return Math.max(1, Math.ceil(components.total / filter.limit));
@@ -132,36 +158,40 @@ export const DisciplineListPage = () => {
 
   const effectiveTotal = components.total;
   const effectiveTotalPages = totalPagesFromServer;
-  const isLoadingGrid = loading;
   const displayResults = components.results;
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
+
     if (search) {
       nextParams.set('q', search);
     }
+
     if (academicLevelFilter !== 'all') {
       nextParams.set('level', academicLevelFilter);
     }
-    if (departmentFilter !== DEPARTMENT_DCC) {
+
+    if (departmentFilter !== DEPARTMENT_ALL) {
       nextParams.set('department', departmentFilter);
     }
+
     if (filter.page > 0) {
       nextParams.set('page', String(filter.page + 1));
     }
+
     if (filter.limit !== initialFilter.limit) {
       nextParams.set('limit', String(filter.limit));
     }
+
     if (filter.sortBy && filter.sortBy !== initialFilter.sortBy) {
       nextParams.set('sortBy', filter.sortBy);
     }
+
     if (filter.sortOrder && filter.sortOrder !== initialFilter.sortOrder) {
       nextParams.set('sortOrder', filter.sortOrder);
     }
 
-    const currentParamsSerialized = searchParams.toString();
-    const nextParamsSerialized = nextParams.toString();
-    if (currentParamsSerialized !== nextParamsSerialized) {
+    if (searchParams.toString() !== nextParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
   }, [
@@ -179,6 +209,7 @@ export const DisciplineListPage = () => {
   useEffect(() => {
     setFilter((current) => {
       const maxPage = Math.max(0, effectiveTotalPages - 1);
+
       if (current.page <= maxPage) {
         return current;
       }
@@ -199,16 +230,20 @@ export const DisciplineListPage = () => {
     }
 
     const visiblePages = new Set<number>([0, totalPages - 1, currentPage]);
+
     if (currentPage - 1 > 0) {
       visiblePages.add(currentPage - 1);
     }
+
     if (currentPage + 1 < totalPages - 1) {
       visiblePages.add(currentPage + 1);
     }
+
     if (currentPage <= 1) {
       visiblePages.add(1);
       visiblePages.add(2);
     }
+
     if (currentPage >= totalPages - 2) {
       visiblePages.add(totalPages - 2);
       visiblePages.add(totalPages - 3);
@@ -223,6 +258,7 @@ export const DisciplineListPage = () => {
       if (index > 0 && page - orderedPages[index - 1] > 1) {
         tokens.push('ellipsis');
       }
+
       tokens.push(page);
     });
 
@@ -264,17 +300,22 @@ export const DisciplineListPage = () => {
   return (
     <div className="space-y-4 sm:space-y-6 motion-fade">
       <section className="panel interactive-lift p-4 sm:p-6">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 sm:mb-4 sm:gap-3">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-semibold text-ink sm:text-2xl">Disciplinas publicadas</h2>
-            <p className="mt-2 text-sm text-muted">Catálogo público em lista com ordenação por coluna. Exibição padrão de 20 itens por página.</p>
+            <h2 className="text-2xl font-semibold text-ink">Disciplinas publicadas</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
+              Catalogo publico com busca, filtros e paginacao real. A visualizacao agora mostra os resultados completos sem scroll preso dentro da tabela.
+            </p>
           </div>
+
           <label className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs text-ink/80 sm:text-sm">
-            Itens por página
+            Itens por pagina
             <select
+              aria-label="Itens por página"
               value={filter.limit}
               onChange={(event) => {
                 const nextLimit = Number(event.target.value);
+
                 if (!Number.isNaN(nextLimit)) {
                   setFilter((current) => ({
                     ...current,
@@ -310,18 +351,19 @@ export const DisciplineListPage = () => {
               setDepartmentFilter(event.target.value);
             }}
           >
+            <option value={DEPARTMENT_ALL}>Todos os departamentos</option>
             <option value={DEPARTMENT_DCC}>Ciência da Computação</option>
             <option value={DEPARTMENT_DCI}>Computação Interdisciplinar</option>
           </SelectField>
         </div>
 
-        <div className="mt-2 grid gap-3 px-1 pb-1 sm:px-5 sm:pb-5 md:grid-cols-1">
+        <div className="mt-2 grid gap-3 px-1 pb-1 sm:px-5 sm:pb-5">
           <div className="rounded-2xl border border-line/70 bg-white px-3 py-3 sm:px-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Nível acadêmico</div>
             <div className="flex flex-wrap gap-2">
               {[
                 { value: 'all', label: 'Todos' },
-                { value: 'graduacao', label: 'Graduação' },
+                { value: 'graduacao', label: 'Graduacao' },
                 { value: 'mestrado', label: 'Mestrado' },
                 { value: 'doutorado', label: 'Doutorado' },
               ].map((item) => (
@@ -352,18 +394,15 @@ export const DisciplineListPage = () => {
           <div className="border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
             {errorMessage}
           </div>
-        ) : isLoadingGrid ? (
-          <div className="p-2 sm:p-5">
+        ) : loading ? (
+          <div className="p-3 sm:p-5">
             <div className="overflow-hidden rounded-2xl border border-line/70 bg-white">
-              <div className="max-h-[68vh] overflow-auto">
+              <div className="hidden overflow-x-auto md:block">
                 <table className="min-w-[980px] w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-line/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
+                    <tr className="border-b border-line/80 bg-slate-50 text-left text-xs uppercase tracking-[0.12em] text-muted">
                       {['Código', 'Disciplina', 'Departamento', 'Nível', 'Semestre', 'Ações'].map((label) => (
-                        <th
-                          key={label}
-                          className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80"
-                        >
+                        <th key={label} className="px-4 py-3 font-semibold">
                           {label}
                         </th>
                       ))}
@@ -372,40 +411,48 @@ export const DisciplineListPage = () => {
                   <tbody>
                     {Array.from({ length: Math.min(8, filter.limit) }, (_, index) => (
                       <tr key={`skeleton-${index}`} className="animate-pulse border-b border-line/70 align-top">
-                        <td className="px-4 py-4">
-                          <div className="h-6 w-20 rounded-full bg-slate-200" />
-                        </td>
+                        <td className="px-4 py-4"><div className="h-6 w-20 rounded-full bg-slate-200" /></td>
                         <td className="px-4 py-4">
                           <div className="h-4 w-11/12 rounded bg-slate-200" />
                           <div className="mt-2 h-3 w-9/12 rounded bg-slate-100" />
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="h-4 w-10/12 rounded bg-slate-200" />
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="h-4 w-20 rounded bg-slate-200" />
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="h-4 w-28 rounded bg-slate-200" />
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="ml-auto h-9 w-36 rounded-full bg-slate-200" />
-                        </td>
+                        <td className="px-4 py-4"><div className="h-4 w-10/12 rounded bg-slate-200" /></td>
+                        <td className="px-4 py-4"><div className="h-4 w-20 rounded bg-slate-200" /></td>
+                        <td className="px-4 py-4"><div className="h-4 w-28 rounded bg-slate-200" /></td>
+                        <td className="px-4 py-4"><div className="ml-auto h-9 w-36 rounded-full bg-slate-200" /></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              <div className="divide-y divide-line/70 md:hidden">
+                {Array.from({ length: Math.min(6, filter.limit) }, (_, index) => (
+                  <div key={`mobile-skeleton-${index}`} className="animate-pulse p-4">
+                    <div className="h-5 w-20 rounded-full bg-slate-200" />
+                    <div className="mt-3 h-4 w-10/12 rounded bg-slate-200" />
+                    <div className="mt-2 h-3 w-8/12 rounded bg-slate-100" />
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="h-9 rounded-xl bg-slate-100" />
+                      <div className="h-9 rounded-xl bg-slate-100" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ) : displayResults.length > 0 ? (
-          <div className="p-2 sm:p-5">
+          <div className="p-3 sm:p-5">
             <div className="overflow-hidden rounded-2xl border border-line/70 bg-white">
-              <div className="max-h-[68vh] overflow-auto">
+              <div className="border-b border-line/70 bg-slate-50 px-4 py-3 text-sm text-ink/75">
+                {effectiveTotal} disciplina(s) encontradas. Pagina {filter.page + 1} de {effectiveTotalPages}.
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
                 <table className="min-w-[980px] w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-line/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
-                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
+                    <tr className="border-b border-line/80 bg-white text-left text-xs uppercase tracking-[0.12em] text-muted">
+                      <th className="px-4 py-3 font-semibold">
                         <button
                           type="button"
                           onClick={() => toggleSort('code')}
@@ -415,7 +462,7 @@ export const DisciplineListPage = () => {
                           <SortIcon sortBy="code" />
                         </button>
                       </th>
-                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
+                      <th className="px-4 py-3 font-semibold">
                         <button
                           type="button"
                           onClick={() => toggleSort('name')}
@@ -425,7 +472,7 @@ export const DisciplineListPage = () => {
                           <SortIcon sortBy="name" />
                         </button>
                       </th>
-                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
+                      <th className="px-4 py-3 font-semibold">
                         <button
                           type="button"
                           onClick={() => toggleSort('department')}
@@ -435,14 +482,14 @@ export const DisciplineListPage = () => {
                           <SortIcon sortBy="department" />
                         </button>
                       </th>
-                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">Nível</th>
-                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">Semestre</th>
-                      <th className="sticky top-0 z-20 bg-slate-50/95 px-4 py-3 text-right font-semibold backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">Ações</th>
+                      <th className="px-4 py-3 font-semibold">Nível</th>
+                      <th className="px-4 py-3 font-semibold">Semestre</th>
+                      <th className="px-4 py-3 text-right font-semibold">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayResults.map((component) => (
-                      <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-primary-50/30">
+                      <tr key={component.id} className="border-b border-line/70 align-top text-ink transition hover:bg-slate-50">
                         <td className="px-4 py-4">
                           <span className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
                             {component.code}
@@ -450,15 +497,17 @@ export const DisciplineListPage = () => {
                         </td>
                         <td className="px-4 py-4">
                           <div className="font-semibold text-ink">{component.name}</div>
-                          <div className="mt-1 max-w-[48ch] line-clamp-2 text-xs text-muted">
+                          <div className="mt-1 max-w-[56ch] line-clamp-2 text-xs leading-6 text-muted">
                             {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
                           </div>
                         </td>
-                        <td className="px-4 py-4 max-w-[30ch] text-sm text-ink/90">
+                        <td className="max-w-[30ch] px-4 py-4 text-sm text-ink/90">
                           {component.department || 'Não informado'}
                         </td>
-                        <td className="px-4 py-4 text-sm text-ink/85 capitalize">
-                          {component.academicLevel || 'não informado'}
+                        <td className="px-4 py-4 text-sm text-ink/85">
+                          <span className="rounded-full border border-line bg-slate-50 px-3 py-1 text-xs font-semibold text-ink/80">
+                            {formatAcademicLevelLabel(component.academicLevel)}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-sm text-ink/85">
                           {component.semester || 'Semestre não informado'}
@@ -476,6 +525,39 @@ export const DisciplineListPage = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="divide-y divide-line/70 md:hidden">
+                {displayResults.map((component) => (
+                  <Link
+                    key={component.id}
+                    to={`/disciplinas/${component.code.toLowerCase()}`}
+                    className="block p-4 transition hover:bg-slate-50"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="inline-flex rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                          {component.code}
+                        </div>
+                        <h3 className="mt-3 text-base font-semibold leading-6 text-ink">{component.name}</h3>
+                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted">
+                          {component.syllabus || component.program || 'Disciplina cadastrada sem resumo público disponível.'}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink/80">
+                        {formatAcademicLevelLabel(component.academicLevel)}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-sm text-ink/75">
+                      <div><strong>Departamento:</strong> {component.department || 'Não informado'}</div>
+                      <div><strong>Semestre:</strong> {component.semester || 'Semestre não informado'}</div>
+                    </div>
+                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
+                      <Eye className="h-4 w-4" />
+                      Abrir disciplina
+                    </div>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -548,7 +630,7 @@ export const DisciplineListPage = () => {
             onClick={() => setFilter((current) => ({ ...current, page: current.page + 1 }))}
             className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-2 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Proxima
+            Próxima
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

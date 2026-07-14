@@ -13,14 +13,14 @@ vi.mock('../lib/api', () => ({
 const mockedGetComponents = vi.mocked(getComponents);
 
 describe('DisciplineListPage public filters', () => {
-  it('deve carregar por padrão com DCC, ordenação alfabética e 20 itens por página', async () => {
+  it('deve carregar por padrao sem restringir departamento, com ordenacao alfabetica e 20 itens por pagina', async () => {
     mockedGetComponents.mockImplementation(async ({ page = 0, limit = 20, sortBy = 'name', department }) => ({
       results: [
         {
           id: `component-${page}-${limit}`,
           code: 'IC045',
           name: 'Compiladores',
-          department: 'Ciência da Computação',
+          department: 'Ciencia da Computacao',
           academicLevel: 'mestrado',
           syllabus: 'Ementa de teste',
           userId: 'u-1',
@@ -43,8 +43,8 @@ describe('DisciplineListPage public filters', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Compiladores')).toBeInTheDocument();
-    expect(screen.getByLabelText('Departamento')).toHaveValue('__dcc__');
+    expect((await screen.findAllByText('Compiladores')).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Departamento')).toHaveValue('__all__');
     expect(screen.getByLabelText('Itens por página')).toHaveValue('20');
 
     await waitFor(() => {
@@ -57,14 +57,12 @@ describe('DisciplineListPage public filters', () => {
         limit: 20,
         sortBy: 'name',
         sortOrder: 'ASC',
-        department: '__dcc__',
+        department: undefined,
       })
     );
-
-    expect(screen.queryByText('1 resultado(s)')).not.toBeInTheDocument();
   });
 
-  it('deve permitir alternar para Computação Interdisciplinar', async () => {
+  it('deve permitir alternar para Computacao Interdisciplinar', async () => {
     mockedGetComponents.mockResolvedValue({
       results: [],
       total: 0,
