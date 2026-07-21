@@ -484,9 +484,6 @@ export const DisciplineListPage = () => {
         <div className="border-b border-line/70 bg-[linear-gradient(180deg,rgba(248,251,255,0.95),rgba(255,255,255,0.92))] p-4 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary-600/70">
-                Catalogo publico
-              </div>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Disciplinas publicadas</h2>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
                 Busca, filtros e listagem com leitura mais limpa. Menos ruído visual, menos texto bruto e mais foco no que importa.

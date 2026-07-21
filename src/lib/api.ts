@@ -33,6 +33,10 @@ interface AuthSessionResponse {
   refreshExpiresIn: number;
 }
 
+interface PasswordResetConfirmResponse {
+  email: string;
+}
+
 interface ApiSessionSnapshot {
   accessToken: string | null;
   refreshToken: string | null;
@@ -60,6 +64,8 @@ const apiMessageMap: Record<string, string> = {
   'Only super admin can remove users.': 'Apenas super admin pode remover usuarios.',
   'Super admin cannot remove own account.': 'Nao e permitido remover o proprio usuario.',
   'This invite is invalid or already expired.': 'Convite inválido ou expirado.',
+  'This password reset link is invalid or expired.': 'Link de redefinição inválido ou expirado.',
+  'Token and password are required.': 'Informe o link e a senha para continuar.',
   'An error has been occurred.': 'Não foi possível concluir a operação. Tente novamente.',
   'An error has been occurred!': 'Não foi possível concluir a operação. Tente novamente.',
   'Internal Server Error': 'Não foi possível concluir a operação. Tente novamente.',
@@ -264,6 +270,15 @@ export const getCurrentUser = async () => {
 
 export const resetPassword = async (email: string) => {
   await api.post('/auth/reset-password', { email });
+};
+
+export const confirmResetPassword = async (token: string, password: string) => {
+  const response = await api.post<PasswordResetConfirmResponse>('/auth/reset-password/confirm', {
+    token,
+    password,
+  });
+
+  return response.data;
 };
 
 export const register = async (
@@ -496,6 +511,7 @@ export const createTeacherByAdmin = async (
     name: string;
     email: string;
     temporaryPassword: string;
+    passwordSetupLink?: string;
     emailDeliveryStatus?: 'sent' | 'mock' | 'failed' | 'disabled';
     emailDeliveryError?: string;
   }>('/users/create-teacher', {

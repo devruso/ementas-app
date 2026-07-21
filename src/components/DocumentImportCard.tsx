@@ -65,9 +65,6 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
 
   return (
     <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
-      <div className="mb-4 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-        Importação documental
-      </div>
       <h2 className="text-xl font-semibold text-ink">Pré-preencher a disciplina por PDF ou DOCX</h2>
       <p className="mt-2 text-sm leading-7 text-muted">
         Envie um plano de ensino em PDF ou DOCX. O backend sugere os campos para revisão humana antes do salvamento.

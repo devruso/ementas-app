@@ -255,9 +255,6 @@ export const ProfilePage = () => {
     <div className="grid gap-6 xl:grid-cols-2">
       <section className="panel p-6 sm:p-8">
         <div className="mb-6 space-y-2">
-          <div className="inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-            Perfil
-          </div>
           <h1 className="text-2xl font-semibold text-ink">Informacoes da conta</h1>
           <p className="text-sm leading-7 text-muted">Atualize seu e-mail sem alterar o backend atual.</p>
         </div>
@@ -280,9 +277,6 @@ export const ProfilePage = () => {
 
       <section className="panel p-6 sm:p-8">
         <div className="mb-6 space-y-2">
-          <div className="inline-flex rounded-full bg-secondary-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-secondary-700">
-            Seguranca
-          </div>
           <h2 className="text-2xl font-semibold text-ink">Alterar senha</h2>
           <p className="text-sm leading-7 text-muted">Mantenha o mesmo padrao de validacao usado no front-end anterior.</p>
         </div>
@@ -305,9 +299,6 @@ export const ProfilePage = () => {
 
       <section className="panel p-6 sm:p-8 xl:col-span-2">
         <div className="mb-6 space-y-2">
-          <div className="inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-            Publicação oficial
-          </div>
           <h2 className="text-2xl font-semibold text-ink">Assinatura digital de aprovação</h2>
           <p className="text-sm leading-7 text-muted">
             Esta assinatura é validada no backend para publicar oficialmente uma disciplina.

@@ -36,6 +36,7 @@ export const UsersPage = () => {
   const [teacherEmail, setTeacherEmail] = useState('');
   const [sendCredentialsByEmail, setSendCredentialsByEmail] = useState(true);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState('');
+  const [lastPasswordSetupLink, setLastPasswordSetupLink] = useState('');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
@@ -120,16 +121,17 @@ export const UsersPage = () => {
       );
 
       setLastGeneratedPassword(createdTeacher.temporaryPassword);
+      setLastPasswordSetupLink(createdTeacher.passwordSetupLink || '');
 
       if (createdTeacher.emailDeliveryStatus === 'sent') {
-        setSuccess('Professor criado com sucesso. Credenciais enviadas por e-mail institucional.');
+        setSuccess('Professor criado com sucesso. O e-mail enviado contém um link para definir a senha.');
       } else if (createdTeacher.emailDeliveryStatus === 'mock') {
-        setSuccess('Professor criado com sucesso. Aviso: envio de e-mail está em modo de simulação (MAILER_MOCK=true).');
+        setSuccess('Professor criado com sucesso. Aviso: o envio de e-mail está em modo de simulação (MAILER_MOCK=true).');
       } else if (createdTeacher.emailDeliveryStatus === 'failed') {
-        setSuccess('Professor criado com sucesso, mas o envio de e-mail falhou. Compartilhe a senha provisória manualmente.');
+        setSuccess('Professor criado com sucesso, mas o envio de e-mail falhou. Compartilhe o link de definição de senha manualmente.');
         setError(createdTeacher.emailDeliveryError || 'Falha no envio do e-mail institucional.');
       } else {
-        setSuccess('Professor criado com sucesso. Guarde a senha provisória com segurança.');
+        setSuccess('Professor criado com sucesso. O link de definição de senha foi gerado com segurança.');
       }
 
       setTeacherName('');
@@ -244,9 +246,6 @@ export const UsersPage = () => {
       <section className="panel interactive-lift p-6 sm:p-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-              Gestão administrativa
-            </div>
             <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Usuários e convites</h1>
             <p className="mt-2 text-sm leading-7 text-muted">Gerencie professores e administradores usando os endpoints já existentes do backend.</p>
           </div>
@@ -290,12 +289,9 @@ export const UsersPage = () => {
       ) : null}
 
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
-        <div className="mb-4 inline-flex rounded-full bg-secondary-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-secondary-700">
-          Criação direta
-        </div>
         <h2 className="text-xl font-semibold text-ink">Criar professor sem sair do app</h2>
         <p className="mt-2 text-sm leading-7 text-muted">
-          O sistema gera convite e senha automática segura internamente, concluindo o cadastro do professor na mesma tela.
+          O sistema gera o vínculo de acesso automaticamente, concluindo o cadastro do professor na mesma tela.
         </p>
 
         <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreateTeacher}>
@@ -317,7 +313,7 @@ export const UsersPage = () => {
               onChange={(event) => setSendCredentialsByEmail(event.target.checked)}
               className="h-4 w-4 rounded border-line"
             />
-            Enviar credenciais para e-mail institucional ao concluir o cadastro
+            Enviar link de definição de senha para e-mail institucional ao concluir o cadastro
           </label>
           <div className="md:col-span-2">
             <button
@@ -333,9 +329,17 @@ export const UsersPage = () => {
         {success ? (
           <div className="mt-4 space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             <p>{success}</p>
-            {lastGeneratedPassword ? (
+            {lastPasswordSetupLink && (error || !sendCredentialsByEmail) ? (
               <p>
-                Senha provisória gerada: <strong>{lastGeneratedPassword}</strong>
+                Link de definição de senha:{' '}
+                <a href={lastPasswordSetupLink} target="_blank" rel="noreferrer" className="font-semibold underline">
+                  {lastPasswordSetupLink}
+                </a>
+              </p>
+            ) : null}
+            {lastGeneratedPassword && error ? (
+              <p>
+                Senha provisória interna: <strong>{lastGeneratedPassword}</strong>
               </p>
             ) : null}
           </div>

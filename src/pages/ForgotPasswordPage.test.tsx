@@ -47,6 +47,6 @@ describe('ForgotPasswordPage', () => {
       expect(resetPasswordMock).toHaveBeenCalledWith('professor@ufba.br');
     });
 
-    expect(screen.getByText('Se sua conta existir, você receberá uma nova senha no e-mail informado.')).toBeInTheDocument();
+    expect(screen.getByText('Se sua conta existir, você receberá um link para redefinir a senha no e-mail informado.')).toBeInTheDocument();
   });
 });

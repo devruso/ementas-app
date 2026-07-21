@@ -14,6 +14,7 @@ import { DepartmentsPage } from './pages/DepartmentsPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { InviteShortRedirectPage } from './pages/InviteShortRedirectPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SharedDisciplinePage } from './pages/SharedDisciplinePage';
@@ -48,6 +49,10 @@ export const App = () => {
             <Route path="/i/:shortCode" element={<InviteShortRedirectPage />} />
             <Route path="/cadastrar/:inviteToken" element={<RegisterPage />} />
           </Route>
+        </Route>
+
+        <Route element={<AuthLayout />}>
+          <Route path="/novasenha/:token" element={<ResetPasswordPage />} />
         </Route>
       </Routes>
     </AuthProvider>

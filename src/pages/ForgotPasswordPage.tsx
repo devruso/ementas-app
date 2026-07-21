@@ -34,7 +34,7 @@ export const ForgotPasswordPage = () => {
       setLoading(true);
       setError('');
       await auth.resetPassword(normalizedEmail);
-      setSuccess('Se sua conta existir, você receberá uma nova senha no e-mail informado.');
+        setSuccess('Se sua conta existir, você receberá um link para redefinir a senha no e-mail informado.');
     } catch (err) {
       const appError = err as AppError;
       setError(appError.message);
@@ -49,7 +49,7 @@ export const ForgotPasswordPage = () => {
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Esqueci minha senha</h1>
         <p className="text-sm leading-7 text-ink/80">
-          Digite o e-mail cadastrado para solicitar uma nova senha.
+          Digite o e-mail cadastrado para solicitar o link de redefinição.
         </p>
       </div>
 

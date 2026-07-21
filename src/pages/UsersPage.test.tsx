@@ -120,6 +120,7 @@ describe('UsersPage', () => {
       name: 'Novo Professor',
       email: 'novo.prof@test.com',
       temporaryPassword: 'F$vJAL5Kx!Hz',
+      passwordSetupLink: `${window.location.origin}/novasenha/token-123`,
     });
 
     render(<UsersPage />);
@@ -136,7 +137,7 @@ describe('UsersPage', () => {
       );
     });
 
-    expect(await screen.findByText('Professor criado com sucesso. Guarde a senha provisória com segurança.')).toBeInTheDocument();
+    expect(await screen.findByText(/link de definição de senha foi gerado com segurança/i)).toBeInTheDocument();
   });
 
   it('deve permitir ao super admin atualizar o perfil de usuário', async () => {
