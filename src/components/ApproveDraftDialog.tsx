@@ -64,6 +64,11 @@ export const ApproveDraftDialog = ({
                 Sem assinatura textual configurada, a publicacao oficial sera bloqueada pelo backend.
               </div>
             ) : null}
+            {hasSignatureConfigured && !hasSignatureFileConfigured ? (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                Sem assinatura visual configurada, o DOCX oficial sera gerado com a linha de assinatura sem imagem.
+              </div>
+            ) : null}
           </div>
         </div>
 
