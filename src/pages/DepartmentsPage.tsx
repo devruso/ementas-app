@@ -244,6 +244,7 @@ export const DepartmentsPage = () => {
                 <tr className="border-b border-line bg-slate-50/80 text-left text-xs uppercase tracking-[0.12em] text-muted">
                   <th className="px-4 py-3 font-semibold">Nome</th>
                   <th className="px-4 py-3 font-semibold">Código</th>
+                  <th className="px-4 py-3 font-semibold">Componentes</th>
                   <th className="px-4 py-3 text-right font-semibold">Ações</th>
                 </tr>
               </thead>
@@ -252,6 +253,10 @@ export const DepartmentsPage = () => {
                   <tr key={department.id} className="border-b border-line/70 text-ink">
                     <td className="px-4 py-4 font-medium">{department.name}</td>
                     <td className="px-4 py-4">{department.code || '-'}</td>
+                    <td className="px-4 py-4">
+                      {department.componentCount ?? 0}
+                      {department.componentDraftCount ? ` / ${department.componentDraftCount} rascunho(s)` : ''}
+                    </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button

@@ -4,9 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
-import { getComponents } from '../lib/api';
+import { getComponents, getDepartments } from '../lib/api';
 import { AppError } from '../lib/errors';
-import type { Component, ListData, ListFilter } from '../types';
+import type { Component, Department, ListData, ListFilter } from '../types';
 
 const initialFilter: ListFilter = {
   page: 0,
@@ -17,29 +17,13 @@ const initialFilter: ListFilter = {
 
 const pageSizeOptions = [20, 50, 100] as const;
 const DEPARTMENT_ALL = '__all__';
-const DEPARTMENT_DCC = '__dcc__';
-const DEPARTMENT_DCI = '__dci__';
 
 const parseDepartmentFilter = (value: string | null) => {
   if (!value || value === DEPARTMENT_ALL) {
     return DEPARTMENT_ALL;
   }
 
-  if (value === DEPARTMENT_DCC || value === DEPARTMENT_DCI) {
-    return value;
-  }
-
-  const normalizedValue = String(value || '').trim().toLowerCase();
-
-  if (normalizedValue.includes('interdisciplinar') || normalizedValue.includes('dci')) {
-    return DEPARTMENT_DCI;
-  }
-
-  if (normalizedValue.includes('computacao') || normalizedValue.includes('dcc')) {
-    return DEPARTMENT_DCC;
-  }
-
-  return DEPARTMENT_ALL;
+  return String(value || '').trim();
 };
 
 const parsePositiveInt = (value: string | null, fallback: number) => {
@@ -192,6 +176,8 @@ export const DisciplineListPage = () => {
   const [search, setSearch] = useState(initialSearch);
   const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'mestrado' | 'doutorado'>(initialAcademicLevel);
   const [departmentFilter, setDepartmentFilter] = useState(initialDepartment);
+  const [departmentOptions, setDepartmentOptions] = useState<Department[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState<ListFilter>({
@@ -206,6 +192,37 @@ export const DisciplineListPage = () => {
     results: [],
     total: 0,
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setDepartmentsLoading(true);
+    getDepartments({
+      page: 0,
+      limit: 500,
+      sortBy: 'name',
+      sortOrder: 'ASC',
+    })
+      .then((response) => {
+        if (isMounted) {
+          setDepartmentOptions(response.results);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setDepartmentOptions([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setDepartmentsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -347,6 +364,9 @@ export const DisciplineListPage = () => {
     return tokens;
   }, [effectiveTotalPages, filter.page]);
 
+  const selectedDepartmentIsKnown = departmentFilter === DEPARTMENT_ALL
+    || departmentOptions.some((department) => department.id === departmentFilter);
+
   const pageStart = effectiveTotal === 0 ? 0 : (filter.page * filter.limit) + 1;
   const pageEnd = Math.min(effectiveTotal, (filter.page + 1) * filter.limit);
 
@@ -405,7 +425,7 @@ export const DisciplineListPage = () => {
   );
 
   const renderDisciplineRow = (component: Component) => {
-    const department = formatDepartmentDisplay(component.department);
+    const department = formatDepartmentDisplay(component.departmentRef?.name || component.department);
     const summary = formatSummary(component);
     const academicLevelLabel = formatAcademicLevelLabel(component.academicLevel);
     const semesterLabel = formatSemesterLabel(component.semester);
@@ -534,8 +554,17 @@ export const DisciplineListPage = () => {
               }}
             >
               <option value={DEPARTMENT_ALL}>Todos os departamentos</option>
-              <option value={DEPARTMENT_DCC}>Ciencia da Computacao</option>
-              <option value={DEPARTMENT_DCI}>Computacao Interdisciplinar</option>
+              {!selectedDepartmentIsKnown ? (
+                <option value={departmentFilter}>Departamento selecionado</option>
+              ) : null}
+              {departmentsLoading ? (
+                <option value="__loading_departments__" disabled>Carregando departamentos...</option>
+              ) : null}
+              {departmentOptions.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.code ? `${department.code} - ${department.name}` : department.name}
+                </option>
+              ))}
             </SelectField>
           </div>
 

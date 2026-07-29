@@ -132,6 +132,8 @@ export interface Department {
   id: string;
   name: string;
   code?: string;
+  componentCount?: number;
+  componentDraftCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -141,6 +143,8 @@ export interface ComponentDraft {
   code: string;
   name: string;
   department?: string;
+  departmentId?: string | null;
+  departmentRef?: Department;
   semester?: string;
   academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
   modality?: string;
@@ -162,6 +166,8 @@ export interface Component {
   code: string;
   name: string;
   department?: string;
+  departmentId?: string | null;
+  departmentRef?: Department;
   semester?: string;
   academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
   modality?: string;
