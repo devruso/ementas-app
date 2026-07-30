@@ -343,7 +343,7 @@ export const DisciplineEditorForm = ({
           <div className="md:col-span-2">
             <FormField label="Nome" value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
           </div>
-          <FormField label="Departamento" value={values.department} onChange={(event) => handleChange('department', event.target.value)} />
+          <FormField label="Curso" value={values.department} onChange={(event) => handleChange('department', event.target.value)} />
           <FormField label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
           <div className="md:col-span-2 xl:col-span-4">
             <TextareaField label="Modalidade" value={values.modality} onChange={(event) => handleChange('modality', event.target.value)} className="min-h-[112px]" />

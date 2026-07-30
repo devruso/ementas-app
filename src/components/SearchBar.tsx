@@ -4,10 +4,11 @@ interface SearchBarProps {
   value: string;
   label?: string;
   placeholder?: string;
+  autoFocus?: boolean;
   onChange: (value: string) => void;
 }
 
-export const SearchBar = ({ value, label = 'Buscar disciplina', placeholder, onChange }: SearchBarProps) => {
+export const SearchBar = ({ value, label = 'Buscar disciplina', placeholder, autoFocus, onChange }: SearchBarProps) => {
   return (
     <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
       <span>{label}</span>
@@ -16,6 +17,7 @@ export const SearchBar = ({ value, label = 'Buscar disciplina', placeholder, onC
         <input
           value={value}
           placeholder={placeholder}
+          autoFocus={autoFocus}
           onChange={(event) => onChange(event.target.value)}
           className="soft-ring h-14 w-full min-w-0 rounded-2xl border border-transparent bg-white pl-11 pr-4 text-sm text-ink shadow-panel placeholder:text-muted"
         />

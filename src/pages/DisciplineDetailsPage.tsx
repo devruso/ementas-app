@@ -210,6 +210,14 @@ const toFriendlyPublishError = (rawMessage?: string) => {
   return rawMessage;
 };
 
+const isInvalidSessionError = (error: unknown) => (
+  error instanceof AppError
+  && (
+    error.statusCode === 401
+    || /usu[aá]rio n[aã]o encontrado/i.test(error.message)
+  )
+);
+
 export const DisciplineDetailsPage = () => {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -262,21 +270,31 @@ export const DisciplineDetailsPage = () => {
   const loadComponent = async () => {
     setErrorMessage('');
 
-    const [currentComponent, componentsResponse, draftsResponse] = await Promise.all([
+    const [currentComponent, componentsResponse] = await Promise.all([
       getComponentByCode(code),
       getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
-      auth.isAuthenticated
-        ? getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' })
-        : Promise.resolve({ results: [], total: 0 }),
     ]);
+    let draftsResponse: { results: Array<{ code?: string }> } = { results: [] };
 
     const catalog = new Set<string>();
     componentsResponse.results.forEach((item) => catalog.add(item.code.toUpperCase()));
-    draftsResponse.results.forEach((item) => {
-      if (item.code?.trim()) {
-        catalog.add(item.code.toUpperCase());
+
+    if (auth.isAuthenticated) {
+      try {
+        draftsResponse = await getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' });
+        draftsResponse.results.forEach((item) => {
+          if (item.code?.trim()) {
+            catalog.add(item.code.toUpperCase());
+          }
+        });
+      } catch (error) {
+        if (isInvalidSessionError(error)) {
+          auth.logout();
+        } else {
+          throw error;
+        }
       }
-    });
+    }
 
     setKnownCodes(catalog);
     setComponent(currentComponent);
@@ -294,6 +312,14 @@ export const DisciplineDetailsPage = () => {
 
         setLogs(logResponse.results);
         await loadActiveShares(currentComponent.id);
+      } catch (error) {
+        if (isInvalidSessionError(error)) {
+          auth.logout();
+          setLogs(currentComponent.logs || []);
+          setActivePublicShares([]);
+        } else {
+          throw error;
+        }
       } finally {
         setLoadingActiveShares(false);
       }
@@ -583,10 +609,10 @@ export const DisciplineDetailsPage = () => {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Departamento: {activeComponent.department || 'Nao informado'}
+                Curso: {activeComponent.department || 'Nao informado'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Semestre: {activeComponent.semester || 'Nao informado'}
+                Semestre: {activeComponent.semester || '2026.2'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
                 Modalidade: {formatModalityLabel(activeComponent.modality)}
@@ -904,8 +930,8 @@ export const DisciplineDetailsPage = () => {
                   <span className="ml-2">{activeComponent.prerequeriments || 'Nao informado'}</span>
                 )}
               </div>
-              <div><strong>Departamento:</strong> {activeComponent.department || 'Nao informado'}</div>
-              <div><strong>Semestre:</strong> {activeComponent.semester || 'Nao informado'}</div>
+              <div><strong>Curso:</strong> {activeComponent.department || 'Nao informado'}</div>
+              <div><strong>Semestre:</strong> {activeComponent.semester || '2026.2'}</div>
             </div>
           </SectionCard>
 

@@ -245,7 +245,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
     } catch (error) {
-      if (error instanceof AppError && error.statusCode === 401) {
+      if (
+        error instanceof AppError
+        && (
+          error.statusCode === 401
+          || /usu[aá]rio n[aã]o encontrado/i.test(error.message)
+        )
+      ) {
         logout();
         return;
       }

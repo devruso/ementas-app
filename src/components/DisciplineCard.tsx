@@ -25,11 +25,11 @@ export const DisciplineCard = ({ component }: { component: Component }) => {
       <div className="mt-5 space-y-2 text-sm text-ink/80">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-secondary-700" />
-          <span>{component.department || 'Departamento nao informado'}</span>
+          <span>{component.department || 'Curso nao informado'}</span>
         </div>
         <div className="flex items-center gap-2">
           <CalendarRange className="h-4 w-4 text-secondary-700" />
-          <span>{component.semester || 'Semestre nao informado'}</span>
+          <span>{component.semester || '2026.2'}</span>
         </div>
         <div className="pt-2 text-primary-600">
           <span className="inline-flex items-center gap-2 text-sm font-semibold">

@@ -4,9 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
-import { getComponents, getDepartments } from '../lib/api';
+import { getComponents } from '../lib/api';
 import { AppError } from '../lib/errors';
-import type { Component, Department, ListData, ListFilter } from '../types';
+import type { Component, ListData, ListFilter } from '../types';
 
 const initialFilter: ListFilter = {
   page: 0,
@@ -16,11 +16,20 @@ const initialFilter: ListFilter = {
 };
 
 const pageSizeOptions = [20, 50, 100] as const;
-const DEPARTMENT_ALL = '__all__';
+const COURSE_ALL = '__all__';
+const CURRENT_SEMESTER = '2026.2';
 
-const parseDepartmentFilter = (value: string | null) => {
-  if (!value || value === DEPARTMENT_ALL) {
-    return DEPARTMENT_ALL;
+const courseOptions = [
+  'Bacharelado em Ci\u00eancia da Computa\u00e7\u00e3o',
+  'Bacharelado em Sistemas de Informa\u00e7\u00e3o',
+  'Licenciatura em Computa\u00e7\u00e3o',
+  'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
+  'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o',
+] as const;
+
+const parseCourseFilter = (value: string | null) => {
+  if (!value || value === COURSE_ALL) {
+    return COURSE_ALL;
   }
 
   return String(value || '').trim();
@@ -84,28 +93,28 @@ const formatAcademicLevelLabel = (value?: Component['academicLevel']) => {
 
 const formatSemesterLabel = (value?: string) => {
   const normalized = normalizeText(value);
-  return normalized || 'Semestre nao informado';
+  return normalized || CURRENT_SEMESTER;
 };
 
-const formatDepartmentDisplay = (value?: string) => {
+const formatCourseDisplay = (value?: string) => {
   const normalized = normalizeText(value);
 
   if (!normalized) {
     return {
-      eyebrow: 'Departamento',
+      eyebrow: 'Curso',
       value: 'Nao informado',
     };
   }
 
   if (/^programa sigaa$/i.test(normalized)) {
     return {
-      eyebrow: 'Origem',
-      value: 'SIGAA publico',
+      eyebrow: 'Curso',
+      value: 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
     };
   }
 
   return {
-    eyebrow: 'Departamento',
+    eyebrow: 'Curso',
     value: normalized,
   };
 };
@@ -118,9 +127,9 @@ const formatSummary = (component: Component) => {
   }
 
   const cleanedSummary = rawSummary
-    .replace(/^\/?\s*descri[cç][aã]o\s*:\s*/i, '')
+    .replace(/^\/?\s*descri[c\u00e7][a\u00e3]o\s*:\s*/i, '')
     .replace(/^ementa\s*:\s*/i, '')
-    .replace(/^conte[uú]do program[aá]tico\s*:\s*/i, '')
+    .replace(/^conte[u\u00fa]do program[a\u00e1]tico\s*:\s*/i, '')
     .trim();
 
   if (
@@ -159,7 +168,7 @@ type SortOption = {
 const sortOptions: SortOption[] = [
   { key: 'name', label: 'Disciplina' },
   { key: 'code', label: 'Codigo' },
-  { key: 'department', label: 'Departamento' },
+  { key: 'department', label: 'Curso' },
 ];
 
 export const DisciplineListPage = () => {
@@ -167,7 +176,7 @@ export const DisciplineListPage = () => {
 
   const initialSearch = searchParams.get('q') || '';
   const initialAcademicLevel = parseAcademicLevel(searchParams.get('level'));
-  const initialDepartment = parseDepartmentFilter(searchParams.get('department'));
+  const initialCourse = parseCourseFilter(searchParams.get('course') || searchParams.get('department'));
   const initialLimit = parsePageSize(searchParams.get('limit'));
   const initialPage = Math.max(0, parsePositiveInt(searchParams.get('page'), 1) - 1);
   const initialSortBy = parseSortBy(searchParams.get('sortBy'));
@@ -175,9 +184,7 @@ export const DisciplineListPage = () => {
 
   const [search, setSearch] = useState(initialSearch);
   const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'mestrado' | 'doutorado'>(initialAcademicLevel);
-  const [departmentFilter, setDepartmentFilter] = useState(initialDepartment);
-  const [departmentOptions, setDepartmentOptions] = useState<Department[]>([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [courseFilter, setCourseFilter] = useState(initialCourse);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState<ListFilter>({
@@ -194,37 +201,6 @@ export const DisciplineListPage = () => {
   });
 
   useEffect(() => {
-    let isMounted = true;
-
-    setDepartmentsLoading(true);
-    getDepartments({
-      page: 0,
-      limit: 500,
-      sortBy: 'name',
-      sortOrder: 'ASC',
-    })
-      .then((response) => {
-        if (isMounted) {
-          setDepartmentOptions(response.results);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setDepartmentOptions([]);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setDepartmentsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
     const timeout = window.setTimeout(() => {
       setFilter((current) => ({ ...current, page: 0, search: search || undefined }));
     }, 250);
@@ -238,7 +214,7 @@ export const DisciplineListPage = () => {
     getComponents({
       ...filter,
       academicLevel: academicLevelFilter === 'all' ? undefined : academicLevelFilter,
-      department: departmentFilter === DEPARTMENT_ALL ? undefined : departmentFilter,
+      department: courseFilter === COURSE_ALL ? undefined : courseFilter,
     })
       .then(setComponents)
       .catch((err) => {
@@ -246,7 +222,7 @@ export const DisciplineListPage = () => {
         setErrorMessage(appError.message || 'Nao foi possivel carregar as disciplinas agora.');
       })
       .finally(() => setLoading(false));
-  }, [filter, academicLevelFilter, departmentFilter]);
+  }, [filter, academicLevelFilter, courseFilter]);
 
   const effectiveTotalPages = useMemo(() => {
     if (components.meta?.totalPages !== undefined) {
@@ -270,8 +246,8 @@ export const DisciplineListPage = () => {
       nextParams.set('level', academicLevelFilter);
     }
 
-    if (departmentFilter !== DEPARTMENT_ALL) {
-      nextParams.set('department', departmentFilter);
+    if (courseFilter !== COURSE_ALL) {
+      nextParams.set('course', courseFilter);
     }
 
     if (filter.page > 0) {
@@ -295,7 +271,7 @@ export const DisciplineListPage = () => {
     }
   }, [
     academicLevelFilter,
-    departmentFilter,
+    courseFilter,
     filter.limit,
     filter.page,
     filter.sortBy,
@@ -364,9 +340,6 @@ export const DisciplineListPage = () => {
     return tokens;
   }, [effectiveTotalPages, filter.page]);
 
-  const selectedDepartmentIsKnown = departmentFilter === DEPARTMENT_ALL
-    || departmentOptions.some((department) => department.id === departmentFilter);
-
   const pageStart = effectiveTotal === 0 ? 0 : (filter.page * filter.limit) + 1;
   const pageEnd = Math.min(effectiveTotal, (filter.page + 1) * filter.limit);
 
@@ -425,7 +398,7 @@ export const DisciplineListPage = () => {
   );
 
   const renderDisciplineRow = (component: Component) => {
-    const department = formatDepartmentDisplay(component.departmentRef?.name || component.department);
+    const course = formatCourseDisplay(component.departmentRef?.name || component.department);
     const summary = formatSummary(component);
     const academicLevelLabel = formatAcademicLevelLabel(component.academicLevel);
     const semesterLabel = formatSemesterLabel(component.semester);
@@ -439,7 +412,7 @@ export const DisciplineListPage = () => {
         <div className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${levelAccentClass}`} />
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
 
-        <div className="grid gap-4 p-4 pl-5 md:grid-cols-[110px_minmax(0,2.2fr)_170px_130px_150px_132px] md:items-center md:gap-5 md:p-5 md:pl-6">
+        <div className="grid gap-4 p-4 pl-5 md:grid-cols-[110px_minmax(0,2.2fr)_210px_130px_150px_132px] md:items-center md:gap-5 md:p-5 md:pl-6">
           <div className="flex items-center gap-3 md:block">
             <span className="inline-flex rounded-full border border-primary-200 bg-white/90 px-4 py-2 text-sm font-semibold tracking-[0.08em] text-primary-700 shadow-sm">
               {component.code}
@@ -460,10 +433,10 @@ export const DisciplineListPage = () => {
 
           <div className="rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-              {department.eyebrow}
+              {course.eyebrow}
             </div>
             <div className="mt-1 text-sm font-medium leading-5 text-slate-700">
-              {department.value}
+              {course.value}
             </div>
           </div>
 
@@ -505,64 +478,33 @@ export const DisciplineListPage = () => {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Disciplinas publicadas</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
-                Busca, filtros e listagem com leitura mais limpa. Menos ruído visual, menos texto bruto e mais foco no que importa.
-              </p>
             </div>
-
-            <label className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-2 text-xs text-slate-600 shadow-sm sm:text-sm">
-              Itens por pagina
-              <select
-                aria-label="Itens por página"
-                value={filter.limit}
-                onChange={(event) => {
-                  const nextLimit = Number(event.target.value);
-
-                  if (!Number.isNaN(nextLimit)) {
-                    setFilter((current) => ({
-                      ...current,
-                      page: 0,
-                      limit: nextLimit,
-                    }));
-                  }
-                }}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 outline-none transition focus:border-primary-300"
-              >
-                {pageSizeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
 
-          <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_300px]">
+          <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_420px]">
             <SearchBar
               value={search}
               label="Buscar por codigo ou nome"
               placeholder="Ex.: IC0009 ou topicos em computacao"
+              autoFocus
               onChange={setSearch}
             />
 
             <SelectField
-              label="Departamento"
-              value={departmentFilter}
+              label="Curso"
+              value={courseFilter}
               onChange={(event) => {
                 setFilter((current) => ({ ...current, page: 0 }));
-                setDepartmentFilter(event.target.value);
+                setCourseFilter(event.target.value);
               }}
             >
-              <option value={DEPARTMENT_ALL}>Todos os departamentos</option>
-              {!selectedDepartmentIsKnown ? (
-                <option value={departmentFilter}>Departamento selecionado</option>
+              <option value={COURSE_ALL}>Todos os cursos</option>
+              {courseFilter !== COURSE_ALL && !courseOptions.includes(courseFilter as typeof courseOptions[number]) ? (
+                <option value={courseFilter}>Curso selecionado</option>
               ) : null}
-              {departmentsLoading ? (
-                <option value="__loading_departments__" disabled>Carregando departamentos...</option>
-              ) : null}
-              {departmentOptions.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.code ? `${department.code} - ${department.name}` : department.name}
+              {courseOptions.map((courseName) => (
+                <option key={courseName} value={courseName}>
+                  {courseName}
                 </option>
               ))}
             </SelectField>
@@ -608,11 +550,36 @@ export const DisciplineListPage = () => {
                     {effectiveTotal} disciplina(s) encontradas
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Pagina {filter.page + 1} de {effectiveTotalPages} · Mostrando {pageStart} - {pageEnd}
+                    Pagina {filter.page + 1} de {effectiveTotalPages}{' \u00b7 '}Mostrando {pageStart} - {pageEnd}
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-2 text-xs text-slate-600 shadow-sm sm:text-sm">
+                    Itens por pagina
+                    <select
+                      aria-label="Itens por pagina"
+                      value={filter.limit}
+                      onChange={(event) => {
+                        const nextLimit = Number(event.target.value);
+
+                        if (!Number.isNaN(nextLimit)) {
+                          setFilter((current) => ({
+                            ...current,
+                            page: 0,
+                            limit: nextLimit,
+                          }));
+                        }
+                      }}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 outline-none transition focus:border-primary-300"
+                    >
+                      {pageSizeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                     Ordenar por
                   </span>
@@ -697,7 +664,7 @@ export const DisciplineListPage = () => {
                   key={token}
                   type="button"
                   onClick={() => setFilter((current) => ({ ...current, page: token }))}
-                  aria-label={`Ir para página ${token + 1}`}
+                  aria-label={`Ir para pagina ${token + 1}`}
                   aria-current={isActive ? 'page' : undefined}
                   className={[
                     'inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-semibold transition',

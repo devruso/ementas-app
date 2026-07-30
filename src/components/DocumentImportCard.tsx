@@ -95,7 +95,7 @@ export const DocumentImportCard = ({ onApplyPreview }: DocumentImportCardProps) 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl bg-white p-3 text-sm"><strong>Código:</strong> {preview.suggestedDraft.code || 'Nao identificado'}</div>
               <div className="rounded-2xl bg-white p-3 text-sm"><strong>Nome:</strong> {preview.suggestedDraft.name || 'Nao identificado'}</div>
-              <div className="rounded-2xl bg-white p-3 text-sm"><strong>Departamento:</strong> {preview.suggestedDraft.department || 'Nao identificado'}</div>
+              <div className="rounded-2xl bg-white p-3 text-sm"><strong>Curso:</strong> {preview.suggestedDraft.department || 'Nao identificado'}</div>
               <div className="rounded-2xl bg-white p-3 text-sm"><strong>Semestre:</strong> {preview.suggestedDraft.semester || 'Nao identificado'}</div>
             </div>
           </div>

@@ -13,7 +13,7 @@ vi.mock('../lib/api', () => ({
 const mockedGetComponents = vi.mocked(getComponents);
 
 describe('DisciplineListPage public filters', () => {
-  it('deve carregar por padrao sem restringir departamento, com ordenacao alfabetica e 20 itens por pagina', async () => {
+  it('deve carregar por padrao sem restringir curso, com ordenacao alfabetica e 20 itens por pagina', async () => {
     mockedGetComponents.mockImplementation(async ({ page = 0, limit = 20, sortBy = 'name', department }) => ({
       results: [
         {
@@ -44,8 +44,9 @@ describe('DisciplineListPage public filters', () => {
     );
 
     expect((await screen.findAllByText('Compiladores')).length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Departamento')).toHaveValue('__all__');
-    expect(screen.getByLabelText('Itens por página')).toHaveValue('20');
+    expect(screen.getByLabelText('Curso')).toHaveValue('__all__');
+    expect(screen.getByLabelText('Buscar por codigo ou nome')).toHaveFocus();
+    expect(screen.getByLabelText('Itens por pagina')).toHaveValue('20');
 
     await waitFor(() => {
       expect(mockedGetComponents).toHaveBeenCalled();
@@ -62,7 +63,7 @@ describe('DisciplineListPage public filters', () => {
     );
   });
 
-  it('deve permitir alternar para Computacao Interdisciplinar', async () => {
+  it('deve permitir filtrar por curso do IC', async () => {
     mockedGetComponents.mockResolvedValue({
       results: [],
       total: 0,
@@ -80,12 +81,12 @@ describe('DisciplineListPage public filters', () => {
       </MemoryRouter>
     );
 
-    await userEvent.selectOptions(screen.getByLabelText('Departamento'), '__dci__');
+    await userEvent.selectOptions(screen.getByLabelText('Curso'), 'Bacharelado em Sistemas de Informa\u00e7\u00e3o');
 
     await waitFor(() => {
       expect(mockedGetComponents).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          department: '__dci__',
+          department: 'Bacharelado em Sistemas de Informa\u00e7\u00e3o',
         })
       );
     });

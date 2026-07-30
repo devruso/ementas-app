@@ -56,12 +56,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="space-y-8 text-ink">
-      <div className="space-y-3">
-        <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Entrar</h1>
-        <p className="text-sm leading-7 text-ink/80">Acesse o sistema para editar disciplinas, revisar rascunhos e publicar aprovacoes.</p>
-      </div>
-
+    <div className="text-ink">
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div>
           <FormField

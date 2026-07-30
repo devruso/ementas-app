@@ -93,10 +93,10 @@ export const SharedDisciplinePage = () => {
 
             <div className="mt-5 flex flex-wrap gap-2.5">
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Departamento: {component.department || 'NÃ£o informado'}
+                Curso: {component.department || 'NÃ£o informado'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Semestre: {component.semester || 'NÃ£o informado'}
+                Semestre: {component.semester || '2026.2'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
                 Modalidade: {component.modality || 'NÃ£o informada'}
