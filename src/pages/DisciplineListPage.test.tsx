@@ -44,6 +44,8 @@ describe('DisciplineListPage public filters', () => {
     );
 
     expect((await screen.findAllByText('Compiladores')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Disciplinas' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Disciplinas publicadas' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Curso')).toHaveValue('__all__');
     expect(screen.getByLabelText('Buscar por codigo ou nome')).toHaveFocus();
     expect(screen.getByLabelText('Itens por pagina')).toHaveValue('20');
@@ -90,5 +92,39 @@ describe('DisciplineListPage public filters', () => {
         })
       );
     });
+  });
+
+  it('deve exibir o programa de mecatronica no filtro e normalizar registros antigos', async () => {
+    mockedGetComponents.mockResolvedValue({
+      results: [
+        {
+          id: 'component-pmcc',
+          code: 'PMCC001',
+          name: 'Topicos em Mecatronica',
+          department: 'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o',
+          academicLevel: 'mestrado',
+          syllabus: 'Ementa de teste',
+          userId: 'u-1',
+        },
+      ],
+      total: 1,
+      meta: {
+        page: 0,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <DisciplineListPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Topicos em Mecatronica')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica').length).toBeGreaterThan(0);
   });
 });

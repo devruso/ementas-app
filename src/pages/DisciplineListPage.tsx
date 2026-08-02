@@ -18,18 +18,30 @@ const initialFilter: ListFilter = {
 const pageSizeOptions = [20, 50, 100] as const;
 const COURSE_ALL = '__all__';
 const CURRENT_SEMESTER = '2026.2';
+const MECHATRONICS_GRADUATE_PROGRAM = 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica';
+const MULTIDISCIPLINARY_COMPUTING_PROGRAM = 'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o';
 
 const courseOptions = [
   'Bacharelado em Ci\u00eancia da Computa\u00e7\u00e3o',
   'Bacharelado em Sistemas de Informa\u00e7\u00e3o',
   'Licenciatura em Computa\u00e7\u00e3o',
   'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
-  'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o',
+  MECHATRONICS_GRADUATE_PROGRAM,
 ] as const;
 
 const parseCourseFilter = (value: string | null) => {
   if (!value || value === COURSE_ALL) {
     return COURSE_ALL;
+  }
+
+  const normalizedValue = normalizeText(value);
+
+  if (
+    normalizedValue === MULTIDISCIPLINARY_COMPUTING_PROGRAM ||
+    /^programa\s+de\s+p[o\u00f3]s-gradua[c\u00e7][a\u00e3]o\s+em\s+mecatr[o\u00f4]nica$/i.test(normalizedValue) ||
+    /^pmcc$/i.test(normalizedValue)
+  ) {
+    return MECHATRONICS_GRADUATE_PROGRAM;
   }
 
   return String(value || '').trim();
@@ -110,6 +122,17 @@ const formatCourseDisplay = (value?: string) => {
     return {
       eyebrow: 'Curso',
       value: 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
+    };
+  }
+
+  if (
+    normalized === MULTIDISCIPLINARY_COMPUTING_PROGRAM ||
+    /^programa\s+de\s+p[o\u00f3]s-gradua[c\u00e7][a\u00e3]o\s+em\s+mecatr[o\u00f4]nica$/i.test(normalized) ||
+    /^pmcc$/i.test(normalized)
+  ) {
+    return {
+      eyebrow: 'Curso',
+      value: MECHATRONICS_GRADUATE_PROGRAM,
     };
   }
 
@@ -477,7 +500,7 @@ export const DisciplineListPage = () => {
         <div className="border-b border-line/70 bg-[linear-gradient(180deg,rgba(248,251,255,0.95),rgba(255,255,255,0.92))] p-4 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Disciplinas publicadas</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Disciplinas</h2>
             </div>
           </div>
 
