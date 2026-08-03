@@ -46,6 +46,8 @@ describe('DisciplineListPage public filters', () => {
     expect((await screen.findAllByText('Compiladores')).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Disciplinas' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Disciplinas publicadas' })).not.toBeInTheDocument();
+    expect(screen.getByText('Nao informado')).toBeInTheDocument();
+    expect(screen.queryByText('2026.2')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Curso')).toHaveValue('__all__');
     expect(screen.getByLabelText('Buscar por codigo ou nome')).toHaveFocus();
     expect(screen.getByLabelText('Itens por pagina')).toHaveValue('20');

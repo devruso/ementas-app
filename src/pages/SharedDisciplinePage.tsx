@@ -96,7 +96,7 @@ export const SharedDisciplinePage = () => {
                 Curso: {component.department || 'NÃ£o informado'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Semestre: {component.semester || '2026.2'}
+                Semestre: {component.semester || 'Nao informado'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
                 Modalidade: {component.modality || 'NÃ£o informada'}

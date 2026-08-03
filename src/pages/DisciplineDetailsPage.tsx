@@ -612,7 +612,7 @@ export const DisciplineDetailsPage = () => {
                 Curso: {activeComponent.department || 'Nao informado'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Semestre: {activeComponent.semester || '2026.2'}
+                Semestre: {activeComponent.semester || 'Nao informado'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
                 Modalidade: {formatModalityLabel(activeComponent.modality)}
@@ -931,7 +931,7 @@ export const DisciplineDetailsPage = () => {
                 )}
               </div>
               <div><strong>Curso:</strong> {activeComponent.department || 'Nao informado'}</div>
-              <div><strong>Semestre:</strong> {activeComponent.semester || '2026.2'}</div>
+              <div><strong>Semestre:</strong> {activeComponent.semester || 'Nao informado'}</div>
             </div>
           </SectionCard>
 

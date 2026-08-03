@@ -17,7 +17,6 @@ const initialFilter: ListFilter = {
 
 const pageSizeOptions = [20, 50, 100] as const;
 const COURSE_ALL = '__all__';
-const CURRENT_SEMESTER = '2026.2';
 const MECHATRONICS_GRADUATE_PROGRAM = 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica';
 const MULTIDISCIPLINARY_COMPUTING_PROGRAM = 'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o';
 
@@ -105,7 +104,7 @@ const formatAcademicLevelLabel = (value?: Component['academicLevel']) => {
 
 const formatSemesterLabel = (value?: string) => {
   const normalized = normalizeText(value);
-  return normalized || CURRENT_SEMESTER;
+  return normalized || 'Nao informado';
 };
 
 const formatCourseDisplay = (value?: string) => {
