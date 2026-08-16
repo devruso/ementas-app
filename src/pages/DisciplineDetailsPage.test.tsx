@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -13,6 +13,7 @@ import {
   getComponentDrafts,
   getComponents,
   getComponentLogs,
+  getDraftPublicationContext,
   revokeAllPublicShares,
   revokePublicShare,
 } from '../lib/api';
@@ -45,6 +46,7 @@ vi.mock('../lib/api', async () => {
     getComponents: vi.fn(),
     getComponentDrafts: vi.fn(),
     getComponentLogs: vi.fn(),
+    getDraftPublicationContext: vi.fn(),
     getActivePublicShares: vi.fn(),
     exportComponentPdf: vi.fn(),
     exportComponentDocx: vi.fn(),
@@ -59,6 +61,7 @@ const mockedGetComponentByCode = vi.mocked(getComponentByCode);
 const mockedGetComponents = vi.mocked(getComponents);
 const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
 const mockedGetComponentLogs = vi.mocked(getComponentLogs);
+const mockedGetDraftPublicationContext = vi.mocked(getDraftPublicationContext);
 const mockedGetActivePublicShares = vi.mocked(getActivePublicShares);
 const mockedExportComponentPdf = vi.mocked(exportComponentPdf);
 const mockedExportComponentDocx = vi.mocked(exportComponentDocx);
@@ -78,8 +81,15 @@ describe('DisciplineDetailsPage', () => {
         email: 'admin@test.com',
         role: 'admin',
         hasSignatureConfigured: true,
-        hasSignatureFileConfigured: false,
+        hasSignatureFileConfigured: true,
       },
+    });
+    mockedGetDraftPublicationContext.mockResolvedValueOnce({
+      agreementDate: '2026-05-01T12:00:00.000Z',
+      agreementNumber: 'ATA-2026-001',
+      approverName: 'Admin',
+      hasVisualSignature: false,
+      agreementRule: 'ATA-{ANO}-{SEQUENCIA_GLOBAL_ANUAL_COM_3_DIGITOS}',
     });
 
     mockedGetComponentByCode.mockResolvedValue({
@@ -120,6 +130,14 @@ describe('DisciplineDetailsPage', () => {
       total: 0,
     });
 
+    mockedGetDraftPublicationContext.mockResolvedValue({
+      agreementDate: '2026-05-01T12:00:00.000Z',
+      agreementNumber: 'ATA-2026-001',
+      approverName: 'Admin',
+      hasVisualSignature: true,
+      agreementRule: 'ATA-{ANO}-{SEQUENCIA_GLOBAL_ANUAL_COM_3_DIGITOS}',
+    });
+
     mockedGetActivePublicShares.mockResolvedValue({
       results: [
         {
@@ -144,7 +162,11 @@ describe('DisciplineDetailsPage', () => {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     }));
 
-    mockedApproveComponentDraft.mockResolvedValue();
+    mockedApproveComponentDraft.mockResolvedValue({
+      id: 'component-1',
+      code: 'IC045',
+      name: 'Compiladores',
+    } as never);
     mockedCreatePublicShare.mockResolvedValue({
       id: 'share-2',
       token: 'token-2',
@@ -190,28 +212,37 @@ describe('DisciplineDetailsPage', () => {
     expect(dialogContainer).not.toBeNull();
 
     const dialog = within(dialogContainer as HTMLElement);
-    fireEvent.change(dialog.getByLabelText('Data da ATA'), { target: { value: '2026-05-01' } });
-    await userEvent.clear(dialog.getByLabelText('Numero da ATA'));
-    await userEvent.type(dialog.getByLabelText('Numero da ATA'), 'ATA-123');
-    await userEvent.type(dialog.getByLabelText('Assinatura de aprovação'), 'Assina123!');
-    await userEvent.click(dialog.getByRole('button', { name: 'Publicar' }));
+    expect(await dialog.findByText('ATA-2026-001')).toBeInTheDocument();
+    expect(dialog.getByText('Admin')).toBeInTheDocument();
+
+    await userEvent.click(dialog.getByRole('button', { name: 'Continuar' }));
+    await userEvent.type(dialog.getByLabelText('Senha de login'), 'Senha123!');
+    await userEvent.click(dialog.getByRole('button', { name: /Confirmar publica/ }));
 
     await waitFor(() => {
       expect(mockedApproveComponentDraft).toHaveBeenCalledTimes(1);
     });
 
-    const payload = mockedApproveComponentDraft.mock.calls[0][1];
     expect(mockedApproveComponentDraft).toHaveBeenCalledWith(
       'draft-1',
-      expect.objectContaining({
-        agreementNumber: 'ATA-123',
-        signature: 'Assina123!',
-      })
+      { password: 'Senha123!' }
     );
-    expect(payload.agreementDate).toContain('2026-05-01');
   });
 
   it('deve exibir status das assinaturas no dialogo de publicacao', async () => {
+    useAuthMock.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+      user: {
+        id: 'u1',
+        name: 'Admin',
+        email: 'admin@test.com',
+        role: 'admin',
+        hasSignatureConfigured: true,
+        hasSignatureFileConfigured: false,
+      },
+    });
+
     render(
       <MemoryRouter>
         <DisciplineDetailsPage />
@@ -221,16 +252,23 @@ describe('DisciplineDetailsPage', () => {
     await screen.findByText('Compiladores draft');
     await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
 
-    expect(await screen.findByText('Assinatura textual para publicar:')).toBeInTheDocument();
-    expect(screen.getByText('pronta')).toBeInTheDocument();
-    expect(screen.getByText('pendente')).toBeInTheDocument();
-    expect(screen.queryByText(/será bloqueada pelo backend/i)).not.toBeInTheDocument();
+    const dialogTitle = await screen.findByRole('heading', { name: 'Publicar IC045' });
+    const dialog = within(dialogTitle.closest('div.panel') as HTMLElement);
+    expect(await dialog.findByText('Linha nominal, sem imagem')).toBeInTheDocument();
+    expect(dialog.getByText(/imagem da assinatura .* opcional/i)).toBeInTheDocument();
+    expect(dialog.getByRole('button', { name: 'Continuar' })).toBeEnabled();
   });
 
   it('deve mostrar mensagem amigável quando a publicação falha por referência sem ano', async () => {
-    mockedApproveComponentDraft.mockRejectedValueOnce(
-      new AppError('Publicação oficial bloqueada. Referências complementares não web devem conter ano de publicação.', 400)
-    );
+    mockedApproveComponentDraft.mockRejectedValueOnce(new AppError(
+      'A publicação exige o ano nas referências não web.',
+      400,
+      {
+        code: 'PUBLICATION_REFERENCE_YEAR_REQUIRED',
+        reason: 'Uma referência complementar sem URL não informa o ano de publicação.',
+        recovery: 'Informe o ano da referência e salve o rascunho antes de publicar novamente.',
+      }
+    ));
 
     render(
       <MemoryRouter>
@@ -247,18 +285,15 @@ describe('DisciplineDetailsPage', () => {
     expect(dialogContainer).not.toBeNull();
 
     const dialog = within(dialogContainer as HTMLElement);
-    fireEvent.change(dialog.getByLabelText('Data da ATA'), { target: { value: '2026-05-01' } });
-    await userEvent.clear(dialog.getByLabelText('Numero da ATA'));
-    await userEvent.type(dialog.getByLabelText('Numero da ATA'), 'ATA-124');
-    await userEvent.type(dialog.getByLabelText('Assinatura de aprovação'), 'Assina123!');
-    await userEvent.click(dialog.getByRole('button', { name: 'Publicar' }));
+    await dialog.findByText('ATA-2026-001');
+    await userEvent.click(dialog.getByRole('button', { name: 'Continuar' }));
+    await userEvent.type(dialog.getByLabelText('Senha de login'), 'Senha123!');
+    await userEvent.click(dialog.getByRole('button', { name: /Confirmar publica/ }));
 
-    expect(
-      await dialog.findByText(/inclua ano nas referências complementares não web/i)
-    ).toBeInTheDocument();
-    expect(
-      dialog.getByText(/você pode salvar como rascunho e publicar após ajustar/i)
-    ).toBeInTheDocument();
+    expect(await dialog.findByText(/exige o ano nas refer/i)).toBeInTheDocument();
+    expect(dialog.getByText(/sem URL não informa o ano/i)).toBeInTheDocument();
+    expect(dialog.getByText(/informe o ano da refer/i)).toBeInTheDocument();
+    expect(dialog.getByText(/C.digo: PUBLICATION_REFERENCE_YEAR_REQUIRED/)).toBeInTheDocument();
   });
 
   it('deve exportar PDF e DOCX na tela de detalhe', async () => {

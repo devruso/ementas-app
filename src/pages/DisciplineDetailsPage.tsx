@@ -15,13 +15,14 @@ import {
   getComponentDrafts,
   getComponentLogs,
   getComponents,
+  getDraftPublicationContext,
   revokeAllPublicShares,
   revokePublicShare,
 } from '../lib/api';
-import { getTodayIsoDate, suggestNextAgreementNumber } from '../lib/approval';
 import { formatDate, formatWorkload } from '../lib/format';
 import { AppError } from '../lib/errors';
-import type { Component, ComponentLog, PublicShare } from '../types';
+import { ApiErrorCode, isInvalidSessionError } from '../lib/apiErrorCatalog';
+import type { Component, ComponentLog, PublicationContext, PublicShare } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
@@ -184,40 +185,6 @@ const hasMeaningfulDraftDifference = (component: Component) => {
   );
 };
 
-const normalizePublishErrorText = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-const toFriendlyPublishError = (rawMessage?: string) => {
-  const fallback = 'Não foi possível publicar a disciplina agora. Revise os dados e tente novamente.';
-
-  if (!rawMessage?.trim()) {
-    return fallback;
-  }
-
-  const normalized = normalizePublishErrorText(rawMessage);
-
-  if (normalized.includes('referencias basicas nao web devem conter ano')) {
-    return 'Publicação oficial bloqueada: inclua ano nas referências básicas não web (ex.: SILVA, J. Título. Salvador: Editora X, 2020). Você pode salvar como rascunho e publicar após ajustar.';
-  }
-
-  if (normalized.includes('referencias complementares nao web devem conter ano')) {
-    return 'Publicação oficial bloqueada: inclua ano nas referências complementares não web (ex.: SOUZA, M. Título. São Paulo: Editora Y, 2021). Você pode salvar como rascunho e publicar após ajustar.';
-  }
-
-  return rawMessage;
-};
-
-const isInvalidSessionError = (error: unknown) => (
-  error instanceof AppError
-  && (
-    error.statusCode === 401
-    || /usu[aá]rio n[aã]o encontrado/i.test(error.message)
-  )
-);
-
 export const DisciplineDetailsPage = () => {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -228,10 +195,10 @@ export const DisciplineDetailsPage = () => {
   const [exportingDoc, setExportingDoc] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogError, setDialogError] = useState('');
-  const [agreementDate, setAgreementDate] = useState('');
-  const [agreementNumber, setAgreementNumber] = useState('');
-  const [approvalSignature, setApprovalSignature] = useState('');
+  const [dialogError, setDialogError] = useState<AppError | null>(null);
+  const [publicationContext, setPublicationContext] = useState<PublicationContext | null>(null);
+  const [loadingPublicationContext, setLoadingPublicationContext] = useState(false);
+  const [approvalPassword, setApprovalPassword] = useState('');
   const [showPublishedVersion, setShowPublishedVersion] = useState(false);
   const [creatingShare, setCreatingShare] = useState(false);
   const [loadingActiveShares, setLoadingActiveShares] = useState(false);
@@ -400,49 +367,51 @@ export const DisciplineDetailsPage = () => {
       return;
     }
 
-    if (!agreementDate || !agreementNumber.trim()) {
-      setDialogError('Informe a data e o numero da ATA.');
-      return;
-    }
-
-    if (!approvalSignature.trim()) {
-      setDialogError('Informe sua assinatura para validar a publicação oficial.');
+    if (!approvalPassword) {
+      setDialogError(new AppError('Informe sua senha para confirmar a publicação.', 400, {
+        code: ApiErrorCode.PUBLICATION_PASSWORD_REQUIRED,
+        reason: 'A publicação oficial exige uma segunda confirmação de identidade.',
+        recovery: 'Digite a mesma senha usada para entrar no sistema.',
+      }));
       return;
     }
 
     try {
       setPublishing(true);
-      setDialogError('');
+      setDialogError(null);
       await approveComponentDraft(component.draft.id, {
-        agreementDate: new Date(agreementDate).toISOString(),
-        agreementNumber,
-        signature: approvalSignature,
+        password: approvalPassword,
       });
       setDialogOpen(false);
-      setApprovalSignature('');
+      setApprovalPassword('');
       setShowPublishedVersion(true);
       await loadComponent();
     } catch (err) {
       const appError = err as AppError;
-      setDialogError(toFriendlyPublishError(appError.message));
+      setDialogError(appError);
     } finally {
       setPublishing(false);
     }
   };
 
-  const handleOpenApprovalDialog = () => {
-    const approvalLogs = [...(logs || component?.logs || [])];
-
-    if (!agreementDate) {
-      setAgreementDate(getTodayIsoDate());
+  const handleOpenApprovalDialog = async () => {
+    if (!component?.draft?.id) {
+      return;
     }
 
-    if (!agreementNumber.trim()) {
-      setAgreementNumber(suggestNextAgreementNumber(approvalLogs, agreementDate || getTodayIsoDate()));
-    }
-
-    setDialogError('');
+    setDialogError(null);
+    setPublicationContext(null);
+    setApprovalPassword('');
     setDialogOpen(true);
+    setLoadingPublicationContext(true);
+
+    try {
+      setPublicationContext(await getDraftPublicationContext(component.draft.id));
+    } catch (err) {
+      setDialogError(err as AppError);
+    } finally {
+      setLoadingPublicationContext(false);
+    }
   };
 
   const handleCreatePublicShare = async () => {
@@ -989,16 +958,12 @@ export const DisciplineDetailsPage = () => {
       <ApproveDraftDialog
         open={dialogOpen}
         componentCode={component.code}
-        agreementDate={agreementDate}
-        agreementNumber={agreementNumber}
-        signature={approvalSignature}
-        hasSignatureConfigured={auth.user?.hasSignatureConfigured}
-        hasSignatureFileConfigured={auth.user?.hasSignatureFileConfigured}
+        context={publicationContext}
+        password={approvalPassword}
+        loadingContext={loadingPublicationContext}
         submitting={publishing}
         error={dialogError}
-        onChangeAgreementDate={setAgreementDate}
-        onChangeAgreementNumber={setAgreementNumber}
-        onChangeSignature={setApprovalSignature}
+        onChangePassword={setApprovalPassword}
         onClose={() => setDialogOpen(false)}
         onSubmit={handlePublish}
       />

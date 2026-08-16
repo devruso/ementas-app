@@ -3,11 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
-import { getTodayIsoDate, suggestNextAgreementNumber } from '../lib/approval';
-import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponents, updateComponentDraft } from '../lib/api';
+import { ErrorNotice } from '../components/ErrorNotice';
+import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponents, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
+import { ApiErrorCode } from '../lib/apiErrorCatalog';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
-import type { ComponentDraft, ComponentLog } from '../types';
+import type { ComponentDraft, PublicationContext } from '../types';
 
 export const DisciplineEditPage = () => {
   const navigate = useNavigate();
@@ -15,14 +16,13 @@ export const DisciplineEditPage = () => {
   const [draft, setDraft] = useState<ComponentDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<AppError | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogError, setDialogError] = useState('');
-  const [agreementDate, setAgreementDate] = useState('');
-  const [agreementNumber, setAgreementNumber] = useState('');
-  const [approvalSignature, setApprovalSignature] = useState('');
+  const [dialogError, setDialogError] = useState<AppError | null>(null);
+  const [publicationContext, setPublicationContext] = useState<PublicationContext | null>(null);
+  const [loadingPublicationContext, setLoadingPublicationContext] = useState(false);
+  const [approvalPassword, setApprovalPassword] = useState('');
   const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
-  const [approvalLogs, setApprovalLogs] = useState<ComponentLog[]>([]);
   const [liveValues, setLiveValues] = useState<DisciplineFormValues | null>(null);
   const [lastSavedPayload, setLastSavedPayload] = useState('');
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -66,17 +66,6 @@ export const DisciplineEditPage = () => {
     setLastSavedPayload(JSON.stringify(toDraftPayload(getDisciplineFormInitialValues(currentDraft))));
     setAvailablePrerequisites(Array.from(mapped.values()));
 
-    const currentComponent = componentsResult.results.find((item) => item.code.toUpperCase() === code);
-    const normalizedApprovalLogs = (currentComponent?.logs || []).filter((log) => log.type === 'approval');
-    setApprovalLogs(normalizedApprovalLogs);
-
-    if (!agreementDate) {
-      setAgreementDate(getTodayIsoDate());
-    }
-
-    if (!agreementNumber) {
-      setAgreementNumber(suggestNextAgreementNumber(normalizedApprovalLogs, agreementDate || getTodayIsoDate()));
-    }
   };
 
   useEffect(() => {
@@ -84,7 +73,7 @@ export const DisciplineEditPage = () => {
     loadDraft()
       .catch((err) => {
         const appError = err as AppError;
-        setError(appError.message);
+        setError(appError);
       })
       .finally(() => setLoading(false));
   }, [code]);
@@ -110,7 +99,7 @@ export const DisciplineEditPage = () => {
         setAutosaveStatus('saved');
       } catch (err) {
         const appError = err as AppError;
-        setError(appError.message);
+        setError(appError);
         setAutosaveStatus('error');
       }
     }, 800);
@@ -125,13 +114,13 @@ export const DisciplineEditPage = () => {
 
     try {
       setSaving(true);
-      setError('');
+      setError(null);
       const updatedDraft = await updateComponentDraft(draft.id, toDraftPayload(values));
       setDraft(updatedDraft);
       navigate(`/disciplinas/${updatedDraft.code.toLowerCase()}`);
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setError(appError);
       throw err;
     } finally {
       setSaving(false);
@@ -145,19 +134,25 @@ export const DisciplineEditPage = () => {
 
     try {
       setSaving(true);
-      setError('');
+      setError(null);
       const updatedDraft = await updateComponentDraft(draft.id, toDraftPayload(values));
       setDraft(updatedDraft);
-      if (!agreementDate) {
-        setAgreementDate(getTodayIsoDate());
-      }
-      if (!agreementNumber) {
-        setAgreementNumber(suggestNextAgreementNumber(approvalLogs, agreementDate || getTodayIsoDate()));
-      }
+      setDialogError(null);
+      setPublicationContext(null);
+      setApprovalPassword('');
       setDialogOpen(true);
+      setLoadingPublicationContext(true);
+
+      try {
+        setPublicationContext(await getDraftPublicationContext(updatedDraft.id));
+      } catch (contextError) {
+        setDialogError(contextError as AppError);
+      } finally {
+        setLoadingPublicationContext(false);
+      }
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setError(appError);
       throw err;
     } finally {
       setSaving(false);
@@ -169,25 +164,27 @@ export const DisciplineEditPage = () => {
       return;
     }
 
-    if (!agreementDate || !agreementNumber.trim() || !approvalSignature.trim()) {
-      setDialogError('Informe data, numero da ATA e assinatura de aprovação.');
+    if (!approvalPassword) {
+      setDialogError(new AppError('Informe sua senha para confirmar a publicação.', 400, {
+        code: ApiErrorCode.PUBLICATION_PASSWORD_REQUIRED,
+        reason: 'A publicação oficial exige uma segunda confirmação de identidade.',
+        recovery: 'Digite a mesma senha usada para entrar no sistema.',
+      }));
       return;
     }
 
     try {
       setSaving(true);
-      setDialogError('');
+      setDialogError(null);
       await approveComponentDraft(draft.id, {
-        agreementDate: new Date(agreementDate).toISOString(),
-        agreementNumber,
-        signature: approvalSignature,
+        password: approvalPassword,
       });
 
       setDialogOpen(false);
       navigate(`/disciplinas/${draft.code.toLowerCase()}`);
     } catch (err) {
       const appError = err as AppError;
-      setDialogError(appError.message);
+      setDialogError(appError);
     } finally {
       setSaving(false);
     }
@@ -216,10 +213,12 @@ export const DisciplineEditPage = () => {
         </p>
       </section>
 
+      <ErrorNotice error={error} />
+
       <DisciplineEditorForm
         initialValues={initialFormValues}
         saving={saving}
-        error={error}
+        error={error?.message || ''}
         availablePrerequisites={availablePrerequisites}
         onCancel={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
         onSave={handleSave}
@@ -230,14 +229,12 @@ export const DisciplineEditPage = () => {
       <ApproveDraftDialog
         open={dialogOpen}
         componentCode={draft.code}
-        agreementDate={agreementDate}
-        agreementNumber={agreementNumber}
-        signature={approvalSignature}
+        context={publicationContext}
+        password={approvalPassword}
+        loadingContext={loadingPublicationContext}
         submitting={saving}
         error={dialogError}
-        onChangeAgreementDate={setAgreementDate}
-        onChangeAgreementNumber={setAgreementNumber}
-        onChangeSignature={setApprovalSignature}
+        onChangePassword={setApprovalPassword}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleApprove}
       />

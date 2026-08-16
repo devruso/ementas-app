@@ -4,9 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  approveComponentDraft,
   getComponentDraftByCode,
   getComponentDrafts,
   getComponents,
+  getDraftPublicationContext,
   updateComponentDraft,
 } from '../lib/api';
 import { DisciplineEditPage } from './DisciplineEditPage';
@@ -33,13 +35,25 @@ vi.mock('../lib/api', async () => {
     getComponentDrafts: vi.fn(),
     updateComponentDraft: vi.fn(),
     approveComponentDraft: vi.fn(),
+    getDraftPublicationContext: vi.fn(),
   };
 });
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: {
+      hasSignatureConfigured: true,
+      hasSignatureFileConfigured: true,
+    },
+  }),
+}));
 
 const mockedGetComponentDraftByCode = vi.mocked(getComponentDraftByCode);
 const mockedGetComponents = vi.mocked(getComponents);
 const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
 const mockedUpdateComponentDraft = vi.mocked(updateComponentDraft);
+const mockedApproveComponentDraft = vi.mocked(approveComponentDraft);
+const mockedGetDraftPublicationContext = vi.mocked(getDraftPublicationContext);
 
 describe('DisciplineEditPage autosave', () => {
   beforeEach(() => {
@@ -117,6 +131,19 @@ describe('DisciplineEditPage autosave', () => {
       prerequeriments: String(payload.prerequeriments || ''),
       workload: payload.workload,
     } as never));
+
+    mockedGetDraftPublicationContext.mockResolvedValue({
+      agreementDate: '2026-08-16T12:00:00.000Z',
+      agreementNumber: 'ATA-2026-001',
+      approverName: 'Professor Teste',
+      hasVisualSignature: false,
+      agreementRule: 'ATA-{ANO}-{SEQUENCIA_GLOBAL_ANUAL_COM_3_DIGITOS}',
+    });
+    mockedApproveComponentDraft.mockResolvedValue({
+      id: 'component-1',
+      code: 'IC045',
+      name: 'Compiladores',
+    } as never);
   });
 
   afterEach(() => {
@@ -141,5 +168,35 @@ describe('DisciplineEditPage autosave', () => {
     }, { timeout: 4000 });
 
     expect(await screen.findByText('Rascunho sincronizado automaticamente.')).toBeInTheDocument();
+  });
+
+  it('deve salvar e publicar com revisão e confirmação da senha', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <DisciplineEditPage />
+      </MemoryRouter>
+    );
+
+    const methodologyInput = await screen.findByLabelText('Metodologia');
+    await user.clear(methodologyInput);
+    await user.type(methodologyInput, 'Metodologia pronta para publicação');
+    await user.click(screen.getByRole('button', { name: 'Salvar e publicar' }));
+
+    expect(await screen.findByText('ATA-2026-001')).toBeInTheDocument();
+    expect(mockedUpdateComponentDraft).toHaveBeenCalledWith(
+      'draft-1',
+      expect.objectContaining({ methodology: 'Metodologia pronta para publicação' })
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
+    await user.type(screen.getByLabelText('Senha de login'), 'Senha123!');
+    await user.click(screen.getByRole('button', { name: /Confirmar publica/ }));
+
+    await waitFor(() => {
+      expect(mockedApproveComponentDraft).toHaveBeenCalledWith('draft-1', { password: 'Senha123!' });
+      expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045');
+    });
   });
 });

@@ -138,6 +138,14 @@ export interface Department {
   updatedAt?: string;
 }
 
+export interface PublicationContext {
+  agreementDate: string;
+  agreementNumber: string;
+  approverName: string;
+  hasVisualSignature: boolean;
+  agreementRule: string;
+}
+
 export interface ComponentDraft {
   id: string;
   code: string;
