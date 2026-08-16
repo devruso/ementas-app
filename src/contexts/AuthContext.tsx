@@ -16,7 +16,7 @@ import {
   setApiSession,
   resetPassword as resetPasswordRequest,
 } from '../lib/api';
-import { AppError } from '../lib/errors';
+import { isInvalidSessionError } from '../lib/apiErrorCatalog';
 import type { User } from '../types';
 
 interface AuthContextValue {
@@ -245,13 +245,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
     } catch (error) {
-      if (
-        error instanceof AppError
-        && (
-          error.statusCode === 401
-          || /usu[aá]rio n[aã]o encontrado/i.test(error.message)
-        )
-      ) {
+      if (isInvalidSessionError(error)) {
         logout();
         return;
       }

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:e2e:critical": "vitest run src/pages/LoginPage.test.tsx src/pages/ForgotPasswordPage.test.tsx src/pages/ResetPasswordPage.test.tsx src/pages/DisciplineDetailsPage.test.tsx src/pages/DisciplineEditPage.test.tsx src/pages/ProfilePage.test.tsx src/components/DisciplineEditorForm.test.tsx"
   },
   "dependencies": {
     "axios": "^1.16.0",

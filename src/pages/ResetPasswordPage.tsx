@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useAuth } from '../contexts/AuthContext';
 import { confirmResetPassword } from '../lib/api';
 import { AppError } from '../lib/errors';
@@ -13,7 +14,8 @@ export const ResetPasswordPage = () => {
   const { token } = useParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState('');
+  const [requestError, setRequestError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,27 +27,30 @@ export const ResetPasswordPage = () => {
     event.preventDefault();
 
     if (!password || password.length < 8) {
-      setError('Informe uma nova senha valida.');
+      setFieldError('Informe uma nova senha valida.');
+      setRequestError(null);
       setSuccess('');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('As senhas informadas não coincidem.');
+      setFieldError('As senhas informadas não coincidem.');
+      setRequestError(null);
       setSuccess('');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setFieldError('');
+      setRequestError(null);
       const result = await confirmResetPassword(token, password);
       await auth.login(result.email, password);
       setSuccess('Senha atualizada com sucesso. Redirecionando para o sistema...');
       navigate('/disciplinas', { replace: true });
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setRequestError(appError);
       setSuccess('');
     } finally {
       setLoading(false);
@@ -68,8 +73,10 @@ export const ResetPasswordPage = () => {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Digite sua nova senha"
-          error={error && !success ? error : undefined}
+          error={fieldError || undefined}
         />
+
+        <ErrorNotice error={requestError} />
         <FormField
           label="Confirmar nova senha"
           type="password"

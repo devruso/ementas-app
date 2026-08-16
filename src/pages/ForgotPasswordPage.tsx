@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useAuth } from '../contexts/AuthContext';
 import { AppError } from '../lib/errors';
 import { isUfbaInstitutionalEmail, isValidEmail, normalizeEmail } from '../lib/validation';
@@ -9,7 +10,8 @@ import { isUfbaInstitutionalEmail, isValidEmail, normalizeEmail } from '../lib/v
 export const ForgotPasswordPage = () => {
   const auth = useAuth();
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState('');
+  const [requestError, setRequestError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -19,25 +21,28 @@ export const ForgotPasswordPage = () => {
     const normalizedEmail = normalizeEmail(email);
 
     if (!isValidEmail(normalizedEmail)) {
-      setError('Informe um e-mail valido.');
+      setFieldError('Informe um e-mail valido.');
+      setRequestError(null);
       setSuccess('');
       return;
     }
 
     if (!isUfbaInstitutionalEmail(normalizedEmail)) {
-      setError('Use seu e-mail institucional da UFBA (@ufba.br).');
+      setFieldError('Use seu e-mail institucional da UFBA (@ufba.br).');
+      setRequestError(null);
       setSuccess('');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setFieldError('');
+      setRequestError(null);
       await auth.resetPassword(normalizedEmail);
         setSuccess('Se sua conta existir, você receberá um link para redefinir a senha no e-mail informado.');
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setRequestError(appError);
       setSuccess('');
     } finally {
       setLoading(false);
@@ -61,10 +66,11 @@ export const ForgotPasswordPage = () => {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="suaconta@ufba.br"
-            error={error && !success ? error : undefined}
+            error={fieldError || undefined}
           />
           <p className="mt-2 text-xs font-semibold text-danger">Apenas conta @ufba.br.</p>
         </div>
+        <ErrorNotice error={requestError} />
         {success ? <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div> : null}
         <FormActions>
           <button

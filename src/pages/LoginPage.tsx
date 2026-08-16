@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { FormActions } from '../components/FormActions';
 import { FormField } from '../components/FormField';
+import { ErrorNotice } from '../components/ErrorNotice';
 import { useAuth } from '../contexts/AuthContext';
 import { AppError } from '../lib/errors';
 import { isUfbaInstitutionalEmail, isValidEmail, normalizeEmail } from '../lib/validation';
@@ -13,7 +14,7 @@ export const LoginPage = () => {
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<AppError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
 
@@ -42,14 +43,14 @@ export const LoginPage = () => {
 
     try {
       setLoading(true);
-      setError('');
+      setError(null);
       await auth.login(normalizedEmail, password);
 
       const nextPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
       navigate(nextPath || '/disciplinas', { replace: true });
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setError(appError);
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ export const LoginPage = () => {
         </div>
         <FormField label="Senha" type="password" value={password} onChange={(event) => setPassword(event.target.value)} error={fieldErrors.password} />
 
-        {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
+        <ErrorNotice error={error} />
 
         <FormActions>
           <Link to="/novasenha" className="inline-flex items-center justify-center rounded-2xl border border-primary-200 bg-white px-4 py-3 text-sm font-semibold text-primary-700 transition hover:bg-primary-50">
