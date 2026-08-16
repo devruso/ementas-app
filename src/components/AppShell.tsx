@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
+import { BrandMark } from './BrandMark';
 
 export const AppShell = () => {
   const auth = useAuth();
@@ -34,11 +35,7 @@ export const AppShell = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 text-white sm:px-6 md:gap-6 md:px-10 md:py-4">
           <NavLink to="/disciplinas" className="flex items-center gap-4">
             <div className="logo-orb bg-white">
-              <img
-                src="/computacao-logo.png"
-                alt="Instituto de Computacao UFBA"
-                className="h-full w-full object-cover"
-              />
+              <BrandMark className="h-full w-full object-contain p-1" />
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
