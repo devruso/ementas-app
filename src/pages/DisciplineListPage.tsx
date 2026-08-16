@@ -86,16 +86,31 @@ const normalizeText = (value?: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const formatAcademicLevelLabel = (value?: Component['academicLevel']) => {
-  if (value === 'graduacao') {
+const isGenericGraduateProgram = (value?: string) => {
+  const normalized = normalizeText(value);
+
+  return (
+    /^programa(?:\s+de)?\s+p[o\u00f3]s-gradua[c\u00e7][a\u00e3]o\b/i.test(normalized)
+    || /^programa sigaa$/i.test(normalized)
+  ) && !/\b(?:mestrado|doutorado)\b/i.test(normalized);
+};
+
+const formatAcademicLevelLabel = (component: Component) => {
+  if (component.academicLevel === 'graduacao') {
     return 'Graduacao';
   }
 
-  if (value === 'mestrado') {
+  const sourceProgram = component.departmentRef?.name || component.department;
+
+  if (component.academicLevel === 'mestrado' && isGenericGraduateProgram(sourceProgram)) {
+    return 'P\u00f3s-gradua\u00e7\u00e3o';
+  }
+
+  if (component.academicLevel === 'mestrado') {
     return 'Mestrado';
   }
 
-  if (value === 'doutorado') {
+  if (component.academicLevel === 'doutorado') {
     return 'Doutorado';
   }
 
@@ -422,7 +437,7 @@ export const DisciplineListPage = () => {
   const renderDisciplineRow = (component: Component) => {
     const course = formatCourseDisplay(component.departmentRef?.name || component.department);
     const summary = formatSummary(component);
-    const academicLevelLabel = formatAcademicLevelLabel(component.academicLevel);
+    const academicLevelLabel = formatAcademicLevelLabel(component);
     const semesterLabel = formatSemesterLabel(component.semester);
     const levelAccentClass = getLevelAccentClass(component.academicLevel);
 
@@ -480,12 +495,12 @@ export const DisciplineListPage = () => {
           <div className="md:flex md:justify-end">
             <Link
               to={`/disciplinas/${component.code.toLowerCase()}`}
-              className="inline-flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 md:w-[132px]"
+              className="group/open inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/95 px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-300 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 md:w-[132px]"
             >
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-hover:bg-primary-100 group-hover:text-primary-700">
+              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors duration-300 group-hover/open:bg-primary-100 group-hover/open:text-primary-700">
                 <Eye className="h-4 w-4" />
               </span>
-              <span className="truncate">Abrir</span>
+              <span>Abrir</span>
             </Link>
           </div>
         </div>

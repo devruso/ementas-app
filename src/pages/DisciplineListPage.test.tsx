@@ -1,5 +1,5 @@
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -128,5 +128,41 @@ describe('DisciplineListPage public filters', () => {
     expect(screen.getByRole('option', { name: 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o' })).not.toBeInTheDocument();
     expect(screen.getAllByText('Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica').length).toBeGreaterThan(0);
+  });
+
+  it('deve evitar classificar programa de pos-graduacao ambiguo como mestrado', async () => {
+    mockedGetComponents.mockResolvedValue({
+      results: [
+        {
+          id: 'component-ambiguous-level',
+          code: 'IC0062',
+          name: 'Algoritmos Distribuidos I',
+          department: 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
+          academicLevel: 'mestrado',
+          syllabus: 'Ementa de teste',
+          userId: 'u-1',
+        },
+      ],
+      total: 1,
+      meta: {
+        page: 0,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <DisciplineListPage />
+      </MemoryRouter>
+    );
+
+    const title = await screen.findByText('Algoritmos Distribuidos I');
+    const row = title.closest('article');
+
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText('P\u00f3s-gradua\u00e7\u00e3o')).toBeInTheDocument();
+    expect(within(row as HTMLElement).queryByText('Mestrado')).not.toBeInTheDocument();
   });
 });
