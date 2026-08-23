@@ -68,7 +68,7 @@ export const AppShell = () => {
                   <NavLink to="/usuarios" className={navPillClass}>
                     <span className="inline-flex items-center gap-2">
                       <Users2 className="h-4 w-4" />
-                      Usuarios
+                      Usuários
                     </span>
                   </NavLink>
                 ) : null}
@@ -157,7 +157,7 @@ export const AppShell = () => {
                       className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Usuarios
+                      Usuários
                     </NavLink>
                   ) : null}
                   {isAdminProfile ? (
