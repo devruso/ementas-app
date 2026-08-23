@@ -1,9 +1,10 @@
-import { Download, Eye, FilePenLine, FileText, ScrollText } from 'lucide-react';
+import { Download, Eye, FilePenLine, FileText, Home, Link2, ScrollText, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { SectionCard } from '../components/SectionCard';
+import { WorkloadOverview } from '../components/WorkloadOverview';
 import { useAuth } from '../contexts/AuthContext';
 import {
   approveComponentDraft,
@@ -19,7 +20,7 @@ import {
   revokeAllPublicShares,
   revokePublicShare,
 } from '../lib/api';
-import { formatDate, formatWorkload } from '../lib/format';
+import { formatDate } from '../lib/format';
 import { AppError } from '../lib/errors';
 import { ApiErrorCode, isInvalidSessionError } from '../lib/apiErrorCatalog';
 import type { Component, ComponentLog, PublicationContext, PublicShare } from '../types';
@@ -529,7 +530,7 @@ export const DisciplineDetailsPage = () => {
   if (!component) {
     return (
       <div className="panel p-10 text-center text-sm text-muted">
-        {errorMessage || 'Disciplina nao encontrada.'}
+        {errorMessage || 'Disciplina não encontrada.'}
       </div>
     );
   }
@@ -564,10 +565,9 @@ export const DisciplineDetailsPage = () => {
   }));
 
   return (
-    <div className="space-y-6">
-      <section className="panel overflow-hidden">
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div>
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <main className="min-w-0 space-y-6">
+        <section className="panel overflow-hidden p-6">
             <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
               {activeComponent.code}
             </div>
@@ -578,93 +578,189 @@ export const DisciplineDetailsPage = () => {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Curso: {activeComponent.department || 'Nao informado'}
+                Curso: {activeComponent.department || 'Não informado'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Semestre: {activeComponent.semester || 'Nao informado'}
+                Semestre: {activeComponent.semester || 'Não informado'}
               </span>
               <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
                 Modalidade: {formatModalityLabel(activeComponent.modality)}
               </span>
             </div>
+            <div className="mt-5 text-sm text-ink/80">
+              <strong>Pré-requisitos:</strong>
+              {isNotApplicable ? (
+                <span className="ml-2 inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                  Não se aplica
+                </span>
+              ) : prerequerimentStatus.length > 0 ? (
+                <span className="ml-2 inline-flex flex-wrap gap-2 align-middle">
+                  {prerequerimentStatus.map((item) => (
+                    <span
+                      key={item.code}
+                      className={item.status === 'existing'
+                        ? 'inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600'
+                        : 'inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700'}
+                    >
+                      {item.code} {item.status === 'existing' ? '(existente)' : '(pendente)'}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="ml-2">{activeComponent.prerequeriments || 'Não informado'}</span>
+              )}
+            </div>
+        </section>
 
+        <SectionCard title="Ementa">{displaySyllabus || 'Não informada.'}</SectionCard>
+        <SectionCard title="Objetivos">{displayObjective || 'Não informados.'}</SectionCard>
+        <SectionCard title="Conteúdo programático">{displayProgram || 'Não informado.'}</SectionCard>
+        <SectionCard title="Metodologia">{displayMethodology || 'Não informada.'}</SectionCard>
+        <SectionCard title="Avaliação da aprendizagem">
+          {displayLearningAssessment || 'Não informada.'}
+        </SectionCard>
+        <SectionCard title="Referências básicas">{references.basic || 'Não informadas.'}</SectionCard>
+        <SectionCard title="Referências complementares">{references.complementary || 'Não informadas.'}</SectionCard>
+
+        <WorkloadOverview workload={activeComponent.workload} />
+
+        {(visibleLogs?.length ?? 0) > 0 ? (
+          <SectionCard title="Últimas publicações">
+            <div className="space-y-4">
+              {visibleLogs
+                ?.filter((log) => log.type === 'approval')
+                .slice(0, 5)
+                .map((log) => (
+                  <div key={log.id} className="rounded-2xl border border-line bg-slate-50 p-4 text-sm">
+                    <div><strong>Data:</strong> {formatDate(log.agreementDate || log.createdAt)}</div>
+                    <div><strong>Ata:</strong> {log.agreementNumber || 'Não informada'}</div>
+                    <div><strong>Publicado por:</strong> {log.user?.name || 'Não informado'}</div>
+                  </div>
+                ))}
+            </div>
+          </SectionCard>
+        ) : null}
+      </main>
+
+      <aside className="space-y-4 xl:sticky xl:top-6">
+        <section className="panel p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Menu de ações</h2>
+            {hasDraftVersion ? (
+              <span className="rounded-full border border-primary-100 bg-primary-50 px-2 py-1 text-[10px] font-semibold text-primary-700">
+                {showingDraft ? 'Rascunho' : 'Publicada'}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
             {auth.isAuthenticated ? (
-              <div className="mt-6 space-y-4">
-                <div className="rounded-3xl border border-white/55 bg-white/72 p-4 shadow-sm backdrop-blur-md">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Ações rápidas</div>
-                      <div className="mt-1 text-sm text-ink/70">Edite, publique e alterne entre rascunho salvo e versão oficial.</div>
-                    </div>
-                    {hasDraftVersion ? (
-                      <div className="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-                        Mostrando agora: {showingDraft ? 'rascunho salvo' : 'publicacao oficial'}
-                      </div>
-                    ) : null}
-                  </div>
+              <>
+                <Link
+                  to={`/disciplinas/${component.code.toLowerCase()}/editar`}
+                  className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50"
+                >
+                  <FilePenLine className="h-4 w-4 text-primary-600" />
+                  Editar disciplina
+                </Link>
 
-                  <div className="flex flex-wrap gap-3">
-                    <Link
-                      to={`/disciplinas/${component.code.toLowerCase()}/editar`}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-slate-50"
-                    >
-                      <FilePenLine className="h-4 w-4 text-primary-600" />
-                      Editar disciplina
-                    </Link>
+                {component.draft?.id ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenApprovalDialog}
+                    className="inline-flex w-full items-center gap-2 rounded-xl bg-primary-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600"
+                  >
+                    <ScrollText className="h-4 w-4" />
+                    Publicar
+                  </button>
+                ) : null}
 
-                    {component.draft?.id ? (
-                      <button
-                        type="button"
-                        onClick={handleOpenApprovalDialog}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600"
-                      >
-                        <ScrollText className="h-4 w-4" />
-                        Publicar
-                      </button>
-                    ) : null}
+                {hasDraftVersion ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPublishedVersion((current) => !current)}
+                    className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50"
+                  >
+                    <Eye className="h-4 w-4 text-secondary-700" />
+                    {showPublishedVersion ? 'Ver rascunho salvo' : 'Ver versão publicada'}
+                  </button>
+                ) : null}
 
-                    {hasDraftVersion ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowPublishedVersion((current) => !current)}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:bg-slate-50"
-                      >
-                        <Eye className="h-4 w-4 text-secondary-700" />
-                        {showPublishedVersion ? 'Ver rascunho salvo' : 'Ver versao publicada'}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-dashed border-primary-200/80 bg-primary-50/70 p-4 shadow-sm">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Compartilhamento</div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleCreatePublicShare}
-                      disabled={creatingShare}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-primary-200 bg-white px-4 py-3 text-sm font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {creatingShare ? 'Gerando link público...' : 'Compartilhar público temporário'}
-                    </button>
-                    <p className="text-sm text-ink/68">Crie um link temporário auditável para consulta pública controlada.</p>
-                  </div>
-                </div>
-              </div>
+                <button
+                  type="button"
+                  onClick={handleCreatePublicShare}
+                  disabled={creatingShare}
+                  className="inline-flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Share2 className="h-4 w-4" />
+                  {creatingShare ? 'Gerando link...' : 'Compartilhar temporariamente'}
+                </button>
+              </>
             ) : null}
 
-            {publicShareLink ? (
-              <div className="mt-4 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700">
-                <p>Link público gerado e copiado para a área de transferência.</p>
-                <p>Expira em: {publicShareExpiresAt || 'Data não informada'}</p>
-                <p className="break-all">{publicShareLink}</p>
-              </div>
-            ) : null}
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download className="h-4 w-4 text-secondary-700" />
+              {exporting ? 'Exportando PDF...' : 'Exportar PDF oficial'}
+            </button>
 
-            {auth.isAuthenticated ? (
-              <div className="mt-4 rounded-2xl border border-line bg-white px-4 py-4">
+            <button
+              type="button"
+              onClick={handleExportDoc}
+              disabled={exportingDoc}
+              className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileText className="h-4 w-4 text-primary-600" />
+              {exportingDoc ? 'Exportando DOCX...' : 'Exportar DOCX'}
+            </button>
+
+            <Link
+              to="/disciplinas"
+              className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink/80 transition hover:bg-slate-50"
+            >
+              <Home className="h-4 w-4 text-muted" />
+              Voltar para o início
+            </Link>
+          </div>
+        </section>
+
+        {publicShareLink ? (
+          <section className="panel border-primary-200 bg-primary-50 p-4 text-sm text-primary-700">
+            <div className="mb-2 flex items-center gap-2 font-semibold">
+              <Link2 className="h-4 w-4" /> Link público criado
+            </div>
+            <p>Copiado para a área de transferência.</p>
+            <p className="mt-1">Expira em: {publicShareExpiresAt || 'Data não informada'}</p>
+            <p className="mt-2 break-all text-xs">{publicShareLink}</p>
+          </section>
+        ) : null}
+
+        <section className="panel p-4 text-sm">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Publicação oficial</h2>
+          <dl className="mt-3 space-y-2 text-xs text-ink/75">
+            <div className="flex justify-between gap-3">
+              <dt>Última aprovação</dt>
+              <dd className="text-right font-semibold text-ink">{latestApproval?.agreementDate ? formatDate(latestApproval.agreementDate) : 'Não informada'}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Ata ou referência</dt>
+              <dd className="text-right font-semibold text-ink">{latestApproval?.agreementNumber || 'Não informada'}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Publicado por</dt>
+              <dd className="text-right font-semibold text-ink">{latestApproval?.user?.name || 'Não informado'}</dd>
+            </div>
+          </dl>
+        </section>
+
+        {auth.isAuthenticated ? (
+          <section className="panel p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-ink">Links públicos ativos</h3>
+                  <h2 className="text-sm font-semibold text-ink">Links públicos ativos</h2>
                   <button
                     type="button"
                     onClick={handleRevokeAllShares}
@@ -799,161 +895,9 @@ export const DisciplineDetailsPage = () => {
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="rounded-3xl border border-white/45 bg-white/14 p-5 text-ink shadow-panel backdrop-blur-xl">
-            <div className="rounded-3xl border border-white/40 bg-white/42 p-4 shadow-sm">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-700/80">
-                Exportacao oficial
-              </div>
-              <div className="text-sm text-ink/68">
-                Gere PDF ou DOCX com o conteúdo oficial publicado e com os metadados formais de aprovação quando eles existirem no histórico.
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3 rounded-3xl border border-white/35 bg-white/36 p-4 text-sm text-ink/75">
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-ink/60">Ultima aprovacao</span>
-                <strong className="text-right text-ink">{latestApproval?.agreementDate ? formatDate(latestApproval.agreementDate) : 'Nao informada'}</strong>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-ink/60">Ata ou referencia</span>
-                <strong className="text-right text-ink">{latestApproval?.agreementNumber || 'Nao informada'}</strong>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-ink/60">Publicado por</span>
-                <strong className="text-right text-ink">{latestApproval?.user?.name || 'Nao informado'}</strong>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={exporting}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-secondary-500 px-4 py-3 font-semibold text-secondary-700 transition hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Download className="h-4 w-4" />
-              {exporting ? 'Exportando PDF oficial...' : 'Exportar PDF oficial'}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportDoc}
-              disabled={exportingDoc}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-200 bg-white/45 px-4 py-3 font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FileText className="h-4 w-4" />
-              {exportingDoc ? 'Exportando DOCX...' : 'Exportar DOCX'}
-            </button>
-
-            <Link
-              to="/disciplinas"
-              className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-white/45 bg-white/20 px-4 py-3 text-sm text-ink/80 transition hover:bg-white/45"
-            >
-              Voltar para inicio
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-6">
-          <SectionCard title="Ementa">{displaySyllabus || 'Não informada.'}</SectionCard>
-          <SectionCard title="Objetivos">{displayObjective || 'Não informados.'}</SectionCard>
-          <SectionCard title="Conteúdo programático">{displayProgram || 'Não informado.'}</SectionCard>
-          <SectionCard title="Metodologia">{displayMethodology || 'Não informada.'}</SectionCard>
-          <SectionCard title="Avaliacao da aprendizagem">
-            {displayLearningAssessment || 'Não informada.'}
-          </SectionCard>
-          <SectionCard title="Referencias basicas">{references.basic || 'Não informadas.'}</SectionCard>
-          <SectionCard title="Referencias complementares">{references.complementary || 'Não informadas.'}</SectionCard>
-        </div>
-
-        <div className="space-y-6">
-          <SectionCard title="Visao geral">
-            <div className="space-y-3">
-              <div>
-                <strong>Pre-requisitos:</strong>
-                {isNotApplicable ? (
-                  <span className="ml-2 inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                    Nao se aplica
-                  </span>
-                ) : prerequerimentStatus.length > 0 ? (
-                  <span className="ml-2 inline-flex flex-wrap gap-2 align-middle">
-                    {prerequerimentStatus.map((item) => (
-                      <span
-                        key={item.code}
-                        className={
-                          item.status === 'existing'
-                            ? 'inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600'
-                            : 'inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700'
-                        }
-                      >
-                        {item.code} {item.status === 'existing' ? '(existente)' : '(pendente)'}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="ml-2">{activeComponent.prerequeriments || 'Nao informado'}</span>
-                )}
-              </div>
-              <div><strong>Curso:</strong> {activeComponent.department || 'Nao informado'}</div>
-              <div><strong>Semestre:</strong> {activeComponent.semester || 'Nao informado'}</div>
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Carga horaria">
-            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-2xl border border-line bg-slate-50 p-4">
-                <div className="mb-2 font-semibold">Estudante</div>
-                <div>Teoria: {formatWorkload(activeComponent.workload?.studentTheory)}</div>
-                <div>Pratica: {formatWorkload(activeComponent.workload?.studentPractice)}</div>
-                <div>T/P: {formatWorkload(activeComponent.workload?.studentTheoryPractice)}</div>
-                <div>PP: {formatWorkload(activeComponent.workload?.studentPracticeInternship)}</div>
-                <div>Ext: {formatWorkload(activeComponent.workload?.studentExtension)}</div>
-                <div>E: {formatWorkload(activeComponent.workload?.studentInternship)}</div>
-              </div>
-              <div className="rounded-2xl border border-line bg-slate-50 p-4">
-                <div className="mb-2 font-semibold">Docente</div>
-                <div>Teoria: {formatWorkload(activeComponent.workload?.teacherTheory)}</div>
-                <div>Pratica: {formatWorkload(activeComponent.workload?.teacherPractice)}</div>
-                <div>T/P: {formatWorkload(activeComponent.workload?.teacherTheoryPractice)}</div>
-                <div>PP: {formatWorkload(activeComponent.workload?.teacherPracticeInternship)}</div>
-                <div>Ext: {formatWorkload(activeComponent.workload?.teacherExtension)}</div>
-                <div>E: {formatWorkload(activeComponent.workload?.teacherInternship)}</div>
-              </div>
-              <div className="rounded-2xl border border-line bg-slate-50 p-4 sm:col-span-2">
-                <div className="mb-2 font-semibold">Modulo</div>
-                <div>Teoria: {formatWorkload(activeComponent.workload?.moduleTheory)}</div>
-                <div>Pratica: {formatWorkload(activeComponent.workload?.modulePractice)}</div>
-                <div>T/P: {formatWorkload(activeComponent.workload?.moduleTheoryPractice)}</div>
-                <div>PP: {formatWorkload(activeComponent.workload?.modulePracticeInternship)}</div>
-                <div>Ext: {formatWorkload(activeComponent.workload?.moduleExtension)}</div>
-                <div>E: {formatWorkload(activeComponent.workload?.moduleInternship)}</div>
-              </div>
-            </div>
-          </SectionCard>
-
-          {(visibleLogs?.length ?? 0) > 0 ? (
-            <SectionCard title="Ultimas publicacoes">
-              <div className="space-y-4">
-                {visibleLogs
-                  ?.filter((log) => log.type === 'approval')
-                  .slice(0, 5)
-                  .map((log) => (
-                    <div key={log.id} className="rounded-2xl border border-line bg-slate-50 p-4 text-sm">
-                      <div><strong>Data:</strong> {formatDate(log.agreementDate || log.createdAt)}</div>
-                      <div><strong>Ata:</strong> {log.agreementNumber || 'Nao informada'}</div>
-                      <div><strong>Publicado por:</strong> {log.user?.name || 'Nao informado'}</div>
-                    </div>
-                  ))}
-              </div>
-            </SectionCard>
-          ) : null}
-        </div>
-      </section>
+          </section>
+        ) : null}
+      </aside>
 
       <ApproveDraftDialog
         open={dialogOpen}

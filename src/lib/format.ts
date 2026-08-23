@@ -1,6 +1,6 @@
 export const formatDate = (value?: string) => {
   if (!value) {
-    return 'Nao informado';
+    return 'Não informado';
   }
 
   return new Intl.DateTimeFormat('pt-BR', {
