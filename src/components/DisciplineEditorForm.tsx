@@ -5,8 +5,10 @@ import {
   DisciplineFormValues,
   hasNonWebReferenceWithoutYear,
 } from '../lib/componentDraft';
+import type { DomainOption } from '../types';
 import { FormActions } from './FormActions';
 import { FormField } from './FormField';
+import { SelectField } from './SelectField';
 import { TextareaField } from './TextareaField';
 
 interface DisciplineEditorFormProps {
@@ -19,6 +21,7 @@ interface DisciplineEditorFormProps {
   onValuesChange?: (values: DisciplineFormValues) => void;
   showPublishAction?: boolean;
   availablePrerequisites?: Array<{ code: string; name: string }>;
+  modalityOptions?: DomainOption[];
 }
 
 const workloadFields: Array<keyof DisciplineFormValues['studentWorkload']> = [
@@ -32,11 +35,11 @@ const workloadFields: Array<keyof DisciplineFormValues['studentWorkload']> = [
 
 const workloadLabels: Record<keyof DisciplineFormValues['studentWorkload'], string> = {
   theory: 'Teoria',
-  practice: 'Pratica',
-  theoryPractice: 'Teoria/Pratica',
-  extension: 'Extensao',
-  internship: 'Estagio',
-  practiceInternship: 'Pratica/Estagio',
+  practice: 'Prática',
+  theoryPractice: 'Teoria/Prática',
+  extension: 'Extensão',
+  internship: 'Estágio',
+  practiceInternship: 'Prática/Estágio',
 };
 
 const componentCodeRegex = /^[A-Z]{2,4}[0-9]{2,4}$/;
@@ -53,11 +56,13 @@ export const DisciplineEditorForm = ({
   onValuesChange,
   showPublishAction = true,
   availablePrerequisites = [],
+  modalityOptions = [],
 }: DisciplineEditorFormProps) => {
   const [values, setValues] = useState<DisciplineFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<{
     code?: string;
     name?: string;
+    modality?: string;
     syllabus?: string;
     objective?: string;
     program?: string;
@@ -240,6 +245,7 @@ export const DisciplineEditorForm = ({
     const nextErrors: {
       code?: string;
       name?: string;
+      modality?: string;
       syllabus?: string;
       objective?: string;
       program?: string;
@@ -250,13 +256,17 @@ export const DisciplineEditorForm = ({
     } = {};
 
     if (!values.code.trim()) {
-      nextErrors.code = 'Informe o codigo da disciplina.';
+      nextErrors.code = 'Informe o código da disciplina.';
     } else if (!componentCodeRegex.test(values.code.trim())) {
       nextErrors.code = 'Código inválido. Use o formato AAA999 ou AAAA9999 (ex.: MAT245 ou IC045).';
     }
 
     if (!values.name.trim()) {
       nextErrors.name = 'Informe o nome da disciplina.';
+    }
+
+    if (!values.modality.trim()) {
+      nextErrors.modality = 'Selecione a modalidade da disciplina.';
     }
 
     setFieldErrors(nextErrors);
@@ -322,31 +332,32 @@ export const DisciplineEditorForm = ({
   }> = [
     { key: 'studentWorkload', title: 'Estudante' },
     { key: 'teacherWorkload', title: 'Professor' },
-    { key: 'moduleWorkload', title: 'Modulo' },
+    { key: 'moduleWorkload', title: 'Módulo' },
   ];
 
   return (
     <div className="space-y-6 motion-fade">
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
-        <div className="mb-4 rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-sm text-primary-900">
-          Este editor segue o template oficial do Word. Para publicação, preencha: Ementa, Objetivos, Conteúdo programático,
-          Metodologia, Avaliação da aprendizagem e Referências básicas.
-        </div>
         <div className="mb-5">
           <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
             Dados gerais
           </div>
-          <h2 className="text-xl font-semibold text-ink">Identificacao da disciplina</h2>
+          <h2 className="text-xl font-semibold text-ink">Identificação da disciplina</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <FormField label="Codigo" value={values.code} onChange={(event) => handleChange('code', event.target.value)} error={fieldErrors.code} />
+          <FormField label="Código" value={values.code} onChange={(event) => handleChange('code', event.target.value)} error={fieldErrors.code} />
           <div className="md:col-span-2">
             <FormField label="Nome" value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
           </div>
           <FormField label="Curso" value={values.department} onChange={(event) => handleChange('department', event.target.value)} />
           <FormField label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
-          <div className="md:col-span-2 xl:col-span-4">
-            <TextareaField label="Modalidade" value={values.modality} onChange={(event) => handleChange('modality', event.target.value)} className="min-h-[112px]" />
+          <div className="md:col-span-2">
+            <SelectField label="Modalidade" value={values.modality} error={fieldErrors.modality} onChange={(event) => handleChange('modality', event.target.value)}>
+              {!modalityOptions.some((option) => option.value === values.modality) && values.modality ? (
+                <option value={values.modality}>{values.modality}</option>
+              ) : null}
+              {modalityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </SelectField>
           </div>
         </div>
       </section>
@@ -354,7 +365,7 @@ export const DisciplineEditorForm = ({
       <section className="grid min-w-0 gap-6 xl:grid-cols-3">
         {workloadCards.map((card) => (
           <div key={card.key} className="panel interactive-lift min-w-0 p-5 sm:p-6">
-            <h3 className="mb-4 text-lg font-semibold text-ink">Carga horaria {card.title}</h3>
+            <h3 className="mb-4 text-lg font-semibold text-ink">Carga horária {card.title}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               {workloadFields.map((field) => (
                 <FormField
@@ -382,15 +393,15 @@ export const DisciplineEditorForm = ({
               error={fieldErrors.objective}
               placeholder="Use um objetivo por linha para facilitar a organização dos parágrafos no documento oficial."
             />
-            <TextareaField label="Conteudo programatico" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
+            <TextareaField label="Conteúdo programático" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
             <TextareaField label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
           </div>
         </div>
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField label="Avaliacao da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
+            <TextareaField label="Avaliação da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
             <TextareaField
-              label="Referencias basicas"
+              label="Referências básicas"
               value={values.referencesBasic}
               onChange={(event) => handleChange('referencesBasic', event.target.value)}
               error={fieldErrors.referencesBasic}
@@ -423,7 +434,7 @@ export const DisciplineEditorForm = ({
             </div>
             {basicReferencesChecklist.length > 0 ? (
               <div className="rounded-2xl border border-line bg-background px-4 py-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referencias basicas</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referências básicas</div>
                 <div className="space-y-2 text-xs text-ink/80">
                   {basicReferencesChecklist.map((item) => (
                     <div key={`basic-reference-${item.lineNumber}`} className="rounded-xl border border-line/70 bg-white px-3 py-2">
@@ -441,7 +452,7 @@ export const DisciplineEditorForm = ({
               </div>
             ) : null}
             <TextareaField
-              label="Referencias complementares"
+              label="Referências complementares"
               value={values.referencesComplementary}
               onChange={(event) => handleChange('referencesComplementary', event.target.value)}
               error={fieldErrors.referencesComplementary}
@@ -455,7 +466,7 @@ export const DisciplineEditorForm = ({
             </div>
             {complementaryReferencesChecklist.length > 0 ? (
               <div className="rounded-2xl border border-line bg-background px-4 py-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referencias complementares</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referências complementares</div>
                 <div className="space-y-2 text-xs text-ink/80">
                   {complementaryReferencesChecklist.map((item) => (
                     <div key={`complementary-reference-${item.lineNumber}`} className="rounded-xl border border-line/70 bg-white px-3 py-2">
@@ -473,18 +484,18 @@ export const DisciplineEditorForm = ({
               </div>
             ) : null}
             <TextareaField
-              label="Pre-requisitos"
+              label="Pré-requisitos"
               value={values.prerequeriments}
               onChange={(event) => handleChange('prerequeriments', event.target.value)}
               className="min-h-[128px]"
-              placeholder="Use codigos de disciplinas separados por virgula, ou NAO_SE_APLICA"
+              placeholder="Use códigos de disciplinas separados por vírgula, ou NAO_SE_APLICA"
             />
 
             <div className="rounded-2xl border border-line bg-background p-4">
               <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
-                <span>Classificacao de pre-requisitos</span>
+                <span>Classificação de pré-requisitos</span>
                 {isNotApplicable ? (
-                  <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">Nao se aplica</span>
+                  <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">Não se aplica</span>
                 ) : null}
               </div>
 
@@ -495,7 +506,7 @@ export const DisciplineEditorForm = ({
                     onClick={handleSetNotApplicable}
                     className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                   >
-                    Marcar como nao se aplica
+                    Marcar como não se aplica
                   </button>
                 ) : (
                   <button
@@ -503,7 +514,7 @@ export const DisciplineEditorForm = ({
                     onClick={handleUnsetNotApplicable}
                     className="rounded-full border border-primary-200 bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:bg-primary-200"
                   >
-                    Remover nao se aplica
+                    Remover "não se aplica"
                   </button>
                 )}
               </div>
@@ -518,7 +529,7 @@ export const DisciplineEditorForm = ({
 
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <FormField
-                  label="Adicionar codigo pendente"
+                  label="Adicionar código pendente"
                   value={pendingCodeInput}
                   onChange={(event) => setPendingCodeInput(event.target.value.toUpperCase())}
                   placeholder="Ex.: MAT999"

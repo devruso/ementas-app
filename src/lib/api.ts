@@ -5,6 +5,7 @@ import type {
   Component,
   ComponentDraft,
   ComponentLog,
+  ComponentMetadata,
   Department,
   ImportDraftPreviewResponse,
   ImportComponentsSummary,
@@ -55,6 +56,7 @@ let authToken: string | null = null;
 let refreshToken: string | null = null;
 let listeners: ApiAuthListeners = {};
 let refreshSessionPromise: Promise<AuthSessionResponse> | null = null;
+let componentMetadataPromise: Promise<ComponentMetadata> | null = null;
 
 const toAppError = (error: AxiosError<ApiErrorPayload>) => {
   if (!error.response) {
@@ -575,6 +577,20 @@ export const approveComponentDraft = async (
 ) => {
   const response = await api.post<Component>(`/component-drafts/${componentDraftId}/approve`, data);
   return response.data;
+};
+
+export const getComponentMetadata = () => {
+  if (!componentMetadataPromise) {
+    componentMetadataPromise = api
+      .get<ComponentMetadata>('/components/metadata')
+      .then((response) => response.data)
+      .catch((error) => {
+        componentMetadataPromise = null;
+        throw error;
+      });
+  }
+
+  return componentMetadataPromise;
 };
 
 export const getDraftPublicationContext = async (componentDraftId: string) => {

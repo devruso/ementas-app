@@ -7,6 +7,7 @@ import {
   approveComponentDraft,
   getComponentDraftByCode,
   getComponentDrafts,
+  getComponentMetadata,
   getComponents,
   getDraftPublicationContext,
   updateComponentDraft,
@@ -31,6 +32,7 @@ vi.mock('../lib/api', async () => {
   return {
     ...actual,
     getComponentDraftByCode: vi.fn(),
+    getComponentMetadata: vi.fn(),
     getComponents: vi.fn(),
     getComponentDrafts: vi.fn(),
     updateComponentDraft: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock('../contexts/AuthContext', () => ({
 }));
 
 const mockedGetComponentDraftByCode = vi.mocked(getComponentDraftByCode);
+const mockedGetComponentMetadata = vi.mocked(getComponentMetadata);
 const mockedGetComponents = vi.mocked(getComponents);
 const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
 const mockedUpdateComponentDraft = vi.mocked(updateComponentDraft);
@@ -57,6 +60,24 @@ const mockedGetDraftPublicationContext = vi.mocked(getDraftPublicationContext);
 
 describe('DisciplineEditPage autosave', () => {
   beforeEach(() => {
+    mockedGetComponentMetadata.mockResolvedValue({
+      defaults: { modality: 'DISCIPLINA', academicLevel: 'graduacao' },
+      modalities: [
+        { value: 'DISCIPLINA', label: 'Disciplina' },
+        { value: 'ATIVIDADE', label: 'Atividade' },
+        { value: 'MODULO', label: 'Módulo' },
+      ],
+      academicLevels: [
+        { value: 'graduacao', label: 'Graduação', sigaaSourceId: '1114' },
+        { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '1820' },
+        { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '43753' },
+      ],
+      sigaaSourceTypes: [
+        { value: 'department', label: 'Departamento' },
+        { value: 'program', label: 'Programa' },
+      ],
+      courses: [],
+    });
     mockedGetComponentDraftByCode.mockResolvedValue({
       id: 'draft-1',
       code: 'IC045',

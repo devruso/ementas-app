@@ -1,18 +1,56 @@
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getComponents } from '../lib/api';
+import { getComponentMetadata, getComponents } from '../lib/api';
 import { DisciplineListPage } from './DisciplineListPage';
 
 vi.mock('../lib/api', () => ({
+  getComponentMetadata: vi.fn(),
   getComponents: vi.fn(),
 }));
 
 const mockedGetComponents = vi.mocked(getComponents);
+const mockedGetComponentMetadata = vi.mocked(getComponentMetadata);
+
+const componentMetadata = {
+  defaults: { modality: 'DISCIPLINA', academicLevel: 'graduacao' as const },
+  modalities: [
+    { value: 'DISCIPLINA', label: 'Disciplina' },
+    { value: 'ATIVIDADE', label: 'Atividade' },
+    { value: 'MODULO', label: 'Módulo' },
+  ],
+  academicLevels: [
+    { value: 'graduacao' as const, label: 'Graduação', sigaaSourceId: '1114' },
+    { value: 'mestrado' as const, label: 'Mestrado', sigaaSourceId: '1820' },
+    { value: 'doutorado' as const, label: 'Doutorado', sigaaSourceId: '43753' },
+  ],
+  sigaaSourceTypes: [
+    { value: 'department' as const, label: 'Departamento' },
+    { value: 'program' as const, label: 'Programa' },
+  ],
+  courses: [
+    {
+      key: 'INFORMATION_SYSTEMS_BACHELOR',
+      value: 'Bacharelado em Sistemas de Informação',
+      label: 'Bacharelado em Sistemas de Informação',
+      aliases: ['Bacharelado em Sistemas de Informação'],
+    },
+    {
+      key: 'PMCC',
+      value: 'Programa de Pós-Graduação em Mecatrônica',
+      label: 'Programa de Pós-Graduação em Mecatrônica',
+      aliases: ['Programa Multidisciplinar em Ciência da Computação', 'PMCC'],
+    },
+  ],
+};
 
 describe('DisciplineListPage public filters', () => {
+  beforeEach(() => {
+    mockedGetComponentMetadata.mockResolvedValue(componentMetadata);
+  });
+
   it('deve carregar por padrao sem restringir curso, com ordenacao alfabetica e 20 itens por pagina', async () => {
     mockedGetComponents.mockImplementation(async ({ page = 0, limit = 20, sortBy = 'name', department }) => ({
       results: [
@@ -46,10 +84,10 @@ describe('DisciplineListPage public filters', () => {
     expect((await screen.findAllByText('Compiladores')).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Disciplinas' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Disciplinas publicadas' })).not.toBeInTheDocument();
-    expect(screen.getByText('Nao informado')).toBeInTheDocument();
+    expect(screen.getByText('Não informado')).toBeInTheDocument();
     expect(screen.queryByText('2026.2')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Curso')).toHaveValue('__all__');
-    expect(screen.getByLabelText('Buscar por codigo ou nome')).toHaveFocus();
+    expect(screen.getByLabelText('Buscar por código ou nome')).toHaveFocus();
     expect(screen.getByLabelText('Itens por pagina')).toHaveValue('20');
 
     await waitFor(() => {
@@ -85,6 +123,7 @@ describe('DisciplineListPage public filters', () => {
       </MemoryRouter>
     );
 
+    await screen.findByRole('option', { name: 'Bacharelado em Sistemas de Informa\u00e7\u00e3o' });
     await userEvent.selectOptions(screen.getByLabelText('Curso'), 'Bacharelado em Sistemas de Informa\u00e7\u00e3o');
 
     await waitFor(() => {

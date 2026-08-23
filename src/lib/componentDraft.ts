@@ -38,8 +38,7 @@ export interface ReferenceChecklistItem {
   message: string;
 }
 
-const DEFAULT_DISCIPLINE_FORM_VALUES: Pick<DisciplineFormValues, 'modality' | 'prerequeriments'> = {
-  modality: 'Presencial',
+const DEFAULT_DISCIPLINE_FORM_VALUES: Pick<DisciplineFormValues, 'prerequeriments'> = {
   prerequeriments: 'NAO_SE_APLICA',
 };
 
@@ -241,12 +240,15 @@ const toGroup = (
   practiceInternship: workload?.[`${prefix}PracticeInternship`] || 0,
 });
 
-export const getDisciplineFormInitialValues = (draft?: ComponentDraft): DisciplineFormValues => ({
+export const getDisciplineFormInitialValues = (
+  draft?: ComponentDraft,
+  defaults?: { modality?: string }
+): DisciplineFormValues => ({
   code: cleanText(draft?.code),
   name: cleanText(draft?.name),
   department: cleanText(draft?.department),
   semester: cleanText(draft?.semester),
-  modality: cleanText(draft?.modality) || DEFAULT_DISCIPLINE_FORM_VALUES.modality,
+  modality: cleanText(draft?.modality) || cleanText(defaults?.modality),
   program: cleanText(draft?.program),
   objective: cleanText(draft?.objective),
   syllabus: cleanText(draft?.syllabus),
@@ -274,7 +276,7 @@ export const toDraftPayload = (values: DisciplineFormValues): Partial<ComponentD
   name: values.name.trim(),
   department: values.department.trim(),
   semester: values.semester.trim(),
-  modality: values.modality.trim() || DEFAULT_DISCIPLINE_FORM_VALUES.modality,
+  modality: values.modality.trim(),
   program: values.program.trim(),
   objective: values.objective.trim(),
   syllabus: values.syllabus.trim(),

@@ -4,11 +4,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { ErrorNotice } from '../components/ErrorNotice';
-import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponents, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
+import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponentMetadata, getComponents, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
 import { ApiErrorCode } from '../lib/apiErrorCatalog';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
-import type { ComponentDraft, PublicationContext } from '../types';
+import type { ComponentDraft, ComponentMetadata, PublicationContext } from '../types';
 
 export const DisciplineEditPage = () => {
   const navigate = useNavigate();
@@ -26,11 +26,14 @@ export const DisciplineEditPage = () => {
   const [liveValues, setLiveValues] = useState<DisciplineFormValues | null>(null);
   const [lastSavedPayload, setLastSavedPayload] = useState('');
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [componentMetadata, setComponentMetadata] = useState<ComponentMetadata | null>(null);
 
   const code = useMemo(() => componentCode?.toUpperCase() || '', [componentCode]);
   const initialFormValues = useMemo(
-    () => getDisciplineFormInitialValues(draft || undefined),
-    [draft]
+    () => getDisciplineFormInitialValues(draft || undefined, {
+      modality: componentMetadata?.defaults.modality,
+    }),
+    [componentMetadata, draft]
   );
 
   const loadDraft = async () => {
@@ -39,10 +42,11 @@ export const DisciplineEditPage = () => {
       return;
     }
 
-    const [currentDraft, componentsResult, draftsResult] = await Promise.all([
+    const [currentDraft, componentsResult, draftsResult, metadata] = await Promise.all([
       getComponentDraftByCode(code),
       getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
       getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+      getComponentMetadata().catch(() => null),
     ]);
 
     const mapped = new Map<string, { code: string; name: string }>();
@@ -63,8 +67,11 @@ export const DisciplineEditPage = () => {
     });
 
     setDraft(currentDraft);
-    setLastSavedPayload(JSON.stringify(toDraftPayload(getDisciplineFormInitialValues(currentDraft))));
+    setLastSavedPayload(JSON.stringify(toDraftPayload(getDisciplineFormInitialValues(currentDraft, {
+      modality: metadata?.defaults.modality,
+    }))));
     setAvailablePrerequisites(Array.from(mapped.values()));
+    setComponentMetadata(metadata);
 
   };
 
@@ -220,6 +227,7 @@ export const DisciplineEditPage = () => {
         saving={saving}
         error={error?.message || ''}
         availablePrerequisites={availablePrerequisites}
+        modalityOptions={componentMetadata?.modalities}
         onCancel={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
         onSave={handleSave}
         onSaveAndPublish={handleSaveAndPublish}

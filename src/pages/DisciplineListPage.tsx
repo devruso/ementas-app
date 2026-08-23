@@ -4,9 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
-import { getComponents } from '../lib/api';
+import { getComponentMetadata, getComponents } from '../lib/api';
 import { AppError } from '../lib/errors';
-import type { Component, ListData, ListFilter } from '../types';
+import type { AcademicLevel, Component, ComponentMetadata, CourseCatalogOption, DomainOption, ListData, ListFilter } from '../types';
 
 const initialFilter: ListFilter = {
   page: 0,
@@ -17,33 +17,13 @@ const initialFilter: ListFilter = {
 
 const pageSizeOptions = [20, 50, 100] as const;
 const COURSE_ALL = '__all__';
-const MECHATRONICS_GRADUATE_PROGRAM = 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Mecatr\u00f4nica';
-const MULTIDISCIPLINARY_COMPUTING_PROGRAM = 'Programa Multidisciplinar em Ci\u00eancia da Computa\u00e7\u00e3o';
-
-const courseOptions = [
-  'Bacharelado em Ci\u00eancia da Computa\u00e7\u00e3o',
-  'Bacharelado em Sistemas de Informa\u00e7\u00e3o',
-  'Licenciatura em Computa\u00e7\u00e3o',
-  'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
-  MECHATRONICS_GRADUATE_PROGRAM,
-] as const;
 
 const parseCourseFilter = (value: string | null) => {
   if (!value || value === COURSE_ALL) {
     return COURSE_ALL;
   }
 
-  const normalizedValue = normalizeText(value);
-
-  if (
-    normalizedValue === MULTIDISCIPLINARY_COMPUTING_PROGRAM ||
-    /^programa\s+de\s+p[o\u00f3]s-gradua[c\u00e7][a\u00e3]o\s+em\s+mecatr[o\u00f4]nica$/i.test(normalizedValue) ||
-    /^pmcc$/i.test(normalizedValue)
-  ) {
-    return MECHATRONICS_GRADUATE_PROGRAM;
-  }
-
-  return String(value || '').trim();
+  return String(value).trim();
 };
 
 const parsePositiveInt = (value: string | null, fallback: number) => {
@@ -95,64 +75,46 @@ const isGenericGraduateProgram = (value?: string) => {
   ) && !/\b(?:mestrado|doutorado)\b/i.test(normalized);
 };
 
-const formatAcademicLevelLabel = (component: Component) => {
-  if (component.academicLevel === 'graduacao') {
-    return 'Graduacao';
-  }
-
+const formatAcademicLevelLabel = (component: Component, options: DomainOption<AcademicLevel>[]) => {
   const sourceProgram = component.departmentRef?.name || component.department;
 
   if (component.academicLevel === 'mestrado' && isGenericGraduateProgram(sourceProgram)) {
     return 'P\u00f3s-gradua\u00e7\u00e3o';
   }
 
-  if (component.academicLevel === 'mestrado') {
-    return 'Mestrado';
-  }
-
-  if (component.academicLevel === 'doutorado') {
-    return 'Doutorado';
-  }
-
-  return 'Nao informado';
+  return options.find((option) => option.value === component.academicLevel)?.label || 'Não informado';
 };
 
 const formatSemesterLabel = (value?: string) => {
   const normalized = normalizeText(value);
-  return normalized || 'Nao informado';
+  return normalized || 'Não informado';
 };
 
-const formatCourseDisplay = (value?: string) => {
+const normalizeCatalogValue = (value?: string) => normalizeText(value)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toUpperCase();
+
+const resolveCourseOption = (value: string | undefined, options: CourseCatalogOption[]) => {
+  const normalized = normalizeCatalogValue(value);
+
+  return options.find((option) => [option.value, ...option.aliases]
+    .some((candidate) => normalizeCatalogValue(candidate) === normalized));
+};
+
+const formatCourseDisplay = (value: string | undefined, options: CourseCatalogOption[]) => {
   const normalized = normalizeText(value);
 
   if (!normalized) {
     return {
       eyebrow: 'Curso',
-      value: 'Nao informado',
-    };
-  }
-
-  if (/^programa sigaa$/i.test(normalized)) {
-    return {
-      eyebrow: 'Curso',
-      value: 'Programa de P\u00f3s-Gradua\u00e7\u00e3o em Ci\u00eancia da Computa\u00e7\u00e3o',
-    };
-  }
-
-  if (
-    normalized === MULTIDISCIPLINARY_COMPUTING_PROGRAM ||
-    /^programa\s+de\s+p[o\u00f3]s-gradua[c\u00e7][a\u00e3]o\s+em\s+mecatr[o\u00f4]nica$/i.test(normalized) ||
-    /^pmcc$/i.test(normalized)
-  ) {
-    return {
-      eyebrow: 'Curso',
-      value: MECHATRONICS_GRADUATE_PROGRAM,
+      value: 'Não informado',
     };
   }
 
   return {
     eyebrow: 'Curso',
-    value: normalized,
+    value: resolveCourseOption(normalized, options)?.label || normalized,
   };
 };
 
@@ -160,7 +122,7 @@ const formatSummary = (component: Component) => {
   const rawSummary = normalizeText(component.syllabus || component.program);
 
   if (!rawSummary) {
-    return 'Resumo academico indisponivel na fonte publica.';
+    return 'Resumo acadêmico indisponível na fonte pública.';
   }
 
   const cleanedSummary = rawSummary
@@ -171,10 +133,10 @@ const formatSummary = (component: Component) => {
 
   if (
     !cleanedSummary ||
-    /nao informado pela fonte/i.test(cleanedSummary) ||
-    /nao disponivel/i.test(cleanedSummary)
+    /n[aã]o informado pela fonte/i.test(cleanedSummary) ||
+    /n[aã]o dispon[ií]vel/i.test(cleanedSummary)
   ) {
-    return 'Resumo academico indisponivel na fonte publica.';
+    return 'Resumo acadêmico indisponível na fonte pública.';
   }
 
   return cleanedSummary;
@@ -204,7 +166,7 @@ type SortOption = {
 
 const sortOptions: SortOption[] = [
   { key: 'name', label: 'Disciplina' },
-  { key: 'code', label: 'Codigo' },
+  { key: 'code', label: 'Código' },
   { key: 'department', label: 'Curso' },
 ];
 
@@ -224,6 +186,7 @@ export const DisciplineListPage = () => {
   const [courseFilter, setCourseFilter] = useState(initialCourse);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [componentMetadata, setComponentMetadata] = useState<ComponentMetadata | null>(null);
   const [filter, setFilter] = useState<ListFilter>({
     ...initialFilter,
     page: initialPage,
@@ -236,6 +199,23 @@ export const DisciplineListPage = () => {
     results: [],
     total: 0,
   });
+
+  useEffect(() => {
+    getComponentMetadata()
+      .then(setComponentMetadata)
+      .catch(() => setComponentMetadata(null));
+  }, []);
+
+  useEffect(() => {
+    if (!componentMetadata || courseFilter === COURSE_ALL) {
+      return;
+    }
+
+    const canonicalCourse = resolveCourseOption(courseFilter, componentMetadata.courses)?.value;
+    if (canonicalCourse && canonicalCourse !== courseFilter) {
+      setCourseFilter(canonicalCourse);
+    }
+  }, [componentMetadata, courseFilter]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -256,7 +236,7 @@ export const DisciplineListPage = () => {
       .then(setComponents)
       .catch((err) => {
         const appError = err as AppError;
-        setErrorMessage(appError.message || 'Nao foi possivel carregar as disciplinas agora.');
+        setErrorMessage(appError.message || 'Não foi possível carregar as disciplinas agora.');
       })
       .finally(() => setLoading(false));
   }, [filter, academicLevelFilter, courseFilter]);
@@ -435,9 +415,9 @@ export const DisciplineListPage = () => {
   );
 
   const renderDisciplineRow = (component: Component) => {
-    const course = formatCourseDisplay(component.departmentRef?.name || component.department);
+    const course = formatCourseDisplay(component.departmentRef?.name || component.department, componentMetadata?.courses || []);
     const summary = formatSummary(component);
-    const academicLevelLabel = formatAcademicLevelLabel(component);
+    const academicLevelLabel = formatAcademicLevelLabel(component, componentMetadata?.academicLevels || []);
     const semesterLabel = formatSemesterLabel(component.semester);
     const levelAccentClass = getLevelAccentClass(component.academicLevel);
 
@@ -521,8 +501,8 @@ export const DisciplineListPage = () => {
           <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_420px]">
             <SearchBar
               value={search}
-              label="Buscar por codigo ou nome"
-              placeholder="Ex.: IC0009 ou topicos em computacao"
+              label="Buscar por código ou nome"
+              placeholder="Ex.: IC0009 ou tópicos em computação"
               autoFocus
               onChange={setSearch}
             />
@@ -536,12 +516,12 @@ export const DisciplineListPage = () => {
               }}
             >
               <option value={COURSE_ALL}>Todos os cursos</option>
-              {courseFilter !== COURSE_ALL && !courseOptions.includes(courseFilter as typeof courseOptions[number]) ? (
-                <option value={courseFilter}>Curso selecionado</option>
+              {courseFilter !== COURSE_ALL && !componentMetadata?.courses.some((course) => course.value === courseFilter) ? (
+                <option value={courseFilter}>{courseFilter}</option>
               ) : null}
-              {courseOptions.map((courseName) => (
-                <option key={courseName} value={courseName}>
-                  {courseName}
+              {componentMetadata?.courses.map((course) => (
+                <option key={course.key} value={course.value}>
+                  {course.label}
                 </option>
               ))}
             </SelectField>
@@ -550,9 +530,7 @@ export const DisciplineListPage = () => {
           <div className="mt-4 flex flex-wrap gap-2">
             {[
               { value: 'all', label: 'Todos' },
-              { value: 'graduacao', label: 'Graduacao' },
-              { value: 'mestrado', label: 'Mestrado' },
-              { value: 'doutorado', label: 'Doutorado' },
+              ...(componentMetadata?.academicLevels || []),
             ].map((item) => (
               <button
                 key={item.value}

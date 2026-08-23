@@ -1,9 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createComponentDraft,
+  getComponentMetadata,
   getComponentDrafts,
   getComponents,
   importComponentsFromSiac,
@@ -28,6 +29,7 @@ vi.mock('../lib/api', async () => {
   return {
     ...actual,
     createComponentDraft: vi.fn(),
+    getComponentMetadata: vi.fn(),
     getComponents: vi.fn(),
     getComponentDrafts: vi.fn(),
     importComponentsFromSiac: vi.fn(),
@@ -36,12 +38,30 @@ vi.mock('../lib/api', async () => {
 });
 
 const mockedCreateComponentDraft = vi.mocked(createComponentDraft);
+const mockedGetComponentMetadata = vi.mocked(getComponentMetadata);
 const mockedGetComponents = vi.mocked(getComponents);
 const mockedGetComponentDrafts = vi.mocked(getComponentDrafts);
 const mockedImportComponentsFromSiac = vi.mocked(importComponentsFromSiac);
 const mockedImportComponentsFromSigaaPublic = vi.mocked(importComponentsFromSigaaPublic);
 
 describe('DisciplineCreatePage', () => {
+  beforeEach(() => {
+    mockedGetComponentMetadata.mockResolvedValue({
+      defaults: { modality: 'DISCIPLINA', academicLevel: 'graduacao' },
+      modalities: [{ value: 'DISCIPLINA', label: 'Disciplina' }],
+      academicLevels: [
+        { value: 'graduacao', label: 'Graduação', sigaaSourceId: '1114' },
+        { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '1820' },
+        { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '43753' },
+      ],
+      sigaaSourceTypes: [
+        { value: 'department', label: 'Departamento' },
+        { value: 'program', label: 'Programa' },
+      ],
+      courses: [],
+    });
+  });
+
   it('deve criar disciplina e navegar para edição do rascunho', async () => {
     mockedGetComponents.mockResolvedValueOnce({
       total: 0,
@@ -60,7 +80,7 @@ describe('DisciplineCreatePage', () => {
 
     render(<DisciplineCreatePage />);
 
-    await userEvent.type(screen.getByLabelText('Codigo'), 'IC045');
+    await userEvent.type(screen.getByLabelText('Código'), 'IC045');
     await userEvent.type(screen.getByLabelText('Nome'), 'Compiladores');
     await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
@@ -71,6 +91,7 @@ describe('DisciplineCreatePage', () => {
     expect(mockedCreateComponentDraft.mock.calls[0][0]).toMatchObject({
       code: 'IC045',
       name: 'Compiladores',
+      modality: 'DISCIPLINA',
     });
 
     expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045/editar', { replace: true });
@@ -107,6 +128,8 @@ describe('DisciplineCreatePage', () => {
     });
 
     render(<DisciplineCreatePage />);
+
+    expect(await screen.findByPlaceholderText('Ex: 43753')).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText('Código do curso'), '112140');
     await userEvent.type(screen.getByPlaceholderText('Ex: 20261'), '20261');

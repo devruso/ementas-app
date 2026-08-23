@@ -80,6 +80,35 @@ export interface User {
   updatedAt?: string;
 }
 
+export type AcademicLevel = 'graduacao' | 'mestrado' | 'doutorado';
+
+export interface DomainOption<TValue extends string = string> {
+  value: TValue;
+  label: string;
+}
+
+export interface CourseCatalogOption extends DomainOption {
+  key: string;
+  aliases: string[];
+}
+
+export type SigaaSourceType = 'department' | 'program';
+
+export interface AcademicLevelOption extends DomainOption<AcademicLevel> {
+  sigaaSourceId: string;
+}
+
+export interface ComponentMetadata {
+  defaults: {
+    modality: string;
+    academicLevel: AcademicLevel;
+  };
+  modalities: DomainOption[];
+  academicLevels: AcademicLevelOption[];
+  sigaaSourceTypes: DomainOption<SigaaSourceType>[];
+  courses: CourseCatalogOption[];
+}
+
 export interface PublicShare {
   id: string;
   token: string;

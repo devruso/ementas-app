@@ -45,6 +45,32 @@ const baseValues = {
 };
 
 describe('DisciplineEditorForm publish validation', () => {
+  it('deve usar opções acadêmicas para modalidade sem descartar valores legados', async () => {
+    render(
+      <DisciplineEditorForm
+        initialValues={{ ...baseValues, modality: 'Presencial' }}
+        saving={false}
+        modalityOptions={[
+          { value: 'DISCIPLINA', label: 'Disciplina' },
+          { value: 'ATIVIDADE', label: 'Atividade' },
+          { value: 'MODULO', label: 'Módulo' },
+        ]}
+        onCancel={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    const modality = screen.getByRole('combobox', { name: 'Modalidade' });
+    expect(modality).toHaveValue('Presencial');
+    expect(screen.getByRole('option', { name: 'Disciplina' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Atividade' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Módulo' })).toBeInTheDocument();
+
+    await userEvent.selectOptions(modality, 'ATIVIDADE');
+    expect(modality).toHaveValue('ATIVIDADE');
+  });
+
   it('deve bloquear publicação quando campos obrigatórios do template estiverem vazios', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onSaveAndPublish = vi.fn().mockResolvedValue(undefined);

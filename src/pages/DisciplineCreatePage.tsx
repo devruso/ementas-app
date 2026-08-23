@@ -5,6 +5,7 @@ import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { DocumentImportCard } from '../components/DocumentImportCard';
 import {
   createComponentDraft,
+  getComponentMetadata,
   getComponentDrafts,
   getComponents,
   importComponentsFromSiac,
@@ -12,7 +13,7 @@ import {
 } from '../lib/api';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
-import type { Component, ImportComponentsSummary } from '../types';
+import type { Component, ComponentMetadata, ImportComponentsSummary, SigaaSourceType } from '../types';
 
 export const DisciplineCreatePage = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export const DisciplineCreatePage = () => {
   const [importingSigaa, setImportingSigaa] = useState(false);
   const [courseCode, setCourseCode] = useState('');
   const [semester, setSemester] = useState('');
-  const [sigaaSourceType, setSigaaSourceType] = useState<'department' | 'program'>('department');
+  const [sigaaSourceType, setSigaaSourceType] = useState<SigaaSourceType>('department');
   const [sigaaSourceId, setSigaaSourceId] = useState('');
   const [sigaaAcademicLevel, setSigaaAcademicLevel] = useState<'graduacao' | 'mestrado' | 'doutorado' | 'all'>('all');
   const [sigaaSourceIdsByLevel, setSigaaSourceIdsByLevel] = useState<{
@@ -35,11 +36,13 @@ export const DisciplineCreatePage = () => {
   const [sigaaSummary, setSigaaSummary] = useState<ImportComponentsSummary | null>(null);
   const [error, setError] = useState('');
   const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
+  const [componentMetadata, setComponentMetadata] = useState<ComponentMetadata | null>(null);
 
   useEffect(() => {
     Promise.allSettled([
       getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
       getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
+      getComponentMetadata(),
     ])
       .then((results) => {
         const mapped = new Map<string, { code: string; name: string }>();
@@ -59,6 +62,14 @@ export const DisciplineCreatePage = () => {
         }
 
         setAvailablePrerequisites(Array.from(mapped.values()));
+
+        if (results[2].status === 'fulfilled') {
+          const metadata = results[2].value;
+          setComponentMetadata(metadata);
+          setInitialValues((current) => current.modality
+            ? current
+            : { ...current, modality: metadata.defaults.modality });
+        }
       })
       .catch(() => {
         setAvailablePrerequisites([]);
@@ -221,11 +232,12 @@ export const DisciplineCreatePage = () => {
             <span>Tipo de fonte</span>
             <select
               value={sigaaSourceType}
-              onChange={(event) => setSigaaSourceType(event.target.value as 'department' | 'program')}
+              onChange={(event) => setSigaaSourceType(event.target.value as SigaaSourceType)}
               className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
             >
-              <option value="department">Departamento</option>
-              <option value="program">Programa</option>
+              {componentMetadata?.sigaaSourceTypes.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </label>
 
@@ -234,7 +246,7 @@ export const DisciplineCreatePage = () => {
             <input
               value={sigaaSourceId}
               onChange={(event) => setSigaaSourceId(event.target.value)}
-              placeholder="Ex: 1114"
+              placeholder="Opcional; usa a configuração do servidor"
               className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
             />
           </label>
@@ -246,45 +258,30 @@ export const DisciplineCreatePage = () => {
               onChange={(event) => setSigaaAcademicLevel(event.target.value as 'graduacao' | 'mestrado' | 'doutorado' | 'all')}
               className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
             >
-              <option value="all">Todos (graduação, mestrado e doutorado)</option>
-              <option value="graduacao">Graduação</option>
-              <option value="mestrado">Mestrado</option>
-              <option value="doutorado">Doutorado</option>
+              <option value="all">Todos os níveis acadêmicos</option>
+              {componentMetadata?.academicLevels.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </label>
         </div>
 
         {sigaaAcademicLevel === 'all' ? (
           <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
-              <span>ID fonte para Graduação</span>
-              <input
-                value={sigaaSourceIdsByLevel.graduacao}
-                onChange={(event) => setSigaaSourceIdsByLevel((current) => ({ ...current, graduacao: event.target.value }))}
-                placeholder="Ex: 1114"
-                className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
-              />
-            </label>
-
-            <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
-              <span>ID fonte para Mestrado</span>
-              <input
-                value={sigaaSourceIdsByLevel.mestrado}
-                onChange={(event) => setSigaaSourceIdsByLevel((current) => ({ ...current, mestrado: event.target.value }))}
-                placeholder="Ex: 1820"
-                className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
-              />
-            </label>
-
-            <label className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
-              <span>ID fonte para Doutorado</span>
-              <input
-                value={sigaaSourceIdsByLevel.doutorado}
-                onChange={(event) => setSigaaSourceIdsByLevel((current) => ({ ...current, doutorado: event.target.value }))}
-                placeholder="Ex: 1821"
-                className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
-              />
-            </label>
+            {componentMetadata?.academicLevels.map((option) => (
+              <label key={option.value} className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
+                <span>ID fonte para {option.label}</span>
+                <input
+                  value={sigaaSourceIdsByLevel[option.value]}
+                  onChange={(event) => setSigaaSourceIdsByLevel((current) => ({
+                    ...current,
+                    [option.value]: event.target.value,
+                  }))}
+                  placeholder={option.sigaaSourceId ? `Ex: ${option.sigaaSourceId}` : undefined}
+                  className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
+                />
+              </label>
+            ))}
           </div>
         ) : null}
 
@@ -307,6 +304,7 @@ export const DisciplineCreatePage = () => {
         saving={saving}
         error={error}
         availablePrerequisites={availablePrerequisites}
+        modalityOptions={componentMetadata?.modalities}
         onCancel={() => navigate('/disciplinas')}
         onSave={handleCreate}
         onSaveAndPublish={handleCreate}
