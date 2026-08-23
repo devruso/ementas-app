@@ -98,7 +98,7 @@ export const InviteLinkCard = ({ inviteLink, feedback, error, onClear }: InviteL
         <div className="flex flex-1 flex-col justify-center py-7">
           <p className="text-base font-semibold text-ink">Nenhum convite gerado</p>
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted">
-            O link aparecerá neste espaço após a geração manual ou o envio por e-mail, sem alterar o restante da página.
+            O link aparecerá neste espaço após a geração manual ou o envio por e-mail.
           </p>
           {error ? <p className="mt-4 text-sm leading-6 text-danger" role="alert">{error}</p> : null}
         </div>
