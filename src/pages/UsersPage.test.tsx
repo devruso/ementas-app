@@ -68,10 +68,11 @@ describe('UsersPage', () => {
     render(<UsersPage />);
 
     expect(await screen.findByText('Professor Teste')).toBeInTheDocument();
+    expect(screen.getByText('Nenhum convite gerado')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Gerar convite' }));
 
-    expect(await screen.findByText('Convite gerado')).toBeInTheDocument();
+    expect(await screen.findByText('Convite pronto')).toBeInTheDocument();
     expect(screen.getByText(`${window.location.origin}/cadastrar/invite-token-123`)).toBeInTheDocument();
   });
 
@@ -96,7 +97,8 @@ describe('UsersPage', () => {
       expect(mockedSendInviteByEmail).toHaveBeenCalledWith('jamilsonj@ufba.br', window.location.origin);
     });
 
-    expect(await screen.findByText('Convite gerado')).toBeInTheDocument();
+    expect(await screen.findByText('Convite pronto')).toBeInTheDocument();
+    expect(screen.getByText(`${window.location.origin}/i/short123abc`)).toBeInTheDocument();
   });
 
   it('deve remover usuário após confirmação', async () => {

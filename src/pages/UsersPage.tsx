@@ -29,7 +29,9 @@ export const UsersPage = () => {
   const [updatingRoleUserId, setUpdatingRoleUserId] = useState('');
   const [removingUserId, setRemovingUserId] = useState('');
   const [roleDraftByUserId, setRoleDraftByUserId] = useState<Record<string, User['role']>>({});
-  const [inviteToken, setInviteToken] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteFeedback, setInviteFeedback] = useState('');
+  const [inviteError, setInviteError] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingInviteEmail, setSendingInviteEmail] = useState(false);
   const [teacherName, setTeacherName] = useState('');
@@ -84,12 +86,14 @@ export const UsersPage = () => {
   const handleGenerateInvite = async () => {
     try {
       setLoadingInvite(true);
-      setError('');
+      setInviteError('');
+      setInviteFeedback('');
       const token = await generateInvite();
-      setInviteToken(token);
+      setInviteLink(`${window.location.origin}/cadastrar/${token}`);
+      setInviteFeedback('Convite gerado e pronto para compartilhamento.');
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setInviteError(appError.message);
     } finally {
       setLoadingInvite(false);
     }
@@ -136,7 +140,9 @@ export const UsersPage = () => {
 
       setTeacherName('');
       setTeacherEmail('');
-      setInviteToken('');
+      setInviteLink('');
+      setInviteFeedback('');
+      setInviteError('');
 
       await loadUsers();
     } catch (err) {
@@ -151,31 +157,31 @@ export const UsersPage = () => {
     event.preventDefault();
 
     if (!isValidEmail(inviteEmail)) {
-      setSuccess('');
-      setError('Informe um e-mail institucional válido para envio do convite.');
+      setInviteFeedback('');
+      setInviteError('Informe um e-mail institucional válido para envio do convite.');
       return;
     }
 
     try {
       setSendingInviteEmail(true);
-      setError('');
-      setSuccess('');
+      setInviteError('');
+      setInviteFeedback('');
 
       const inviteDelivery = await sendInviteByEmail(inviteEmail.trim(), window.location.origin);
 
-      setInviteToken(inviteDelivery.token);
+      setInviteLink(inviteDelivery.inviteLink);
 
       if (inviteDelivery.emailDeliveryStatus === 'failed') {
-        setSuccess('Convite gerado, mas o envio por e-mail falhou. Compartilhe o link manualmente.');
-        setError(inviteDelivery.emailDeliveryError || 'Falha no envio de convite por e-mail.');
+        setInviteFeedback('Convite gerado. Como o envio falhou, compartilhe o link manualmente.');
+        setInviteError(inviteDelivery.emailDeliveryError || 'Falha no envio de convite por e-mail.');
       } else if (inviteDelivery.emailDeliveryStatus === 'mock') {
-        setSuccess('Convite gerado e enviado em modo simulado (MAILER_MOCK/fallback). Verifique o log da API para validar o conteúdo.');
+        setInviteFeedback('Convite gerado em modo simulado. Use o link para validar o acesso.');
       } else {
-        setSuccess(`Convite enviado com sucesso para ${inviteDelivery.email}.`);
+        setInviteFeedback(`Convite enviado com sucesso para ${inviteDelivery.email}.`);
       }
     } catch (err) {
       const appError = err as AppError;
-      setError(appError.message);
+      setInviteError(appError.message);
     } finally {
       setSendingInviteEmail(false);
     }
@@ -243,50 +249,58 @@ export const UsersPage = () => {
 
   return (
     <div className="space-y-6 motion-fade">
-      <section className="panel interactive-lift p-6 sm:p-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Usuários e convites</h1>
-            <p className="mt-2 text-sm leading-7 text-muted">Gerencie professores e administradores usando os endpoints já existentes do backend.</p>
+      <section className="panel interactive-lift p-5 sm:p-6 lg:p-8">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.72fr)] lg:items-stretch">
+          <div className="min-w-0">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Usuários e convites</h1>
+                <p className="mt-2 text-sm leading-7 text-muted">Gerencie os acessos da equipe e envie convites institucionais com segurança.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateInvite}
+                disabled={loadingInvite}
+                className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loadingInvite ? 'Gerando convite...' : 'Gerar convite'}
+              </button>
+            </div>
+
+            <form className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]" onSubmit={handleSendInviteByEmail}>
+              <FormField
+                label="Enviar convite para e-mail institucional"
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="jamilsonj@ufba.br"
+              />
+              <button
+                type="submit"
+                disabled={sendingInviteEmail}
+                className="inline-flex h-14 items-center justify-center self-end rounded-2xl border border-primary-200 bg-white px-5 py-3 font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sendingInviteEmail ? 'Enviando convite...' : 'Enviar convite por e-mail'}
+              </button>
+            </form>
+
+            <p className="mt-3 text-xs leading-5 text-muted">
+              O link também pode ser copiado e compartilhado manualmente quando necessário.
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={handleGenerateInvite}
-            disabled={loadingInvite}
-            className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingInvite ? 'Gerando convite...' : 'Gerar convite'}
-          </button>
-        </div>
 
-        <form className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]" onSubmit={handleSendInviteByEmail}>
-          <FormField
-            label="Enviar convite para e-mail institucional"
-            type="email"
-            value={inviteEmail}
-            onChange={(event) => setInviteEmail(event.target.value)}
-            placeholder="jamilsonj@ufba.br"
+          <InviteLinkCard
+            inviteLink={inviteLink}
+            feedback={inviteFeedback}
+            error={inviteError}
+            onClear={() => {
+              setInviteLink('');
+              setInviteFeedback('');
+              setInviteError('');
+            }}
           />
-          <button
-            type="submit"
-            disabled={sendingInviteEmail}
-            className="inline-flex h-14 items-center justify-center self-end rounded-2xl border border-primary-200 bg-white px-5 py-3 font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {sendingInviteEmail ? 'Enviando convite...' : 'Enviar convite por e-mail'}
-          </button>
-        </form>
-
-        <p className="mt-3 text-xs text-muted">
-          Dica: você pode usar seu próprio e-mail UFBA para validar o envio agora e depois repetir para o professor.
-        </p>
+        </div>
       </section>
-
-      {inviteToken ? (
-        <InviteLinkCard
-          inviteLink={`${window.location.origin}/cadastrar/${inviteToken}`}
-          onClose={() => setInviteToken('')}
-        />
-      ) : null}
 
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
         <h2 className="text-xl font-semibold text-ink">Criar professor sem sair do app</h2>
