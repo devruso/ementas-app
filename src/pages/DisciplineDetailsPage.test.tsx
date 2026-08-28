@@ -14,8 +14,6 @@ import {
   getComponents,
   getComponentLogs,
   getDraftPublicationContext,
-  revokeAllPublicShares,
-  revokePublicShare,
 } from '../lib/api';
 import { AppError } from '../lib/errors';
 import { DisciplineDetailsPage } from './DisciplineDetailsPage';
@@ -52,8 +50,6 @@ vi.mock('../lib/api', async () => {
     exportComponentDocx: vi.fn(),
     approveComponentDraft: vi.fn(),
     createPublicShare: vi.fn(),
-    revokePublicShare: vi.fn(),
-    revokeAllPublicShares: vi.fn(),
   };
 });
 
@@ -67,8 +63,7 @@ const mockedExportComponentPdf = vi.mocked(exportComponentPdf);
 const mockedExportComponentDocx = vi.mocked(exportComponentDocx);
 const mockedApproveComponentDraft = vi.mocked(approveComponentDraft);
 const mockedCreatePublicShare = vi.mocked(createPublicShare);
-const mockedRevokePublicShare = vi.mocked(revokePublicShare);
-const mockedRevokeAllPublicShares = vi.mocked(revokeAllPublicShares);
+const writeTextMock = vi.fn();
 
 describe('DisciplineDetailsPage', () => {
   beforeEach(() => {
@@ -98,6 +93,7 @@ describe('DisciplineDetailsPage', () => {
       name: 'Compiladores',
       department: 'DCC',
       semester: '2026.1',
+      academicLevel: 'graduacao',
       modality: 'Presencial',
       program: 'Conteúdo programático de teste',
       objective: 'Objetivos de teste',
@@ -173,8 +169,10 @@ describe('DisciplineDetailsPage', () => {
       expiresAt: '2026-05-04T12:00:00.000Z',
       publicLink: '/publico/disciplinas/token-2',
     });
-    mockedRevokePublicShare.mockResolvedValue();
-    mockedRevokeAllPublicShares.mockResolvedValue({ revokedCount: 1 });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: writeTextMock.mockResolvedValue(undefined) },
+    });
 
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -194,6 +192,9 @@ describe('DisciplineDetailsPage', () => {
 
     const editLink = await screen.findByRole('link', { name: 'Editar disciplina' });
     expect(editLink).toHaveAttribute('href', '/disciplinas/ic045/editar');
+    expect(screen.getByText('DCC')).toBeInTheDocument();
+    expect(screen.getByText('Graduação')).toBeInTheDocument();
+    expect(screen.getByText('MATA50 (pendente)')).toBeInTheDocument();
   });
 
   it('deve aprovar rascunho com data e número de ata', async () => {
@@ -314,50 +315,27 @@ describe('DisciplineDetailsPage', () => {
     });
   });
 
-  it('deve listar links públicos ativos e revogar um link', async () => {
-    mockedGetActivePublicShares
-      .mockResolvedValueOnce({
-        results: [
-          {
-            id: 'share-1',
-            token: 'token-1',
-            expiresAt: '2026-05-03T12:00:00.000Z',
-            publicLink: '/publico/disciplinas/token-1',
-            createdBy: 'u1',
-            createdByUser: {
-              id: 'u1',
-              name: 'Admin',
-              email: 'admin@test.com',
-            },
-          },
-        ],
-        total: 1,
-        meta: { page: 0, limit: 5, total: 1, totalPages: 1, sortBy: 'createdAt', sortOrder: 'DESC' },
-      })
-      .mockResolvedValueOnce({
-        results: [],
-        total: 0,
-        meta: { page: 0, limit: 5, total: 0, totalPages: 0, sortBy: 'createdAt', sortOrder: 'DESC' },
-      });
-
+  it('deve exibir somente o link público ativo mais recente', async () => {
     render(
       <MemoryRouter>
         <DisciplineDetailsPage />
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Links públicos ativos')).toBeInTheDocument();
-    expect(await screen.findByText(`${window.location.origin}/publico/disciplinas/token-1`)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Revogar link' }));
-
-    await waitFor(() => {
-      expect(mockedRevokePublicShare).toHaveBeenCalledWith('share-1');
+    const linkInput = await screen.findByLabelText('Link público ativo');
+    expect(linkInput).toHaveValue(`${window.location.origin}/publico/disciplinas/token-1`);
+    expect(mockedGetActivePublicShares).toHaveBeenCalledWith('component-1', {
+      page: 0,
+      limit: 1,
+      sortBy: 'createdAt',
+      sortOrder: 'DESC',
     });
+    expect(screen.queryByLabelText('Ordenar links por')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Filtrar links por criador')).not.toBeInTheDocument();
   });
 
-  it('deve revogar todos os links públicos ativos', async () => {
-    window.confirm = vi.fn(() => true);
+  it('deve gerar um link público de 24 horas e copiá-lo', async () => {
+    mockedGetActivePublicShares.mockResolvedValueOnce({ results: [], total: 0 });
 
     render(
       <MemoryRouter>
@@ -365,168 +343,18 @@ describe('DisciplineDetailsPage', () => {
       </MemoryRouter>
     );
 
-    await screen.findByText('Links públicos ativos');
-    await userEvent.click(screen.getByRole('button', { name: 'Revogar todos' }));
+    await screen.findByText('Compiladores draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar link público' }));
 
     await waitFor(() => {
-      expect(mockedRevokeAllPublicShares).toHaveBeenCalledWith('component-1');
-    });
-  });
-
-  it('deve filtrar links públicos por criador', async () => {
-    mockedGetActivePublicShares
-      .mockResolvedValueOnce({
-        results: [
-          {
-            id: 'share-1',
-            token: 'token-1',
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(),
-            publicLink: '/publico/disciplinas/token-1',
-            createdBy: 'u1',
-            createdByUser: {
-              id: 'u1',
-              name: 'Admin',
-              email: 'admin@test.com',
-            },
-          },
-          {
-            id: 'share-2',
-            token: 'token-2',
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 100).toISOString(),
-            publicLink: '/publico/disciplinas/token-2',
-            createdBy: 'u2',
-            createdByUser: {
-              id: 'u2',
-              name: 'Professor B',
-              email: 'profb@test.com',
-            },
-          },
-        ],
-        total: 2,
-        meta: { page: 0, limit: 5, total: 2, totalPages: 1, sortBy: 'createdAt', sortOrder: 'DESC' },
-      })
-      .mockResolvedValueOnce({
-        results: [
-          {
-            id: 'share-2',
-            token: 'token-2',
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 100).toISOString(),
-            publicLink: '/publico/disciplinas/token-2',
-            createdBy: 'u2',
-            createdByUser: {
-              id: 'u2',
-              name: 'Professor B',
-              email: 'profb@test.com',
-            },
-          },
-        ],
-        total: 1,
-        meta: { page: 0, limit: 5, total: 1, totalPages: 1, sortBy: 'createdAt', sortOrder: 'DESC' },
-      });
-
-    render(
-      <MemoryRouter>
-        <DisciplineDetailsPage />
-      </MemoryRouter>
-    );
-
-    await screen.findByText('Links públicos ativos');
-    expect(screen.getByText(`${window.location.origin}/publico/disciplinas/token-1`)).toBeInTheDocument();
-    expect(screen.getByText(`${window.location.origin}/publico/disciplinas/token-2`)).toBeInTheDocument();
-
-    await userEvent.selectOptions(screen.getByLabelText('Filtrar links por criador'), 'u2');
-
-    await waitFor(() => {
-      expect(screen.queryByText(`${window.location.origin}/publico/disciplinas/token-1`)).not.toBeInTheDocument();
-      expect(screen.getByText(`${window.location.origin}/publico/disciplinas/token-2`)).toBeInTheDocument();
+      expect(mockedCreatePublicShare).toHaveBeenCalledWith('component-1', 24);
     });
 
-    expect(mockedGetActivePublicShares).toHaveBeenLastCalledWith('component-1', expect.objectContaining({
-      creatorId: 'u2',
-    }));
-  });
+    const generatedLink = `${window.location.origin}/publico/disciplinas/token-2`;
+    expect(screen.getByLabelText('Link público ativo')).toHaveValue(generatedLink);
 
-  it('deve filtrar links públicos por faixa de expiração', async () => {
-    mockedGetActivePublicShares.mockResolvedValueOnce({
-      results: [
-        {
-          id: 'share-1',
-          token: 'token-1',
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(),
-          publicLink: '/publico/disciplinas/token-1',
-          createdBy: 'u1',
-          createdByUser: {
-            id: 'u1',
-            name: 'Admin',
-            email: 'admin@test.com',
-          },
-        },
-        {
-          id: 'share-2',
-          token: 'token-2',
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 80).toISOString(),
-          publicLink: '/publico/disciplinas/token-2',
-          createdBy: 'u2',
-          createdByUser: {
-            id: 'u2',
-            name: 'Professor B',
-            email: 'profb@test.com',
-          },
-        },
-      ],
-      total: 2,
-      meta: { page: 0, limit: 5, total: 2, totalPages: 1, sortBy: 'createdAt', sortOrder: 'DESC' },
-    });
-
-    render(
-      <MemoryRouter>
-        <DisciplineDetailsPage />
-      </MemoryRouter>
-    );
-
-    await screen.findByText('Links públicos ativos');
-    await userEvent.selectOptions(screen.getByLabelText('Filtrar links por expiração'), '24h');
-
-    await waitFor(() => {
-      expect(screen.getByText(`${window.location.origin}/publico/disciplinas/token-1`)).toBeInTheDocument();
-      expect(screen.queryByText(`${window.location.origin}/publico/disciplinas/token-2`)).not.toBeInTheDocument();
-    });
-  });
-
-  it('deve ordenar e paginar links públicos ativos', async () => {
-    mockedGetActivePublicShares.mockReset();
-    mockedGetActivePublicShares.mockResolvedValue({
-      results: [
-        {
-          id: 'share-1',
-          token: 'token-1',
-          expiresAt: '2026-05-05T10:00:00.000Z',
-          publicLink: '/publico/disciplinas/token-1',
-          createdBy: 'u1',
-          createdByUser: { id: 'u1', name: 'Admin', email: 'admin@test.com' },
-        },
-      ],
-      total: 8,
-      meta: { page: 0, limit: 5, total: 8, totalPages: 2, sortBy: 'createdAt', sortOrder: 'DESC' },
-    });
-
-    render(
-      <MemoryRouter>
-        <DisciplineDetailsPage />
-      </MemoryRouter>
-    );
-
-    await screen.findByText('Links públicos ativos');
-    await userEvent.selectOptions(screen.getByLabelText('Ordenar links por'), 'expiresAt');
-    await userEvent.selectOptions(screen.getByLabelText('Direção da ordenação de links'), 'ASC');
-
-    await waitFor(() => {
-      expect(mockedGetActivePublicShares).toHaveBeenCalledWith('component-1', expect.objectContaining({
-        sortBy: 'expiresAt',
-        sortOrder: 'ASC',
-      }));
-    });
-
-    expect(await screen.findByText('Página 1 de 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Copiar link público' }));
+    expect(writeTextMock).toHaveBeenCalledWith(generatedLink);
+    expect(screen.getByText('Link copiado.')).toBeInTheDocument();
   });
 });

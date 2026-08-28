@@ -52,7 +52,7 @@ export const WorkloadOverview = ({ workload }: WorkloadOverviewProps) => (
     <div className="grid min-w-0 gap-6 xl:grid-cols-3">
       {workloadGroups.map((group) => (
         <div key={group.title} className="panel min-w-0 p-5 sm:p-6">
-          <h3 className="mb-4 text-lg font-semibold text-ink">Carga horária {group.title}</h3>
+          <h3 className="mb-4 text-base font-semibold leading-tight text-ink xl:whitespace-nowrap">Carga horária {group.title}</h3>
           <dl className="grid gap-3 sm:grid-cols-2">
             {group.fields.map(([label, field]) => (
               <div key={field} className="rounded-2xl border border-transparent bg-background px-4 py-3 shadow-sm">

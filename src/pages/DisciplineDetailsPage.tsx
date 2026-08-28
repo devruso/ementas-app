@@ -1,4 +1,4 @@
-import { Download, Eye, FilePenLine, FileText, Home, Link2, ScrollText, Share2 } from 'lucide-react';
+import { Check, Copy, Download, Eye, FilePenLine, FileText, Home, ScrollText, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -17,13 +17,11 @@ import {
   getComponentLogs,
   getComponents,
   getDraftPublicationContext,
-  revokeAllPublicShares,
-  revokePublicShare,
 } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { AppError } from '../lib/errors';
 import { ApiErrorCode, isInvalidSessionError } from '../lib/apiErrorCatalog';
-import type { Component, ComponentLog, PublicationContext, PublicShare } from '../types';
+import type { Component, ComponentLog, PublicationContext } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
@@ -168,6 +166,12 @@ const formatModalityLabel = (value?: string) => {
   return normalized;
 };
 
+const academicLevelLabels: Record<NonNullable<Component['academicLevel']>, string> = {
+  graduacao: 'Graduação',
+  mestrado: 'Mestrado',
+  doutorado: 'Doutorado',
+};
+
 const hasMeaningfulDraftDifference = (component: Component) => {
   if (!component.draft) {
     return false;
@@ -202,37 +206,27 @@ export const DisciplineDetailsPage = () => {
   const [approvalPassword, setApprovalPassword] = useState('');
   const [showPublishedVersion, setShowPublishedVersion] = useState(false);
   const [creatingShare, setCreatingShare] = useState(false);
-  const [loadingActiveShares, setLoadingActiveShares] = useState(false);
-  const [revokingShareId, setRevokingShareId] = useState('');
-  const [revokingAllShares, setRevokingAllShares] = useState(false);
-  const [shareCreatorFilter, setShareCreatorFilter] = useState('all');
-  const [shareExpirationFilter, setShareExpirationFilter] = useState<'all' | '24h' | '72h' | '168h'>('all');
   const [publicShareLink, setPublicShareLink] = useState('');
   const [publicShareExpiresAt, setPublicShareExpiresAt] = useState('');
-  const [activeSharesPage, setActiveSharesPage] = useState(0);
-  const [activeSharesLimit] = useState(5);
-  const [activeSharesSortBy, setActiveSharesSortBy] = useState<'createdAt' | 'expiresAt' | 'createdBy'>('createdAt');
-  const [activeSharesSortOrder, setActiveSharesSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-  const [activeSharesTotalPages, setActiveSharesTotalPages] = useState(1);
-  const [activePublicShares, setActivePublicShares] = useState<PublicShare[]>([]);
+  const [publicShareCopied, setPublicShareCopied] = useState(false);
   const [component, setComponent] = useState<Component | null>(null);
   const [logs, setLogs] = useState<Component['logs']>([]);
   const [knownCodes, setKnownCodes] = useState<Set<string>>(new Set());
 
   const code = useMemo(() => params.componentCode?.toUpperCase() || '', [params.componentCode]);
 
-  const loadActiveShares = async (componentId: string) => {
+  const loadLatestActiveShare = async (componentId: string) => {
     const sharesResponse = await getActivePublicShares(componentId, {
-      page: activeSharesPage,
-      limit: activeSharesLimit,
-      sortBy: activeSharesSortBy,
-      sortOrder: activeSharesSortOrder,
-      creatorId: shareCreatorFilter === 'all' ? undefined : shareCreatorFilter,
-      expirationRange: shareExpirationFilter,
+      page: 0,
+      limit: 1,
+      sortBy: 'createdAt',
+      sortOrder: 'DESC',
     });
 
-    setActivePublicShares(sharesResponse.results);
-    setActiveSharesTotalPages(Math.max(sharesResponse.meta?.totalPages || 1, 1));
+    const latestShare = sharesResponse.results[0];
+    setPublicShareLink(latestShare ? `${window.location.origin}${latestShare.publicLink}` : '');
+    setPublicShareExpiresAt(latestShare ? formatDate(latestShare.expiresAt) : '');
+    setPublicShareCopied(false);
   };
 
   const loadComponent = async () => {
@@ -268,32 +262,32 @@ export const DisciplineDetailsPage = () => {
     setComponent(currentComponent);
 
     if (auth.isAuthenticated && currentComponent.id) {
-      setLoadingActiveShares(true);
-
       try {
-        const logResponse = await getComponentLogs(currentComponent.id, {
-          page: 0,
-          limit: 10,
-          sortBy: 'createdAt',
-          sortOrder: 'DESC',
-        });
+        const [logResponse] = await Promise.all([
+          getComponentLogs(currentComponent.id, {
+            page: 0,
+            limit: 10,
+            sortBy: 'createdAt',
+            sortOrder: 'DESC',
+          }),
+          loadLatestActiveShare(currentComponent.id),
+        ]);
 
         setLogs(logResponse.results);
-        await loadActiveShares(currentComponent.id);
       } catch (error) {
         if (isInvalidSessionError(error)) {
           auth.logout();
           setLogs(currentComponent.logs || []);
-          setActivePublicShares([]);
+          setPublicShareLink('');
+          setPublicShareExpiresAt('');
         } else {
           throw error;
         }
-      } finally {
-        setLoadingActiveShares(false);
       }
     } else {
       setLogs(currentComponent.logs || []);
-      setActivePublicShares([]);
+      setPublicShareLink('');
+      setPublicShareExpiresAt('');
     }
   };
 
@@ -311,17 +305,7 @@ export const DisciplineDetailsPage = () => {
         setErrorMessage(appError.message || 'Falha ao carregar disciplina.');
       })
       .finally(() => setLoading(false));
-  }, [
-    code,
-    navigate,
-    auth.isAuthenticated,
-    activeSharesPage,
-    activeSharesLimit,
-    activeSharesSortBy,
-    activeSharesSortOrder,
-    shareCreatorFilter,
-    shareExpirationFilter,
-  ]);
+  }, [code, navigate, auth.isAuthenticated]);
 
   const handleExport = async () => {
     if (!component?.id) {
@@ -420,33 +404,14 @@ export const DisciplineDetailsPage = () => {
       return;
     }
 
-    const informedHours = window.prompt('Informe por quantas horas o link ficará ativo (1 a 168):', '24');
-
-    if (!informedHours) {
-      return;
-    }
-
-    const expiresInHours = Number(informedHours);
-
-    if (!Number.isFinite(expiresInHours) || expiresInHours < 1) {
-      setErrorMessage('Informe uma duração válida para o compartilhamento.');
-      return;
-    }
-
     try {
       setCreatingShare(true);
-      const share = await createPublicShare(component.id, expiresInHours);
+      setErrorMessage('');
+      const share = await createPublicShare(component.id, 24);
       const absoluteLink = `${window.location.origin}${share.publicLink}`;
       setPublicShareLink(absoluteLink);
       setPublicShareExpiresAt(formatDate(share.expiresAt));
-      setActiveSharesPage(0);
-      await loadActiveShares(component.id);
-
-      try {
-        await navigator.clipboard.writeText(absoluteLink);
-      } catch {
-        // Clipboard can be unavailable in insecure contexts; keep showing the generated link.
-      }
+      setPublicShareCopied(false);
     } catch (err) {
       const appError = err as AppError;
       setErrorMessage(appError.message || 'Não foi possível criar o link público temporário.');
@@ -455,73 +420,19 @@ export const DisciplineDetailsPage = () => {
     }
   };
 
-  const handleRevokeShare = async (shareId: string) => {
-    if (!component?.id) {
+  const handleCopyPublicShare = async () => {
+    if (!publicShareLink) {
       return;
     }
 
     try {
-      setRevokingShareId(shareId);
       setErrorMessage('');
-      await revokePublicShare(shareId);
-      await loadActiveShares(component.id);
-    } catch (err) {
-      const appError = err as AppError;
-      setErrorMessage(appError.message || 'Não foi possível revogar o link público.');
-    } finally {
-      setRevokingShareId('');
+      await navigator.clipboard.writeText(publicShareLink);
+      setPublicShareCopied(true);
+    } catch {
+      setErrorMessage('Não foi possível copiar o link. Selecione o endereço e copie manualmente.');
     }
   };
-
-  const handleRevokeAllShares = async () => {
-    if (!component?.id) {
-      return;
-    }
-
-    const confirmed = window.confirm('Deseja revogar todos os links públicos ativos desta disciplina?');
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setRevokingAllShares(true);
-      setErrorMessage('');
-      await revokeAllPublicShares(component.id);
-      setActivePublicShares([]);
-      setActiveSharesTotalPages(1);
-      setPublicShareLink('');
-      setPublicShareExpiresAt('');
-    } catch (err) {
-      const appError = err as AppError;
-      setErrorMessage(appError.message || 'Não foi possível revogar os links públicos.');
-    } finally {
-      setRevokingAllShares(false);
-    }
-  };
-
-  const shareCreatorOptions = useMemo(() => {
-    const known = new Set<string>();
-
-    return activePublicShares
-      .filter((share) => share.createdByUser?.id && share.createdByUser?.name)
-      .filter((share) => {
-        const creatorId = String(share.createdByUser?.id);
-
-        if (known.has(creatorId)) {
-          return false;
-        }
-
-        known.add(creatorId);
-        return true;
-      })
-      .map((share) => ({
-        id: String(share.createdByUser?.id),
-        name: String(share.createdByUser?.name),
-      }));
-  }, [activePublicShares]);
-
-  const filteredActivePublicShares = useMemo(() => activePublicShares, [activePublicShares]);
 
   if (loading) {
     return <div className="panel p-10 text-center text-sm text-muted">Carregando disciplina...</div>;
@@ -545,7 +456,13 @@ export const DisciplineDetailsPage = () => {
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
   const hasDraftVersion = auth.isAuthenticated && hasMeaningfulDraftDifference(component);
   const showingDraft = hasDraftVersion && !showPublishedVersion;
-  const activeComponent = showingDraft && component.draft ? component.draft : component;
+  const activeComponent = showingDraft && component.draft
+    ? {
+        ...component,
+        ...component.draft,
+        workload: component.draft.workload || component.workload,
+      }
+    : component;
   const displaySyllabus = sanitizeAcademicText(activeComponent.syllabus);
   const displayProgram = sanitizeAcademicText(activeComponent.program);
   const displayObjective = sanitizeAcademicText(activeComponent.objective);
@@ -553,7 +470,8 @@ export const DisciplineDetailsPage = () => {
   const displayLearningAssessment = sanitizeAcademicText(activeComponent.learningAssessment);
   const displayBibliography = sanitizeAcademicText(activeComponent.bibliography);
   const references = splitReferences(displayBibliography, activeComponent.referencesBasic, activeComponent.referencesComplementary);
-  const visibleLogs = auth.isAuthenticated ? logs || [] : component.logs || [];
+  const visibleApprovalLogs = (auth.isAuthenticated ? logs || [] : component.logs || [])
+    .filter((log) => log.type === 'approval');
   const normalizedPrerequeriments = activeComponent.prerequeriments?.trim().toUpperCase() || '';
   const isNotApplicable = ['NAO_SE_APLICA', 'N/A', 'NÃO SE APLICA', 'NAO SE APLICA'].includes(normalizedPrerequeriments);
   const prerequerimentCodes = Array.from(
@@ -568,6 +486,8 @@ export const DisciplineDetailsPage = () => {
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <main className="min-w-0 space-y-6">
         <section className="panel overflow-hidden p-6">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] lg:items-start">
+            <div className="min-w-0">
             <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
               {activeComponent.code}
             </div>
@@ -575,26 +495,38 @@ export const DisciplineDetailsPage = () => {
             <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
               {displaySyllabus || displayProgram || 'Disciplina sem resumo público informado.'}
             </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Curso: {activeComponent.department || 'Não informado'}
-              </span>
-              <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Semestre: {activeComponent.semester || 'Não informado'}
-              </span>
-              <span className="rounded-full border border-line bg-slate-50 px-4 py-2 text-sm">
-                Modalidade: {formatModalityLabel(activeComponent.modality)}
-              </span>
             </div>
-            <div className="mt-5 text-sm text-ink/80">
-              <strong>Pré-requisitos:</strong>
+
+            <dl className="min-w-0 space-y-3 rounded-lg border border-line bg-slate-50 p-4 text-sm">
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted">Curso</dt>
+                <dd className="mt-1 break-words font-medium text-ink">{activeComponent.department || 'Não informado'}</dd>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-muted">Semestre</dt>
+                  <dd className="mt-1 font-medium text-ink">{activeComponent.semester || 'Não informado'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-muted">Nível</dt>
+                  <dd className="mt-1 font-medium text-ink">
+                    {activeComponent.academicLevel ? academicLevelLabels[activeComponent.academicLevel] : 'Não informado'}
+                  </dd>
+                </div>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted">Modalidade</dt>
+                <dd className="mt-1 font-medium text-ink">{formatModalityLabel(activeComponent.modality)}</dd>
+              </div>
+              <div className="border-t border-line pt-3">
+              <dt className="text-xs font-semibold uppercase text-muted">Pré-requisitos</dt>
+              <dd className="mt-2 text-ink/80">
               {isNotApplicable ? (
-                <span className="ml-2 inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                <span className="inline-flex rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
                   Não se aplica
                 </span>
               ) : prerequerimentStatus.length > 0 ? (
-                <span className="ml-2 inline-flex flex-wrap gap-2 align-middle">
+                <span className="inline-flex flex-wrap gap-2 align-middle">
                   {prerequerimentStatus.map((item) => (
                     <span
                       key={item.code}
@@ -607,9 +539,12 @@ export const DisciplineDetailsPage = () => {
                   ))}
                 </span>
               ) : (
-                <span className="ml-2">{activeComponent.prerequeriments || 'Não informado'}</span>
+                <span>{activeComponent.prerequeriments || 'Não informado'}</span>
               )}
-            </div>
+              </dd>
+              </div>
+            </dl>
+          </div>
         </section>
 
         <SectionCard title="Ementa">{displaySyllabus || 'Não informada.'}</SectionCard>
@@ -624,11 +559,10 @@ export const DisciplineDetailsPage = () => {
 
         <WorkloadOverview workload={activeComponent.workload} />
 
-        {(visibleLogs?.length ?? 0) > 0 ? (
+        {visibleApprovalLogs.length > 0 ? (
           <SectionCard title="Últimas publicações">
             <div className="space-y-4">
-              {visibleLogs
-                ?.filter((log) => log.type === 'approval')
+              {visibleApprovalLogs
                 .slice(0, 5)
                 .map((log) => (
                   <div key={log.id} className="rounded-2xl border border-line bg-slate-50 p-4 text-sm">
@@ -693,8 +627,37 @@ export const DisciplineDetailsPage = () => {
                   className="inline-flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Share2 className="h-4 w-4" />
-                  {creatingShare ? 'Gerando link...' : 'Compartilhar temporariamente'}
+                  {creatingShare ? 'Gerando link...' : 'Gerar link público'}
                 </button>
+
+                {publicShareLink ? (
+                  <div className="rounded-lg border border-primary-200 bg-primary-50 p-3">
+                    <label htmlFor="public-share-link" className="text-xs font-semibold text-primary-800">
+                      Link público ativo
+                    </label>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                      <input
+                        id="public-share-link"
+                        value={publicShareLink}
+                        readOnly
+                        onFocus={(event) => event.currentTarget.select()}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-primary-200 bg-white px-3 text-xs text-primary-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyPublicShare}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary-200 bg-white text-primary-700 transition hover:bg-primary-100"
+                        aria-label="Copiar link público"
+                        title="Copiar link público"
+                      >
+                        {publicShareCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-primary-700">
+                      {publicShareCopied ? 'Link copiado.' : `Disponível até ${publicShareExpiresAt}.`}
+                    </p>
+                  </div>
+                ) : null}
               </>
             ) : null}
 
@@ -728,17 +691,6 @@ export const DisciplineDetailsPage = () => {
           </div>
         </section>
 
-        {publicShareLink ? (
-          <section className="panel border-primary-200 bg-primary-50 p-4 text-sm text-primary-700">
-            <div className="mb-2 flex items-center gap-2 font-semibold">
-              <Link2 className="h-4 w-4" /> Link público criado
-            </div>
-            <p>Copiado para a área de transferência.</p>
-            <p className="mt-1">Expira em: {publicShareExpiresAt || 'Data não informada'}</p>
-            <p className="mt-2 break-all text-xs">{publicShareLink}</p>
-          </section>
-        ) : null}
-
         <section className="panel p-4 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Publicação oficial</h2>
           <dl className="mt-3 space-y-2 text-xs text-ink/75">
@@ -757,146 +709,6 @@ export const DisciplineDetailsPage = () => {
           </dl>
         </section>
 
-        {auth.isAuthenticated ? (
-          <section className="panel p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold text-ink">Links públicos ativos</h2>
-                  <button
-                    type="button"
-                    onClick={handleRevokeAllShares}
-                    disabled={revokingAllShares || activePublicShares.length === 0}
-                    className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-danger transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {revokingAllShares ? 'Revogando...' : 'Revogar todos'}
-                  </button>
-                </div>
-
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
-                    Ordenar por
-                    <select
-                      aria-label="Ordenar links por"
-                      value={activeSharesSortBy}
-                      onChange={(event) => {
-                        setActiveSharesPage(0);
-                        setActiveSharesSortBy(event.target.value as 'createdAt' | 'expiresAt' | 'createdBy');
-                      }}
-                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
-                    >
-                      <option value="createdAt">Data de criação</option>
-                      <option value="expiresAt">Data de expiração</option>
-                      <option value="createdBy">Criador</option>
-                    </select>
-                  </label>
-
-                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
-                    Direção
-                    <select
-                      aria-label="Direção da ordenação de links"
-                      value={activeSharesSortOrder}
-                      onChange={(event) => {
-                        setActiveSharesPage(0);
-                        setActiveSharesSortOrder(event.target.value as 'ASC' | 'DESC');
-                      }}
-                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
-                    >
-                      <option value="DESC">Decrescente</option>
-                      <option value="ASC">Crescente</option>
-                    </select>
-                  </label>
-
-                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
-                    Filtrar por criador
-                    <select
-                      aria-label="Filtrar links por criador"
-                      value={shareCreatorFilter}
-                      onChange={(event) => {
-                        setActiveSharesPage(0);
-                        setShareCreatorFilter(event.target.value);
-                      }}
-                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
-                    >
-                      <option value="all">Todos os criadores</option>
-                      {shareCreatorOptions.map((creator) => (
-                        <option key={creator.id} value={creator.id}>{creator.name}</option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">
-                    Filtrar por expiração
-                    <select
-                      aria-label="Filtrar links por expiração"
-                      value={shareExpirationFilter}
-                      onChange={(event) => {
-                        setActiveSharesPage(0);
-                        setShareExpirationFilter(event.target.value as 'all' | '24h' | '72h' | '168h');
-                      }}
-                      className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-normal text-ink"
-                    >
-                      <option value="all">Qualquer prazo</option>
-                      <option value="24h">Expira em até 24h</option>
-                      <option value="72h">Expira em até 72h</option>
-                      <option value="168h">Expira em até 7 dias</option>
-                    </select>
-                  </label>
-                </div>
-
-                {loadingActiveShares ? (
-                  <p className="mt-3 text-sm text-muted">Carregando links ativos...</p>
-                ) : filteredActivePublicShares.length === 0 ? (
-                  <p className="mt-3 text-sm text-muted">Nenhum link público ativo para esta disciplina.</p>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    {filteredActivePublicShares.map((share) => {
-                      const link = `${window.location.origin}${share.publicLink}`;
-
-                      return (
-                        <div key={share.id} className="rounded-xl border border-line bg-slate-50 px-3 py-3 text-xs sm:text-sm">
-                          <p className="break-all text-primary-700">{link}</p>
-                          <p className="mt-1 text-muted">Expira em: {formatDate(share.expiresAt)}</p>
-                          <p className="mt-1 text-muted">
-                            Criado por: {share.createdByUser?.name || 'Usuário não identificado'}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleRevokeShare(share.id)}
-                              disabled={revokingShareId === share.id}
-                              className="inline-flex items-center justify-center rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {revokingShareId === share.id ? 'Revogando...' : 'Revogar link'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="mt-3 flex items-center justify-between text-xs text-ink/70">
-                  <span>Página {activeSharesPage + 1} de {activeSharesTotalPages}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveSharesPage((current) => Math.max(0, current - 1))}
-                      disabled={activeSharesPage === 0 || loadingActiveShares}
-                      className="rounded-lg border border-line px-2 py-1 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Anterior
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveSharesPage((current) => Math.min(activeSharesTotalPages - 1, current + 1))}
-                      disabled={activeSharesPage + 1 >= activeSharesTotalPages || loadingActiveShares}
-                      className="rounded-lg border border-line px-2 py-1 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Próxima
-                    </button>
-                  </div>
-                </div>
-          </section>
-        ) : null}
       </aside>
 
       <ApproveDraftDialog
