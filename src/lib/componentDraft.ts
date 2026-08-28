@@ -1,4 +1,4 @@
-import type { ComponentDraft, WorkloadEntry } from '../types';
+import type { AcademicLevel, ComponentDraft, WorkloadEntry } from '../types';
 
 export interface WorkloadGroupFormValue {
   theory: number;
@@ -14,6 +14,7 @@ export interface DisciplineFormValues {
   name: string;
   department: string;
   semester: string;
+  academicLevel: AcademicLevel;
   modality: string;
   program: string;
   objective: string;
@@ -242,12 +243,13 @@ const toGroup = (
 
 export const getDisciplineFormInitialValues = (
   draft?: ComponentDraft,
-  defaults?: { modality?: string }
+  defaults?: { modality?: string; academicLevel?: AcademicLevel }
 ): DisciplineFormValues => ({
   code: cleanText(draft?.code),
   name: cleanText(draft?.name),
   department: cleanText(draft?.department),
   semester: cleanText(draft?.semester),
+  academicLevel: draft?.academicLevel || defaults?.academicLevel || 'graduacao',
   modality: cleanText(draft?.modality) || cleanText(defaults?.modality),
   program: cleanText(draft?.program),
   objective: cleanText(draft?.objective),
@@ -276,6 +278,7 @@ export const toDraftPayload = (values: DisciplineFormValues): Partial<ComponentD
   name: values.name.trim(),
   department: values.department.trim(),
   semester: values.semester.trim(),
+  academicLevel: values.academicLevel,
   modality: values.modality.trim(),
   program: values.program.trim(),
   objective: values.objective.trim(),

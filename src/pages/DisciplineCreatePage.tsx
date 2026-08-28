@@ -305,6 +305,7 @@ export const DisciplineCreatePage = () => {
         error={error}
         availablePrerequisites={availablePrerequisites}
         modalityOptions={componentMetadata?.modalities}
+        academicLevelOptions={componentMetadata?.academicLevels}
         onCancel={() => navigate('/disciplinas')}
         onSave={handleCreate}
         onSaveAndPublish={handleCreate}

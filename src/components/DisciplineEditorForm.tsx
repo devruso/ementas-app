@@ -5,7 +5,7 @@ import {
   DisciplineFormValues,
   hasNonWebReferenceWithoutYear,
 } from '../lib/componentDraft';
-import type { DomainOption } from '../types';
+import type { AcademicLevel, AcademicLevelOption, DomainOption } from '../types';
 import { FormActions } from './FormActions';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
@@ -22,6 +22,7 @@ interface DisciplineEditorFormProps {
   showPublishAction?: boolean;
   availablePrerequisites?: Array<{ code: string; name: string }>;
   modalityOptions?: DomainOption[];
+  academicLevelOptions?: AcademicLevelOption[];
 }
 
 const workloadFields: Array<keyof DisciplineFormValues['studentWorkload']> = [
@@ -45,6 +46,11 @@ const workloadLabels: Record<keyof DisciplineFormValues['studentWorkload'], stri
 const componentCodeRegex = /^[A-Z]{2,4}[0-9]{2,4}$/;
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 const notApplicableToken = 'NAO_SE_APLICA';
+const fallbackAcademicLevelOptions: AcademicLevelOption[] = [
+  { value: 'graduacao', label: 'Graduação', sigaaSourceId: '' },
+  { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '' },
+  { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '' },
+];
 
 export const DisciplineEditorForm = ({
   initialValues,
@@ -57,6 +63,7 @@ export const DisciplineEditorForm = ({
   showPublishAction = true,
   availablePrerequisites = [],
   modalityOptions = [],
+  academicLevelOptions = [],
 }: DisciplineEditorFormProps) => {
   const [values, setValues] = useState<DisciplineFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<{
@@ -73,7 +80,6 @@ export const DisciplineEditorForm = ({
   }>({});
   const [prereqSearch, setPrereqSearch] = useState('');
   const [pendingCodeInput, setPendingCodeInput] = useState('');
-  const [publishReadinessWarnings, setPublishReadinessWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     setValues(initialValues);
@@ -87,6 +93,11 @@ export const DisciplineEditorForm = ({
     if (field === 'code') {
       const normalizedCode = value.replace(/\s+/g, '').toUpperCase();
       setValues((current) => ({ ...current, code: normalizedCode }));
+      return;
+    }
+
+    if (field === 'academicLevel') {
+      setValues((current) => ({ ...current, academicLevel: value as AcademicLevel }));
       return;
     }
 
@@ -111,6 +122,9 @@ export const DisciplineEditorForm = ({
     Array.from(new Set(value.toUpperCase().match(prerequerimentCodeRegex) ?? []));
 
   const selectedPrerequeriments = extractPrerequerimentCodes(values.prerequeriments);
+  const resolvedAcademicLevelOptions = academicLevelOptions.length > 0
+    ? academicLevelOptions
+    : fallbackAcademicLevelOptions;
   const isNotApplicable = values.prerequeriments.trim().toUpperCase() === notApplicableToken;
   const availableCodes = new Set(availablePrerequisites.map((item) => item.code.toUpperCase()));
 
@@ -141,49 +155,7 @@ export const DisciplineEditorForm = ({
   const basicReferencesChecklist = buildReferenceChecklist(values.referencesBasic);
   const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
   const allReferenceChecklistItems = [...basicReferencesChecklist, ...complementaryReferencesChecklist];
-  const referenceOkItems = allReferenceChecklistItems.filter((item) => item.status === 'ok').length;
-  const referenceWarningItems = allReferenceChecklistItems.length - referenceOkItems;
-  const referenceQualityScore = allReferenceChecklistItems.length === 0
-    ? 100
-    : Math.max(0, Math.round((referenceOkItems / allReferenceChecklistItems.length) * 100));
-  const referenceScoreToneClass = referenceQualityScore >= 80
-    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-    : referenceQualityScore >= 60
-      ? 'text-amber-700 bg-amber-50 border-amber-200'
-      : 'text-danger bg-red-50 border-red-200';
-
-  const getPublishBlockingMessages = (currentValues: DisciplineFormValues) => {
-    const warnings: string[] = [];
-
-    if (!currentValues.syllabus.trim()) {
-      warnings.push('Preencha a ementa para publicação oficial.');
-    }
-    if (!currentValues.objective.trim()) {
-      warnings.push('Preencha os objetivos para publicação oficial.');
-    }
-    if (!currentValues.program.trim()) {
-      warnings.push('Preencha o conteúdo programático para publicação oficial.');
-    }
-    if (!currentValues.methodology.trim()) {
-      warnings.push('Preencha a metodologia para publicação oficial.');
-    }
-    if (!currentValues.learningAssessment.trim()) {
-      warnings.push('Preencha a avaliação da aprendizagem para publicação oficial.');
-    }
-    if (!currentValues.referencesBasic.trim()) {
-      warnings.push('Preencha ao menos as referências básicas para publicação oficial.');
-    } else if (hasNonWebReferenceWithoutYear(currentValues.referencesBasic)) {
-      warnings.push('Ajuste referências básicas sem ano (ABNT).');
-    }
-
-    if (currentValues.referencesComplementary.trim() && hasNonWebReferenceWithoutYear(currentValues.referencesComplementary)) {
-      warnings.push('Ajuste referências complementares sem ano (ABNT).');
-    }
-
-    return warnings;
-  };
-
-  const publishBlockingMessages = getPublishBlockingMessages(values);
+  const referenceWarningItems = allReferenceChecklistItems.filter((item) => item.status === 'warning');
 
   const handleAddPrerequeriment = (code: string) => {
     const nextCodes = Array.from(new Set([...selectedPrerequeriments, code]));
@@ -280,9 +252,6 @@ export const DisciplineEditorForm = ({
     }
 
     await onSave(values);
-
-    const warnings = getPublishBlockingMessages(values);
-    setPublishReadinessWarnings(warnings);
   };
 
   const submitSaveAndPublish = async () => {
@@ -318,11 +287,9 @@ export const DisciplineEditorForm = ({
 
     if (Object.keys(publishErrors).length > 0) {
       setFieldErrors((current) => ({ ...current, ...publishErrors }));
-      setPublishReadinessWarnings(getPublishBlockingMessages(values));
       return;
     }
 
-    setPublishReadinessWarnings([]);
     await onSaveAndPublish(values);
   };
 
@@ -351,6 +318,15 @@ export const DisciplineEditorForm = ({
           </div>
           <FormField label="Curso" value={values.department} onChange={(event) => handleChange('department', event.target.value)} />
           <FormField label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
+          <SelectField
+            label="Nível acadêmico"
+            value={values.academicLevel}
+            onChange={(event) => handleChange('academicLevel', event.target.value)}
+          >
+            {resolvedAcademicLevelOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </SelectField>
           <div className="md:col-span-2">
             <SelectField label="Modalidade" value={values.modality} error={fieldErrors.modality} onChange={(event) => handleChange('modality', event.target.value)}>
               {!modalityOptions.some((option) => option.value === values.modality) && values.modality ? (
@@ -365,7 +341,7 @@ export const DisciplineEditorForm = ({
       <section className="grid min-w-0 gap-6 xl:grid-cols-3">
         {workloadCards.map((card) => (
           <div key={card.key} className="panel interactive-lift min-w-0 p-5 sm:p-6">
-            <h3 className="mb-4 text-lg font-semibold text-ink">Carga horária {card.title}</h3>
+            <h3 className="mb-4 text-base font-semibold leading-tight text-ink xl:whitespace-nowrap">Carga horária {card.title}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               {workloadFields.map((field) => (
                 <FormField
@@ -382,72 +358,43 @@ export const DisciplineEditorForm = ({
         ))}
       </section>
 
-      <section className="grid min-w-0 gap-6 xl:grid-cols-2">
+      <section className="grid min-w-0 gap-6">
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
+            <TextareaField className="min-h-[280px]" label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
             <TextareaField
               label="Objetivos"
               value={values.objective}
               onChange={(event) => handleChange('objective', event.target.value)}
               error={fieldErrors.objective}
+              className="min-h-[320px]"
               placeholder="Use um objetivo por linha para facilitar a organização dos parágrafos no documento oficial."
             />
-            <TextareaField label="Conteúdo programático" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
-            <TextareaField label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
+            <TextareaField className="min-h-[480px]" label="Conteúdo programático" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
+            <TextareaField className="min-h-[360px]" label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
           </div>
         </div>
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField label="Avaliação da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
+            <TextareaField className="min-h-[360px]" label="Avaliação da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
             <TextareaField
               label="Referências básicas"
               value={values.referencesBasic}
               onChange={(event) => handleChange('referencesBasic', event.target.value)}
               error={fieldErrors.referencesBasic}
+              className="min-h-[320px]"
               placeholder="Liste autores, títulos e dados editoriais essenciais."
             />
-            <div className="rounded-2xl border border-line bg-background px-4 py-3 text-xs text-ink/85">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="font-semibold uppercase tracking-[0.12em] text-ink/70">Assistente de qualidade ABNT</div>
-                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${referenceScoreToneClass}`}>
-                  Score {referenceQualityScore}%
-                </span>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-xl border border-line/70 bg-white px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-[0.12em] text-ink/60">Linhas avaliadas</div>
-                  <div className="mt-1 text-sm font-semibold text-ink">{allReferenceChecklistItems.length}</div>
-                </div>
-                <div className="rounded-xl border border-line/70 bg-white px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-[0.12em] text-ink/60">Sem pendências</div>
-                  <div className="mt-1 text-sm font-semibold text-emerald-700">{referenceOkItems}</div>
-                </div>
-                <div className="rounded-xl border border-line/70 bg-white px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-[0.12em] text-ink/60">Com ajuste</div>
-                  <div className="mt-1 text-sm font-semibold text-amber-700">{referenceWarningItems}</div>
-                </div>
-              </div>
-              <div className="mt-2 text-[11px] text-ink/70">
-                Indicativo: priorize linhas marcadas como "Ajustar" antes da publicação oficial para reduzir retrabalho na aprovação.
-              </div>
-            </div>
-            {basicReferencesChecklist.length > 0 ? (
-              <div className="rounded-2xl border border-line bg-background px-4 py-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referências básicas</div>
-                <div className="space-y-2 text-xs text-ink/80">
-                  {basicReferencesChecklist.map((item) => (
-                    <div key={`basic-reference-${item.lineNumber}`} className="rounded-xl border border-line/70 bg-white px-3 py-2">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">Linha {item.lineNumber}</span>
-                        <span className={item.status === 'ok' ? 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700' : 'rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700'}>
-                          {item.status === 'ok' ? 'OK' : 'Ajustar'}
-                        </span>
-                      </div>
-                      <div className="mb-1 text-ink/90">{item.message}</div>
-                      <div className="truncate text-ink/70">{item.text}</div>
-                    </div>
-                  ))}
+            {allReferenceChecklistItems.length > 0 ? (
+              <div className={referenceWarningItems.length > 0
+                ? 'rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'
+                : 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800'}
+              >
+                <div className="font-semibold">Validação ABNT</div>
+                <div className="mt-1">
+                  {referenceWarningItems.length > 0
+                    ? `${referenceWarningItems.length} referência(s) precisam de ano ou dados completos de acesso.`
+                    : 'Referências prontas para a publicação.'}
                 </div>
               </div>
             ) : null}
@@ -456,33 +403,9 @@ export const DisciplineEditorForm = ({
               value={values.referencesComplementary}
               onChange={(event) => handleChange('referencesComplementary', event.target.value)}
               error={fieldErrors.referencesComplementary}
+              className="min-h-[320px]"
               placeholder="Liste materiais adicionais recomendados."
             />
-            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
-              <div className="mb-1 font-semibold uppercase tracking-[0.12em]">Exemplo rápido (ABNT)</div>
-              <div>Livro: SILVA, J. Título do livro. Salvador: Editora X, 2020.</div>
-              <div>Site: UFBA. Guia institucional. Disponível em: https://www.ufba.br. Acesso em: 11/05/2026.</div>
-              <div className="mt-1 text-sky-800/80">Observação: referências complementares são opcionais, mas se preenchidas precisam seguir o mesmo padrão de ano para fontes não web.</div>
-            </div>
-            {complementaryReferencesChecklist.length > 0 ? (
-              <div className="rounded-2xl border border-line bg-background px-4 py-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Checklist ABNT - Referências complementares</div>
-                <div className="space-y-2 text-xs text-ink/80">
-                  {complementaryReferencesChecklist.map((item) => (
-                    <div key={`complementary-reference-${item.lineNumber}`} className="rounded-xl border border-line/70 bg-white px-3 py-2">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">Linha {item.lineNumber}</span>
-                        <span className={item.status === 'ok' ? 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700' : 'rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700'}>
-                          {item.status === 'ok' ? 'OK' : 'Ajustar'}
-                        </span>
-                      </div>
-                      <div className="mb-1 text-ink/90">{item.message}</div>
-                      <div className="truncate text-ink/70">{item.text}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
             <TextareaField
               label="Pré-requisitos"
               value={values.prerequeriments}
@@ -585,31 +508,6 @@ export const DisciplineEditorForm = ({
             </div>
           </div>
         </div>
-      </section>
-
-      <section className="panel interactive-lift p-4 sm:p-5">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700/80">Pronto para publicar?</div>
-        {publishBlockingMessages.length === 0 ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Sem bloqueios identificados para publicação oficial.
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <div className="font-semibold">Ainda há {publishBlockingMessages.length} ponto(s) para publicação oficial:</div>
-            <ul className="mt-2 list-disc pl-5">
-              {publishBlockingMessages.map((warning) => (
-                <li key={warning}>{warning}</li>
-              ))}
-            </ul>
-            <div className="mt-2 text-xs text-amber-800/90">Você pode salvar rascunho mesmo assim. A publicação só será liberada após corrigir os pontos acima.</div>
-          </div>
-        )}
-
-        {publishReadinessWarnings.length > 0 ? (
-          <div className="mt-3 rounded-2xl border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-900">
-            Rascunho salvo com sucesso. Publicação oficial ainda bloqueada enquanto houver pendências acima.
-          </div>
-        ) : null}
       </section>
 
       {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}

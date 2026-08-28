@@ -9,6 +9,7 @@ const baseValues = {
   name: 'Compiladores',
   department: 'DCC',
   semester: '2026.1',
+  academicLevel: 'graduacao' as const,
   modality: 'Presencial',
   program: '',
   objective: '',
@@ -55,6 +56,11 @@ describe('DisciplineEditorForm publish validation', () => {
           { value: 'ATIVIDADE', label: 'Atividade' },
           { value: 'MODULO', label: 'Módulo' },
         ]}
+        academicLevelOptions={[
+          { value: 'graduacao', label: 'Graduação', sigaaSourceId: '' },
+          { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '' },
+          { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '' },
+        ]}
         onCancel={vi.fn()}
         onSave={vi.fn().mockResolvedValue(undefined)}
         onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
@@ -69,6 +75,28 @@ describe('DisciplineEditorForm publish validation', () => {
 
     await userEvent.selectOptions(modality, 'ATIVIDADE');
     expect(modality).toHaveValue('ATIVIDADE');
+
+    const academicLevel = screen.getByRole('combobox', { name: 'Nível acadêmico' });
+    await userEvent.selectOptions(academicLevel, 'mestrado');
+    expect(academicLevel).toHaveValue('mestrado');
+  });
+
+  it('deve oferecer áreas amplas para revisar todo o conteúdo do template', () => {
+    render(
+      <DisciplineEditorForm
+        initialValues={baseValues}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    expect(screen.getByLabelText('Ementa')).toHaveClass('min-h-[280px]');
+    expect(screen.getByLabelText('Objetivos')).toHaveClass('min-h-[320px]');
+    expect(screen.getByLabelText('Conteúdo programático')).toHaveClass('min-h-[480px]');
+    expect(screen.getByLabelText('Avaliação da aprendizagem')).toHaveClass('min-h-[360px]');
+    expect(screen.queryByText('Pronto para publicar?')).not.toBeInTheDocument();
   });
 
   it('deve bloquear publicação quando campos obrigatórios do template estiverem vazios', async () => {

@@ -32,6 +32,7 @@ export const DisciplineEditPage = () => {
   const initialFormValues = useMemo(
     () => getDisciplineFormInitialValues(draft || undefined, {
       modality: componentMetadata?.defaults.modality,
+      academicLevel: componentMetadata?.defaults.academicLevel,
     }),
     [componentMetadata, draft]
   );
@@ -69,6 +70,7 @@ export const DisciplineEditPage = () => {
     setDraft(currentDraft);
     setLastSavedPayload(JSON.stringify(toDraftPayload(getDisciplineFormInitialValues(currentDraft, {
       modality: metadata?.defaults.modality,
+      academicLevel: metadata?.defaults.academicLevel,
     }))));
     setAvailablePrerequisites(Array.from(mapped.values()));
     setComponentMetadata(metadata);
@@ -228,6 +230,7 @@ export const DisciplineEditPage = () => {
         error={error?.message || ''}
         availablePrerequisites={availablePrerequisites}
         modalityOptions={componentMetadata?.modalities}
+        academicLevelOptions={componentMetadata?.academicLevels}
         onCancel={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
         onSave={handleSave}
         onSaveAndPublish={handleSaveAndPublish}

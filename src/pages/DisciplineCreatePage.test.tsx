@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -142,9 +142,15 @@ describe('DisciplineCreatePage', () => {
     expect(await screen.findByText('Resumo da importacao SIAC')).toBeInTheDocument();
     expect(screen.getByText(/unexpected_error \(1\)/i)).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo de fonte'), 'program');
-    await userEvent.type(screen.getByLabelText('ID da fonte'), '1820');
-    await userEvent.selectOptions(screen.getByLabelText('Nível acadêmico'), 'mestrado');
+    const sigaaImportSection = screen
+      .getByRole('heading', { name: 'Importar por departamento ou programa' })
+      .closest('section');
+    expect(sigaaImportSection).not.toBeNull();
+    const sigaaImport = within(sigaaImportSection as HTMLElement);
+
+    await userEvent.selectOptions(sigaaImport.getByLabelText('Tipo de fonte'), 'program');
+    await userEvent.type(sigaaImport.getByLabelText('ID da fonte'), '1820');
+    await userEvent.selectOptions(sigaaImport.getByLabelText('Nível acadêmico'), 'mestrado');
     await userEvent.click(screen.getByRole('button', { name: 'Importar do SIGAA público' }));
 
     await waitFor(() => {
