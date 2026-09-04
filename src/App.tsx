@@ -10,7 +10,7 @@ import { DisciplineDetailsPage } from './pages/DisciplineDetailsPage';
 import { DisciplineEditPage } from './pages/DisciplineEditPage';
 import { DisciplineCreatePage } from './pages/DisciplineCreatePage';
 import { DisciplineListPage } from './pages/DisciplineListPage';
-import { DepartmentsPage } from './pages/DepartmentsPage';
+import { CoursesPage } from './pages/CoursesPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -36,7 +36,8 @@ export const App = () => {
 
             <Route element={<AdminRoute />}>
               <Route path="/usuarios" element={<UsersPage />} />
-              <Route path="/departamentos" element={<DepartmentsPage />} />
+              <Route path="/cursos" element={<CoursesPage />} />
+              <Route path="/departamentos" element={<Navigate to="/cursos" replace />} />
               <Route path="/disciplinas/adicionar" element={<DisciplineCreatePage />} />
             </Route>
           </Route>
