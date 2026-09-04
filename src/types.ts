@@ -20,7 +20,8 @@ export interface ListFilter {
   search?: string;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
-  academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
+  academicLevel?: 'graduacao' | 'pos_graduacao';
+  course?: string;
   department?: string;
 }
 
@@ -80,7 +81,8 @@ export interface User {
   updatedAt?: string;
 }
 
-export type AcademicLevel = 'graduacao' | 'mestrado' | 'doutorado';
+export type AcademicLevel = 'graduacao' | 'pos_graduacao' | 'mestrado' | 'doutorado';
+export type SigaaAcademicLevel = Extract<AcademicLevel, 'graduacao' | 'mestrado' | 'doutorado'>;
 
 export interface DomainOption<TValue extends string = string> {
   value: TValue;
@@ -95,6 +97,10 @@ export interface CourseCatalogOption extends DomainOption {
 export type SigaaSourceType = 'department' | 'program';
 
 export interface AcademicLevelOption extends DomainOption<AcademicLevel> {
+  sigaaSourceId?: string;
+}
+
+export interface SigaaAcademicLevelOption extends DomainOption<SigaaAcademicLevel> {
   sigaaSourceId: string;
 }
 
@@ -105,6 +111,7 @@ export interface ComponentMetadata {
   };
   modalities: DomainOption[];
   academicLevels: AcademicLevelOption[];
+  sigaaImportAcademicLevels: SigaaAcademicLevelOption[];
   sigaaSourceTypes: DomainOption<SigaaSourceType>[];
   courses: CourseCatalogOption[];
 }
@@ -167,6 +174,8 @@ export interface Department {
   updatedAt?: string;
 }
 
+export type Course = Department;
+
 export interface PublicationContext {
   agreementDate: string;
   agreementNumber: string;
@@ -182,8 +191,10 @@ export interface ComponentDraft {
   department?: string;
   departmentId?: string | null;
   departmentRef?: Department;
+  courseId?: string | null;
+  courseRef?: Course;
   semester?: string;
-  academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
+  academicLevel?: AcademicLevel;
   modality?: string;
   program?: string;
   objective?: string;
@@ -205,8 +216,10 @@ export interface Component {
   department?: string;
   departmentId?: string | null;
   departmentRef?: Department;
+  courseId?: string | null;
+  courseRef?: Course;
   semester?: string;
-  academicLevel?: 'graduacao' | 'mestrado' | 'doutorado';
+  academicLevel?: AcademicLevel;
   modality?: string;
   program?: string;
   objective?: string;
