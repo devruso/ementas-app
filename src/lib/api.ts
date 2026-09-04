@@ -6,6 +6,7 @@ import type {
   ComponentDraft,
   ComponentLog,
   ComponentMetadata,
+  Course,
   Department,
   ImportDraftPreviewResponse,
   ImportComponentsSummary,
@@ -274,7 +275,7 @@ export const getComponents = async (filter: ListFilter) => {
       sortBy: filter.sortBy,
       sortOrder: filter.sortOrder,
       academicLevel: filter.academicLevel,
-      department: filter.department?.trim() || undefined,
+      course: (filter.course || filter.department)?.trim() || undefined,
     },
   });
 
@@ -376,6 +377,36 @@ export const updateDepartment = async (departmentId: string, payload: { name: st
 
 export const deleteDepartment = async (departmentId: string) => {
   await api.delete(`/departments/${departmentId}`);
+};
+
+export const getCourses = async (filter: Pick<ListFilter, 'page' | 'limit' | 'search' | 'sortBy' | 'sortOrder'>) => {
+  const response = await api.get<ListData<Course>>('/courses', {
+    params: {
+      page: filter.page,
+      limit: filter.limit,
+      search: filter.search?.trim() || undefined,
+      sortBy: filter.sortBy,
+      sortOrder: filter.sortOrder,
+    },
+  });
+  return response.data;
+};
+
+export const createCourse = async (name: string, code?: string) => {
+  const response = await api.post<Course>('/courses', { name, code });
+  componentMetadataPromise = null;
+  return response.data;
+};
+
+export const updateCourse = async (courseId: string, payload: { name: string; code?: string }) => {
+  const response = await api.put<Course>(`/courses/${courseId}`, payload);
+  componentMetadataPromise = null;
+  return response.data;
+};
+
+export const deleteCourse = async (courseId: string) => {
+  await api.delete(`/courses/${courseId}`);
+  componentMetadataPromise = null;
 };
 
 export const generateInvite = async () => {
