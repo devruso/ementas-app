@@ -5,7 +5,7 @@ import {
   DisciplineFormValues,
   hasNonWebReferenceWithoutYear,
 } from '../lib/componentDraft';
-import type { AcademicLevel, AcademicLevelOption, DomainOption } from '../types';
+import type { AcademicLevel, AcademicLevelOption, CourseCatalogOption, DomainOption } from '../types';
 import { FormActions } from './FormActions';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
@@ -23,6 +23,7 @@ interface DisciplineEditorFormProps {
   availablePrerequisites?: Array<{ code: string; name: string }>;
   modalityOptions?: DomainOption[];
   academicLevelOptions?: AcademicLevelOption[];
+  courseOptions?: CourseCatalogOption[];
 }
 
 const workloadFields: Array<keyof DisciplineFormValues['studentWorkload']> = [
@@ -48,8 +49,7 @@ const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 const notApplicableToken = 'NAO_SE_APLICA';
 const fallbackAcademicLevelOptions: AcademicLevelOption[] = [
   { value: 'graduacao', label: 'Graduação', sigaaSourceId: '' },
-  { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '' },
-  { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '' },
+  { value: 'pos_graduacao', label: 'Pós-Graduação', sigaaSourceId: '' },
 ];
 
 export const DisciplineEditorForm = ({
@@ -64,11 +64,13 @@ export const DisciplineEditorForm = ({
   availablePrerequisites = [],
   modalityOptions = [],
   academicLevelOptions = [],
+  courseOptions = [],
 }: DisciplineEditorFormProps) => {
   const [values, setValues] = useState<DisciplineFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<{
     code?: string;
     name?: string;
+    department?: string;
     modality?: string;
     syllabus?: string;
     objective?: string;
@@ -154,8 +156,7 @@ export const DisciplineEditorForm = ({
 
   const basicReferencesChecklist = buildReferenceChecklist(values.referencesBasic);
   const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
-  const allReferenceChecklistItems = [...basicReferencesChecklist, ...complementaryReferencesChecklist];
-  const referenceWarningItems = allReferenceChecklistItems.filter((item) => item.status === 'warning');
+  const referenceWarningItems = basicReferencesChecklist.filter((item) => item.status === 'warning');
 
   const handleAddPrerequeriment = (code: string) => {
     const nextCodes = Array.from(new Set([...selectedPrerequeriments, code]));
@@ -217,6 +218,7 @@ export const DisciplineEditorForm = ({
     const nextErrors: {
       code?: string;
       name?: string;
+      department?: string;
       modality?: string;
       syllabus?: string;
       objective?: string;
@@ -235,6 +237,10 @@ export const DisciplineEditorForm = ({
 
     if (!values.name.trim()) {
       nextErrors.name = 'Informe o nome da disciplina.';
+    }
+
+    if (!values.department.trim()) {
+      nextErrors.department = 'Selecione o curso da disciplina.';
     }
 
     if (!values.modality.trim()) {
@@ -281,9 +287,6 @@ export const DisciplineEditorForm = ({
     } else if (hasNonWebReferenceWithoutYear(values.referencesBasic)) {
       publishErrors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
     }
-    if (values.referencesComplementary.trim() && hasNonWebReferenceWithoutYear(values.referencesComplementary)) {
-      publishErrors.referencesComplementary = 'As referências complementares não web devem incluir ano (ABNT).';
-    }
 
     if (Object.keys(publishErrors).length > 0) {
       setFieldErrors((current) => ({ ...current, ...publishErrors }));
@@ -316,7 +319,15 @@ export const DisciplineEditorForm = ({
           <div className="md:col-span-2">
             <FormField label="Nome" value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
           </div>
-          <FormField label="Curso" value={values.department} onChange={(event) => handleChange('department', event.target.value)} />
+          <SelectField label="Curso" value={values.department} error={fieldErrors.department} onChange={(event) => handleChange('department', event.target.value)}>
+            <option value="">Selecione um curso</option>
+            {values.department && !courseOptions.some((option) => option.value === values.department) ? (
+              <option value={values.department}>{values.department}</option>
+            ) : null}
+            {courseOptions.map((option) => (
+              <option key={option.key} value={option.value}>{option.label}</option>
+            ))}
+          </SelectField>
           <FormField label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
           <SelectField
             label="Nível acadêmico"
@@ -385,7 +396,7 @@ export const DisciplineEditorForm = ({
               className="min-h-[320px]"
               placeholder="Liste autores, títulos e dados editoriais essenciais."
             />
-            {allReferenceChecklistItems.length > 0 ? (
+            {basicReferencesChecklist.length > 0 ? (
               <div className={referenceWarningItems.length > 0
                 ? 'rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'
                 : 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800'}
@@ -406,6 +417,11 @@ export const DisciplineEditorForm = ({
               className="min-h-[320px]"
               placeholder="Liste materiais adicionais recomendados."
             />
+            {complementaryReferencesChecklist.some((item) => item.status === 'warning') ? (
+              <p className="text-xs leading-5 text-muted">
+                Referências complementares são opcionais e não impedem a publicação; revise os dados para melhorar o documento oficial.
+              </p>
+            ) : null}
             <TextareaField
               label="Pré-requisitos"
               value={values.prerequeriments}

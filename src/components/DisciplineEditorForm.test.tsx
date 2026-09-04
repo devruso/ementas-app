@@ -58,9 +58,14 @@ describe('DisciplineEditorForm publish validation', () => {
         ]}
         academicLevelOptions={[
           { value: 'graduacao', label: 'Graduação', sigaaSourceId: '' },
-          { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '' },
-          { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '' },
+          { value: 'pos_graduacao', label: 'Pós-Graduação', sigaaSourceId: '' },
         ]}
+        courseOptions={[{
+          key: 'course-1',
+          value: 'Bacharelado em Ciência da Computação',
+          label: 'Bacharelado em Ciência da Computação',
+          aliases: [],
+        }]}
         onCancel={vi.fn()}
         onSave={vi.fn().mockResolvedValue(undefined)}
         onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
@@ -77,8 +82,9 @@ describe('DisciplineEditorForm publish validation', () => {
     expect(modality).toHaveValue('ATIVIDADE');
 
     const academicLevel = screen.getByRole('combobox', { name: 'Nível acadêmico' });
-    await userEvent.selectOptions(academicLevel, 'mestrado');
-    expect(academicLevel).toHaveValue('mestrado');
+    await userEvent.selectOptions(academicLevel, 'pos_graduacao');
+    expect(academicLevel).toHaveValue('pos_graduacao');
+    expect(screen.queryByRole('option', { name: 'Mestrado' })).not.toBeInTheDocument();
   });
 
   it('deve oferecer áreas amplas para revisar todo o conteúdo do template', () => {
@@ -119,5 +125,34 @@ describe('DisciplineEditorForm publish validation', () => {
     expect(screen.getAllByText('Preencha a ementa para publicação oficial.').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Preencha os objetivos para publicação oficial.').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Preencha ao menos as referências básicas para publicação oficial.').length).toBeGreaterThan(0);
+  });
+
+  it('não deve bloquear publicação por referência complementar incompleta', async () => {
+    const onSaveAndPublish = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DisciplineEditorForm
+        initialValues={{
+          ...baseValues,
+          syllabus: 'Ementa',
+          objective: 'Objetivo',
+          program: 'Conteúdo',
+          methodology: 'Metodologia',
+          learningAssessment: 'Avaliação',
+          referencesBasic: [
+            'AUTOR, A. Livro um. 2020.',
+            'AUTOR, B. Livro dois. 2021.',
+            'AUTOR, C. Livro três. 2022.',
+          ].join('\n'),
+          referencesComplementary: 'Referência complementar ainda sem ano',
+        }}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onSaveAndPublish={onSaveAndPublish}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar e publicar' }));
+    expect(onSaveAndPublish).toHaveBeenCalledTimes(1);
   });
 });

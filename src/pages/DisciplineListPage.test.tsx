@@ -23,6 +23,10 @@ const componentMetadata = {
   ],
   academicLevels: [
     { value: 'graduacao' as const, label: 'Graduação', sigaaSourceId: '1114' },
+    { value: 'pos_graduacao' as const, label: 'Pós-Graduação', sigaaSourceId: '' },
+  ],
+  sigaaImportAcademicLevels: [
+    { value: 'graduacao' as const, label: 'Graduação', sigaaSourceId: '1114' },
     { value: 'mestrado' as const, label: 'Mestrado', sigaaSourceId: '1820' },
     { value: 'doutorado' as const, label: 'Doutorado', sigaaSourceId: '43753' },
   ],
@@ -51,8 +55,8 @@ describe('DisciplineListPage public filters', () => {
     mockedGetComponentMetadata.mockResolvedValue(componentMetadata);
   });
 
-  it('deve carregar por padrao sem restringir curso, com ordenacao alfabetica e 20 itens por pagina', async () => {
-    mockedGetComponents.mockImplementation(async ({ page = 0, limit = 20, sortBy = 'name', department }) => ({
+  it('deve carregar por padrao sem restringir curso, ordenado por codigo e com 20 itens por pagina', async () => {
+    mockedGetComponents.mockImplementation(async ({ page = 0, limit = 20, sortBy = 'code', course }) => ({
       results: [
         {
           id: `component-${page}-${limit}`,
@@ -71,7 +75,7 @@ describe('DisciplineListPage public filters', () => {
         total: 1,
         totalPages: 1,
         sortBy,
-        department,
+        course,
       },
     }));
 
@@ -98,9 +102,9 @@ describe('DisciplineListPage public filters', () => {
       expect.objectContaining({
         page: 0,
         limit: 20,
-        sortBy: 'name',
+        sortBy: 'code',
         sortOrder: 'ASC',
-        department: undefined,
+        course: undefined,
       })
     );
   });
@@ -129,7 +133,7 @@ describe('DisciplineListPage public filters', () => {
     await waitFor(() => {
       expect(mockedGetComponents).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          department: 'Bacharelado em Sistemas de Informa\u00e7\u00e3o',
+          course: 'Bacharelado em Sistemas de Informa\u00e7\u00e3o',
         })
       );
     });
@@ -201,7 +205,9 @@ describe('DisciplineListPage public filters', () => {
     const row = title.closest('article');
 
     expect(row).not.toBeNull();
-    expect(within(row as HTMLElement).getByText('P\u00f3s-gradua\u00e7\u00e3o')).toBeInTheDocument();
+    expect(within(row as HTMLElement).getByText('Pós-Graduação')).toBeInTheDocument();
     expect(within(row as HTMLElement).queryByText('Mestrado')).not.toBeInTheDocument();
+    expect(within(row as HTMLElement).getByRole('link', { name: 'IC0062' })).toHaveAttribute('href', '/disciplinas/ic0062');
+    expect(within(row as HTMLElement).getByRole('link', { name: 'Algoritmos Distribuidos I' })).toHaveAttribute('href', '/disciplinas/ic0062');
   });
 });

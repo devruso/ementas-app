@@ -69,6 +69,10 @@ describe('DisciplineEditPage autosave', () => {
       ],
       academicLevels: [
         { value: 'graduacao', label: 'Graduação', sigaaSourceId: '1114' },
+        { value: 'pos_graduacao', label: 'Pós-Graduação', sigaaSourceId: '' },
+      ],
+      sigaaImportAcademicLevels: [
+        { value: 'graduacao', label: 'Graduação', sigaaSourceId: '1114' },
         { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '1820' },
         { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '43753' },
       ],
@@ -189,6 +193,30 @@ describe('DisciplineEditPage autosave', () => {
     }, { timeout: 4000 });
 
     expect(await screen.findByText('Rascunho sincronizado automaticamente.')).toBeInTheDocument();
+  });
+
+  it('deve preservar a carga horária digitada quando uma resposta atrasada do autosave retorna', async () => {
+    mockedUpdateComponentDraft.mockResolvedValueOnce({
+      id: 'draft-1',
+      code: 'IC045',
+      name: 'Compiladores',
+      workload: { studentTheory: 0 },
+    } as never);
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <DisciplineEditPage />
+      </MemoryRouter>
+    );
+
+    const studentTheoryInput = (await screen.findAllByLabelText('Teoria'))[0];
+    await user.clear(studentTheoryInput);
+    await user.type(studentTheoryInput, '12');
+
+    await waitFor(() => expect(mockedUpdateComponentDraft).toHaveBeenCalled(), { timeout: 4000 });
+    expect(await screen.findByText('Rascunho sincronizado automaticamente.')).toBeInTheDocument();
+    expect(studentTheoryInput).toHaveValue(12);
   });
 
   it('deve salvar e publicar com revisão e confirmação da senha', async () => {

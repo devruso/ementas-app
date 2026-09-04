@@ -168,8 +168,9 @@ const formatModalityLabel = (value?: string) => {
 
 const academicLevelLabels: Record<NonNullable<Component['academicLevel']>, string> = {
   graduacao: 'Graduação',
-  mestrado: 'Mestrado',
-  doutorado: 'Doutorado',
+  pos_graduacao: 'Pós-Graduação',
+  mestrado: 'Pós-Graduação',
+  doutorado: 'Pós-Graduação',
 };
 
 const hasMeaningfulDraftDifference = (component: Component) => {
@@ -492,15 +493,12 @@ export const DisciplineDetailsPage = () => {
               {activeComponent.code}
             </div>
             <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">{activeComponent.name}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
-              {displaySyllabus || displayProgram || 'Disciplina sem resumo público informado.'}
-            </p>
             </div>
 
             <dl className="min-w-0 space-y-3 rounded-lg border border-line bg-slate-50 p-4 text-sm">
               <div>
                 <dt className="text-xs font-semibold uppercase text-muted">Curso</dt>
-                <dd className="mt-1 break-words font-medium text-ink">{activeComponent.department || 'Não informado'}</dd>
+                <dd className="mt-1 break-words font-medium text-ink">{activeComponent.courseRef?.name || activeComponent.department || 'Não informado'}</dd>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -548,6 +546,7 @@ export const DisciplineDetailsPage = () => {
         </section>
 
         <SectionCard title="Ementa">{displaySyllabus || 'Não informada.'}</SectionCard>
+        <WorkloadOverview workload={activeComponent.workload} />
         <SectionCard title="Objetivos">{displayObjective || 'Não informados.'}</SectionCard>
         <SectionCard title="Conteúdo programático">{displayProgram || 'Não informado.'}</SectionCard>
         <SectionCard title="Metodologia">{displayMethodology || 'Não informada.'}</SectionCard>
@@ -556,8 +555,6 @@ export const DisciplineDetailsPage = () => {
         </SectionCard>
         <SectionCard title="Referências básicas">{references.basic || 'Não informadas.'}</SectionCard>
         <SectionCard title="Referências complementares">{references.complementary || 'Não informadas.'}</SectionCard>
-
-        <WorkloadOverview workload={activeComponent.workload} />
 
         {visibleApprovalLogs.length > 0 ? (
           <SectionCard title="Últimas publicações">
@@ -602,7 +599,7 @@ export const DisciplineDetailsPage = () => {
                   <button
                     type="button"
                     onClick={handleOpenApprovalDialog}
-                    className="inline-flex w-full items-center gap-2 rounded-xl bg-primary-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600"
+                    className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
                   >
                     <ScrollText className="h-4 w-4" />
                     Publicar

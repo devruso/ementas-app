@@ -51,6 +51,10 @@ describe('DisciplineCreatePage', () => {
       modalities: [{ value: 'DISCIPLINA', label: 'Disciplina' }],
       academicLevels: [
         { value: 'graduacao', label: 'Graduação', sigaaSourceId: '1114' },
+        { value: 'pos_graduacao', label: 'Pós-Graduação' },
+      ],
+      sigaaImportAcademicLevels: [
+        { value: 'graduacao', label: 'Graduação', sigaaSourceId: '1114' },
         { value: 'mestrado', label: 'Mestrado', sigaaSourceId: '1820' },
         { value: 'doutorado', label: 'Doutorado', sigaaSourceId: '43753' },
       ],
@@ -58,7 +62,12 @@ describe('DisciplineCreatePage', () => {
         { value: 'department', label: 'Departamento' },
         { value: 'program', label: 'Programa' },
       ],
-      courses: [],
+      courses: [{
+        key: 'course-1',
+        value: 'Ciência da Computação',
+        label: 'Ciência da Computação',
+        aliases: ['Ciência da Computação', 'BCC'],
+      }],
     });
   });
 
@@ -82,6 +91,7 @@ describe('DisciplineCreatePage', () => {
 
     await userEvent.type(screen.getByLabelText('Código'), 'IC045');
     await userEvent.type(screen.getByLabelText('Nome'), 'Compiladores');
+    await userEvent.selectOptions(screen.getByLabelText('Curso'), 'Ciência da Computação');
     await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() => {
@@ -92,6 +102,7 @@ describe('DisciplineCreatePage', () => {
       code: 'IC045',
       name: 'Compiladores',
       modality: 'DISCIPLINA',
+      department: 'Ciência da Computação',
     });
 
     expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045/editar', { replace: true });

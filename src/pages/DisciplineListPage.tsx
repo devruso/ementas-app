@@ -11,7 +11,7 @@ import type { AcademicLevel, Component, ComponentMetadata, CourseCatalogOption, 
 const initialFilter: ListFilter = {
   page: 0,
   limit: 20,
-  sortBy: 'name',
+  sortBy: 'code',
   sortOrder: 'ASC',
 };
 
@@ -36,16 +36,20 @@ const parseSortBy = (value: string | null): NonNullable<ListFilter['sortBy']> =>
     return value;
   }
 
-  return 'name';
+  return 'code';
 };
 
 const parseSortOrder = (value: string | null): NonNullable<ListFilter['sortOrder']> => {
   return value === 'DESC' ? 'DESC' : 'ASC';
 };
 
-const parseAcademicLevel = (value: string | null): 'all' | 'graduacao' | 'mestrado' | 'doutorado' => {
-  if (value === 'graduacao' || value === 'mestrado' || value === 'doutorado') {
+const parseAcademicLevel = (value: string | null): 'all' | 'graduacao' | 'pos_graduacao' => {
+  if (value === 'graduacao' || value === 'pos_graduacao') {
     return value;
+  }
+
+  if (value === 'mestrado' || value === 'doutorado') {
+    return 'pos_graduacao';
   }
 
   return 'all';
@@ -66,20 +70,9 @@ const normalizeText = (value?: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const isGenericGraduateProgram = (value?: string) => {
-  const normalized = normalizeText(value);
-
-  return (
-    /^programa(?:\s+de)?\s+p[o\u00f3]s-gradua[c\u00e7][a\u00e3]o\b/i.test(normalized)
-    || /^programa sigaa$/i.test(normalized)
-  ) && !/\b(?:mestrado|doutorado)\b/i.test(normalized);
-};
-
 const formatAcademicLevelLabel = (component: Component, options: DomainOption<AcademicLevel>[]) => {
-  const sourceProgram = component.departmentRef?.name || component.department;
-
-  if (component.academicLevel === 'mestrado' && isGenericGraduateProgram(sourceProgram)) {
-    return 'P\u00f3s-gradua\u00e7\u00e3o';
+  if (component.academicLevel && component.academicLevel !== 'graduacao') {
+    return 'Pós-Graduação';
   }
 
   return options.find((option) => option.value === component.academicLevel)?.label || 'Não informado';
@@ -144,8 +137,9 @@ const formatSummary = (component: Component) => {
 
 const levelAccentClassMap: Record<string, string> = {
   graduacao: 'from-emerald-400 via-teal-500 to-cyan-500',
+  pos_graduacao: 'from-sky-400 via-blue-500 to-indigo-500',
   mestrado: 'from-sky-400 via-blue-500 to-indigo-500',
-  doutorado: 'from-amber-400 via-orange-500 to-red-400',
+  doutorado: 'from-sky-400 via-blue-500 to-indigo-500',
   default: 'from-slate-300 via-slate-400 to-slate-500',
 };
 
@@ -165,8 +159,8 @@ type SortOption = {
 };
 
 const sortOptions: SortOption[] = [
-  { key: 'name', label: 'Disciplina' },
   { key: 'code', label: 'Código' },
+  { key: 'name', label: 'Disciplina' },
   { key: 'department', label: 'Curso' },
 ];
 
@@ -182,7 +176,7 @@ export const DisciplineListPage = () => {
   const initialSortOrder = parseSortOrder(searchParams.get('sortOrder'));
 
   const [search, setSearch] = useState(initialSearch);
-  const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'mestrado' | 'doutorado'>(initialAcademicLevel);
+  const [academicLevelFilter, setAcademicLevelFilter] = useState<'all' | 'graduacao' | 'pos_graduacao'>(initialAcademicLevel);
   const [courseFilter, setCourseFilter] = useState(initialCourse);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -231,7 +225,7 @@ export const DisciplineListPage = () => {
     getComponents({
       ...filter,
       academicLevel: academicLevelFilter === 'all' ? undefined : academicLevelFilter,
-      department: courseFilter === COURSE_ALL ? undefined : courseFilter,
+      course: courseFilter === COURSE_ALL ? undefined : courseFilter,
     })
       .then(setComponents)
       .catch((err) => {
@@ -415,7 +409,7 @@ export const DisciplineListPage = () => {
   );
 
   const renderDisciplineRow = (component: Component) => {
-    const course = formatCourseDisplay(component.departmentRef?.name || component.department, componentMetadata?.courses || []);
+    const course = formatCourseDisplay(component.courseRef?.name || component.department, componentMetadata?.courses || []);
     const summary = formatSummary(component);
     const academicLevelLabel = formatAcademicLevelLabel(component, componentMetadata?.academicLevels || []);
     const semesterLabel = formatSemesterLabel(component.semester);
@@ -431,9 +425,9 @@ export const DisciplineListPage = () => {
 
         <div className="grid gap-4 p-4 pl-5 md:grid-cols-[110px_minmax(0,2.2fr)_210px_130px_150px_132px] md:items-center md:gap-5 md:p-5 md:pl-6">
           <div className="flex items-center gap-3 md:block">
-            <span className="inline-flex rounded-full border border-primary-200 bg-white/90 px-4 py-2 text-sm font-semibold tracking-[0.08em] text-primary-700 shadow-sm">
+            <Link to={`/disciplinas/${component.code.toLowerCase()}`} className="inline-flex rounded-full border border-primary-200 bg-white/90 px-4 py-2 text-sm font-semibold tracking-[0.08em] text-primary-700 shadow-sm transition hover:bg-primary-50 hover:text-primary-800">
               {component.code}
-            </span>
+            </Link>
           </div>
 
           <div className="min-w-0">
@@ -441,7 +435,9 @@ export const DisciplineListPage = () => {
               Disciplina
             </div>
             <h3 className="mt-1 text-base font-semibold leading-6 text-slate-900 md:text-[1.05rem]">
-              {component.name}
+              <Link to={`/disciplinas/${component.code.toLowerCase()}`} className="transition hover:text-primary-700 hover:underline">
+                {component.name}
+              </Link>
             </h3>
             <p className="mt-2 max-w-[50ch] line-clamp-2 text-sm leading-6 text-slate-500">
               {summary}
@@ -537,7 +533,7 @@ export const DisciplineListPage = () => {
                 type="button"
                 onClick={() => {
                   setFilter((current) => ({ ...current, page: 0 }));
-                  setAcademicLevelFilter(item.value as 'all' | 'graduacao' | 'mestrado' | 'doutorado');
+                  setAcademicLevelFilter(item.value as 'all' | 'graduacao' | 'pos_graduacao');
                 }}
                 className={[
                   'rounded-full border px-3 py-1.5 text-xs font-semibold transition',

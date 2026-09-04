@@ -195,6 +195,15 @@ describe('DisciplineDetailsPage', () => {
     expect(screen.getByText('DCC')).toBeInTheDocument();
     expect(screen.getByText('Graduação')).toBeInTheDocument();
     expect(screen.getByText('MATA50 (pendente)')).toBeInTheDocument();
+    expect(screen.getAllByText('Ementa de teste')).toHaveLength(1);
+
+    const syllabusSection = screen.getByText('Ementa').closest('section');
+    const workloadRegion = screen.getByRole('region', { name: 'Carga horária' });
+    expect(syllabusSection).not.toBeNull();
+    expect((syllabusSection as HTMLElement).compareDocumentPosition(workloadRegion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const publishButton = screen.getByRole('button', { name: 'Publicar' });
+    expect(publishButton).not.toHaveClass('bg-primary-500');
   });
 
   it('deve aprovar rascunho com data e número de ata', async () => {
@@ -258,6 +267,31 @@ describe('DisciplineDetailsPage', () => {
     expect(await dialog.findByText('Linha nominal, sem imagem')).toBeInTheDocument();
     expect(dialog.getByText(/imagem da assinatura .* opcional/i)).toBeInTheDocument();
     expect(dialog.getByRole('button', { name: 'Continuar' })).toBeEnabled();
+  });
+
+  it('deve manter o diálogo aberto e informar senha incorreta sem navegar', async () => {
+    mockedApproveComponentDraft.mockRejectedValueOnce(new AppError(
+      'Senha incorreta. A publicação não foi realizada.',
+      403,
+      { code: 'PUBLICATION_PASSWORD_INVALID' }
+    ));
+
+    render(
+      <MemoryRouter>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Compiladores draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    const dialog = within((await screen.findByRole('heading', { name: 'Publicar IC045' })).closest('div.panel') as HTMLElement);
+    await userEvent.click(dialog.getByRole('button', { name: 'Continuar' }));
+    await userEvent.type(dialog.getByLabelText('Senha de login'), 'senha-errada');
+    await userEvent.click(dialog.getByRole('button', { name: /Confirmar publica/ }));
+
+    expect(await dialog.findByText('Senha incorreta. A publicação não foi realizada.')).toBeInTheDocument();
+    expect(dialog.getByLabelText('Senha de login')).toHaveValue('senha-errada');
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('deve mostrar mensagem amigável quando a publicação falha por referência sem ano', async () => {

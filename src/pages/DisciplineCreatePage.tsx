@@ -259,7 +259,7 @@ export const DisciplineCreatePage = () => {
               className="soft-ring h-14 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
             >
               <option value="all">Todos os níveis acadêmicos</option>
-              {componentMetadata?.academicLevels.map((option) => (
+              {componentMetadata?.sigaaImportAcademicLevels?.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
@@ -268,7 +268,7 @@ export const DisciplineCreatePage = () => {
 
         {sigaaAcademicLevel === 'all' ? (
           <div className="mt-4 grid gap-4 md:grid-cols-3">
-            {componentMetadata?.academicLevels.map((option) => (
+            {componentMetadata?.sigaaImportAcademicLevels?.map((option) => (
               <label key={option.value} className="flex w-full flex-col gap-2 text-sm font-medium text-ink">
                 <span>ID fonte para {option.label}</span>
                 <input
@@ -306,6 +306,7 @@ export const DisciplineCreatePage = () => {
         availablePrerequisites={availablePrerequisites}
         modalityOptions={componentMetadata?.modalities}
         academicLevelOptions={componentMetadata?.academicLevels}
+        courseOptions={componentMetadata?.courses}
         onCancel={() => navigate('/disciplinas')}
         onSave={handleCreate}
         onSaveAndPublish={handleCreate}

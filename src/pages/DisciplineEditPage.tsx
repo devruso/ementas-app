@@ -102,8 +102,7 @@ export const DisciplineEditPage = () => {
     const timeoutId = window.setTimeout(async () => {
       try {
         setAutosaveStatus('saving');
-        const updatedDraft = await updateComponentDraft(draft.id, nextPayload);
-        setDraft(updatedDraft);
+        await updateComponentDraft(draft.id, nextPayload);
         setLastSavedPayload(serializedPayload);
         setAutosaveStatus('saved');
       } catch (err) {
@@ -231,6 +230,7 @@ export const DisciplineEditPage = () => {
         availablePrerequisites={availablePrerequisites}
         modalityOptions={componentMetadata?.modalities}
         academicLevelOptions={componentMetadata?.academicLevels}
+        courseOptions={componentMetadata?.courses}
         onCancel={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
         onSave={handleSave}
         onSaveAndPublish={handleSaveAndPublish}

@@ -93,7 +93,7 @@ export const SharedDisciplinePage = () => {
 
             <div className="mt-5 flex flex-wrap gap-2.5">
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
-                Curso: {component.department || 'Não informado'}
+                Curso: {component.courseRef?.name || component.department || 'Não informado'}
               </span>
               <span className="rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink/75 shadow-sm">
                 Semestre: {component.semester || 'Não informado'}
@@ -109,6 +109,7 @@ export const SharedDisciplinePage = () => {
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <SectionCard title="Ementa">{component.syllabus || 'Não informada.'}</SectionCard>
+          <WorkloadOverview workload={component.workload} />
           <SectionCard title="Conteúdo programático">{component.program || 'Não informado.'}</SectionCard>
           <SectionCard title="Objetivos">{component.objective || 'Não informados.'}</SectionCard>
           <SectionCard title="Metodologia">{component.methodology || 'Não informada.'}</SectionCard>
@@ -145,8 +146,6 @@ export const SharedDisciplinePage = () => {
           </section>
         </div>
       </section>
-
-      <WorkloadOverview workload={component.workload} />
 
       <div className="rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-sm text-primary-800 shadow-sm">
         Este link é temporário e pode ser revogado a qualquer momento pelo responsável da publicação.
