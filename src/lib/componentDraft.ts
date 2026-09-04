@@ -249,7 +249,9 @@ export const getDisciplineFormInitialValues = (
   name: cleanText(draft?.name),
   department: cleanText(draft?.department),
   semester: cleanText(draft?.semester),
-  academicLevel: draft?.academicLevel || defaults?.academicLevel || 'graduacao',
+  academicLevel: draft?.academicLevel && draft.academicLevel !== 'graduacao'
+    ? 'pos_graduacao'
+    : defaults?.academicLevel || 'graduacao',
   modality: cleanText(draft?.modality) || cleanText(defaults?.modality),
   program: cleanText(draft?.program),
   objective: cleanText(draft?.objective),
