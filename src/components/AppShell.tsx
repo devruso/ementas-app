@@ -1,4 +1,4 @@
-﻿import { BookOpenText, Building2, FilePlus2, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
+﻿import { BookOpenText, Building2, LogIn, Menu, UserCircle2, Users2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
@@ -55,14 +55,6 @@ export const AppShell = () => {
 
             {auth.isAuthenticated ? (
               <>
-                {isAdminProfile ? (
-                  <NavLink to="/disciplinas/adicionar" className={navPillClass}>
-                    <span className="inline-flex items-center gap-2">
-                      <FilePlus2 className="h-4 w-4" />
-                      Adicionar
-                    </span>
-                  </NavLink>
-                ) : null}
 
                 {isAdminProfile ? (
                   <NavLink to="/usuarios" className={navPillClass}>
@@ -140,15 +132,6 @@ export const AppShell = () => {
               </NavLink>
               {auth.isAuthenticated ? (
                 <>
-                  {isAdminProfile ? (
-                    <NavLink
-                      to="/disciplinas/adicionar"
-                      className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Adicionar disciplina
-                    </NavLink>
-                  ) : null}
                   {isAdminProfile ? (
                     <NavLink
                       to="/usuarios"

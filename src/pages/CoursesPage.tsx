@@ -149,19 +149,13 @@ export const CoursesPage = () => {
           Cadastro completo dos cursos associados às disciplinas.
         </p>
 
-        {editingCourseId ? (
-          <div className="mt-4 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700">
-            Modo edição ativo. Atualize os dados do curso e clique em Salvar alterações.
-          </div>
-        ) : null}
 
-        <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={handleSubmit}>
+        <form className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]" onSubmit={handleSubmit}>
           <FormField
             label="Nome do curso"
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Bacharelado em Ciência da Computação"
-            className="md:col-span-2"
           />
           <FormField
             label="Código (opcional)"
@@ -170,7 +164,7 @@ export const CoursesPage = () => {
             placeholder="DCC"
           />
 
-          <div className="flex flex-wrap items-center gap-3 md:col-span-3">
+          <div className="flex flex-wrap items-center gap-3 md:col-span-2">
             <button
               type="submit"
               disabled={saving}

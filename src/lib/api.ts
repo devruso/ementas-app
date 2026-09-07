@@ -311,18 +311,19 @@ export const getComponentLogs = async (
   return response.data;
 };
 
-export const exportComponentPdf = async (componentId: string) => {
+export const exportComponentPdf = async (componentId: string, version: 'published' | 'draft' = 'published') => {
   const response = await api.get<ArrayBuffer>(`/components/${componentId}/export`, {
     responseType: 'arraybuffer',
     headers: { Accept: 'application/pdf' },
+    params: { version },
   });
 
   return new Blob([response.data], { type: 'application/pdf;charset=utf-8' });
 };
 
-export const exportComponentDocx = async (componentId: string) => {
+export const exportComponentDocx = async (componentId: string, version: 'published' | 'draft' = 'published') => {
   const response = await api.get<ArrayBuffer>(`/components/${componentId}/export`, {
-    params: { format: 'docx' },
+    params: { format: 'docx', version },
     responseType: 'arraybuffer',
     headers: { Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
   });

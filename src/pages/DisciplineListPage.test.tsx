@@ -12,6 +12,7 @@ vi.mock('../lib/api', () => ({
 }));
 
 const mockedGetComponents = vi.mocked(getComponents);
+vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ isAuthenticated: true, user: { role: 'admin' } }) }));
 const mockedGetComponentMetadata = vi.mocked(getComponentMetadata);
 
 const componentMetadata = {
@@ -93,6 +94,8 @@ describe('DisciplineListPage public filters', () => {
     expect(screen.getByLabelText('Curso')).toHaveValue('__all__');
     expect(screen.getByLabelText('Buscar por código ou nome')).toHaveFocus();
     expect(screen.getByLabelText('Itens por pagina')).toHaveValue('20');
+    expect(screen.getByRole('link', { name: 'Cadastrar' })).toHaveAttribute('href', '/disciplinas/adicionar');
+    expect(screen.getByRole('link', { name: 'Importar' })).toHaveAttribute('href', '/disciplinas/adicionar?modo=importar');
 
     await waitFor(() => {
       expect(mockedGetComponents).toHaveBeenCalled();

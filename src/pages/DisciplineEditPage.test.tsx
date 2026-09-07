@@ -175,6 +175,30 @@ describe('DisciplineEditPage autosave', () => {
     vi.clearAllMocks();
   });
 
+  it('abre a edição com foco no campo pendente informado na publicação', async () => {
+    render(<MemoryRouter initialEntries={['/disciplinas/ic045/editar?campo=objective']}><DisciplineEditPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByLabelText('Objetivos')).toHaveFocus());
+    expect(screen.queryByText('Gestao de disciplina')).not.toBeInTheDocument();
+    expect(screen.queryByText('Classificação de pré-requisitos')).not.toBeInTheDocument();
+  });
+
+  it('aguarda autosave pendente antes de salvar a versão mais recente', async () => {
+    let finishAutosave!: (value: never) => void;
+    mockedUpdateComponentDraft.mockImplementationOnce(() => new Promise((resolve) => { finishAutosave = resolve; }));
+    const user = userEvent.setup();
+    render(<MemoryRouter><DisciplineEditPage /></MemoryRouter>);
+    const input = await screen.findByLabelText('Metodologia');
+    await user.clear(input);
+    await user.type(input, 'Primeira versão');
+    await waitFor(() => expect(mockedUpdateComponentDraft).toHaveBeenCalledTimes(1), { timeout: 4000 });
+    await user.clear(input);
+    await user.type(input, 'Versão final');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(mockedUpdateComponentDraft).toHaveBeenCalledTimes(1);
+    finishAutosave({ id: 'draft-1', code: 'IC045' } as never);
+    await waitFor(() => expect(mockedUpdateComponentDraft).toHaveBeenLastCalledWith('draft-1', expect.objectContaining({ methodology: 'Versão final' })));
+  });
+
   it('deve salvar automaticamente alterações de formulário no backend', async () => {
     const user = userEvent.setup();
 

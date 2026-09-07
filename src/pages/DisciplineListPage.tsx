@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Eye, MoreHo
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { SearchBar } from '../components/SearchBar';
+import { useAuth } from '../contexts/AuthContext';
 import { SelectField } from '../components/SelectField';
 import { getComponentMetadata, getComponents } from '../lib/api';
 import { AppError } from '../lib/errors';
@@ -165,6 +166,7 @@ const sortOptions: SortOption[] = [
 ];
 
 export const DisciplineListPage = () => {
+  const auth = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialSearch = searchParams.get('q') || '';
@@ -492,6 +494,12 @@ export const DisciplineListPage = () => {
             <div>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Disciplinas</h2>
             </div>
+            {auth.isAuthenticated && ['admin', 'super_admin'].includes(auth.user?.role || '') ? (
+              <div className="flex flex-wrap gap-3">
+                <Link className="rounded-xl bg-primary-500 px-5 py-3 font-semibold text-white" to="/disciplinas/adicionar">Cadastrar</Link>
+                <Link className="rounded-xl border border-primary-200 px-5 py-3 font-semibold text-primary-700" to="/disciplinas/adicionar?modo=importar">Importar</Link>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_420px]">

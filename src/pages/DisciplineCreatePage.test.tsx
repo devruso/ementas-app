@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createComponentDraft,
+  getComponentDraftByCode,
+  updateComponentDraft,
+  previewDraftImport,
   getComponentMetadata,
   getComponentDrafts,
   getComponents,
@@ -20,6 +23,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => navigateMock,
+    useSearchParams: () => [new URLSearchParams('modo=importar')],
   };
 });
 
@@ -29,6 +33,9 @@ vi.mock('../lib/api', async () => {
   return {
     ...actual,
     createComponentDraft: vi.fn(),
+    getComponentDraftByCode: vi.fn(),
+    updateComponentDraft: vi.fn(),
+    previewDraftImport: vi.fn(),
     getComponentMetadata: vi.fn(),
     getComponents: vi.fn(),
     getComponentDrafts: vi.fn(),
@@ -45,6 +52,28 @@ const mockedImportComponentsFromSiac = vi.mocked(importComponentsFromSiac);
 const mockedImportComponentsFromSigaaPublic = vi.mocked(importComponentsFromSigaaPublic);
 
 describe('DisciplineCreatePage', () => {
+  it.each([true, false])('confirma substituição de documento existente: %s', async (confirmed) => {
+    mockedGetComponents.mockResolvedValue({ total: 0, results: [] });
+    mockedGetComponentDrafts.mockResolvedValue({ total: 0, results: [] });
+    vi.mocked(getComponentDraftByCode).mockResolvedValue({ id: 'existing', code: 'IC045', name: 'Antigo' });
+    vi.mocked(updateComponentDraft).mockResolvedValue({ id: 'existing', code: 'IC045', name: 'Novo' });
+    vi.mocked(previewDraftImport).mockResolvedValue({ suggestedDraft: { code: 'IC045', name: 'Novo', department: 'Ciência da Computação', modality: 'DISCIPLINA', syllabus: 'Ementa importada' }, warnings: [], unrecognizedSections: [] } as never);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(confirmed);
+    const { container } = render(<DisciplineCreatePage />);
+    await screen.findByRole('option', { name: 'Ciência da Computação' });
+    await userEvent.upload(container.querySelector('input[type="file"]')!, new File(['pdf'], 'disciplina.pdf', { type: 'application/pdf' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Aplicar prévia ao formulário' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    if (confirmed) {
+      await waitFor(() => expect(updateComponentDraft).toHaveBeenCalledWith('existing', expect.objectContaining({ syllabus: 'Ementa importada', objective: '', referencesComplementary: '' })));
+    } else {
+      expect(updateComponentDraft).not.toHaveBeenCalled();
+    }
+    expect(createComponentDraft).not.toHaveBeenCalled();
+    confirm.mockRestore();
+    vi.clearAllMocks();
+  });
   beforeEach(() => {
     mockedGetComponentMetadata.mockResolvedValue({
       defaults: { modality: 'DISCIPLINA', academicLevel: 'graduacao' },

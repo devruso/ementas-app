@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { focusDisciplineField } from '../lib/pendingFields';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { ErrorNotice } from '../components/ErrorNotice';
-import { approveComponentDraft, getComponentDraftByCode, getComponentDrafts, getComponentMetadata, getComponents, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
+import { approveComponentDraft, getComponentDraftByCode, getComponentMetadata, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
 import { ApiErrorCode } from '../lib/apiErrorCatalog';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
@@ -12,6 +13,7 @@ import type { ComponentDraft, ComponentMetadata, PublicationContext } from '../t
 
 export const DisciplineEditPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { componentCode } = useParams();
   const [draft, setDraft] = useState<ComponentDraft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,13 +24,21 @@ export const DisciplineEditPage = () => {
   const [publicationContext, setPublicationContext] = useState<PublicationContext | null>(null);
   const [loadingPublicationContext, setLoadingPublicationContext] = useState(false);
   const [approvalPassword, setApprovalPassword] = useState('');
-  const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
   const [liveValues, setLiveValues] = useState<DisciplineFormValues | null>(null);
   const [lastSavedPayload, setLastSavedPayload] = useState('');
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [componentMetadata, setComponentMetadata] = useState<ComponentMetadata | null>(null);
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const saveDraft = (id: string, payload: Partial<ComponentDraft>) => {
+    const operation = saveQueue.current.then(() => updateComponentDraft(id, payload));
+    saveQueue.current = operation.catch(() => undefined);
+    return operation;
+  };
 
   const code = useMemo(() => componentCode?.toUpperCase() || '', [componentCode]);
+  useEffect(() => {
+    if (!loading && !dialogOpen && searchParams.get('campo')) focusDisciplineField(searchParams.get('campo')!);
+  }, [loading, dialogOpen, searchParams]);
   const initialFormValues = useMemo(
     () => getDisciplineFormInitialValues(draft || undefined, {
       modality: componentMetadata?.defaults.modality,
@@ -43,36 +53,16 @@ export const DisciplineEditPage = () => {
       return;
     }
 
-    const [currentDraft, componentsResult, draftsResult, metadata] = await Promise.all([
+    const [currentDraft, metadata] = await Promise.all([
       getComponentDraftByCode(code),
-      getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
-      getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
       getComponentMetadata().catch(() => null),
     ]);
-
-    const mapped = new Map<string, { code: string; name: string }>();
-    componentsResult.results.forEach((component) => {
-      mapped.set(component.code, {
-        code: component.code,
-        name: component.name,
-      });
-    });
-
-    draftsResult.results.forEach((draftItem) => {
-      if (draftItem.code?.trim()) {
-        mapped.set(draftItem.code, {
-          code: draftItem.code,
-          name: draftItem.name || 'Rascunho sem nome',
-        });
-      }
-    });
 
     setDraft(currentDraft);
     setLastSavedPayload(JSON.stringify(toDraftPayload(getDisciplineFormInitialValues(currentDraft, {
       modality: metadata?.defaults.modality,
       academicLevel: metadata?.defaults.academicLevel,
     }))));
-    setAvailablePrerequisites(Array.from(mapped.values()));
     setComponentMetadata(metadata);
 
   };
@@ -102,7 +92,7 @@ export const DisciplineEditPage = () => {
     const timeoutId = window.setTimeout(async () => {
       try {
         setAutosaveStatus('saving');
-        await updateComponentDraft(draft.id, nextPayload);
+        await saveDraft(draft.id, nextPayload);
         setLastSavedPayload(serializedPayload);
         setAutosaveStatus('saved');
       } catch (err) {
@@ -123,7 +113,7 @@ export const DisciplineEditPage = () => {
     try {
       setSaving(true);
       setError(null);
-      const updatedDraft = await updateComponentDraft(draft.id, toDraftPayload(values));
+      const updatedDraft = await saveDraft(draft.id, toDraftPayload(values));
       setDraft(updatedDraft);
       navigate(`/disciplinas/${updatedDraft.code.toLowerCase()}`);
     } catch (err) {
@@ -143,7 +133,7 @@ export const DisciplineEditPage = () => {
     try {
       setSaving(true);
       setError(null);
-      const updatedDraft = await updateComponentDraft(draft.id, toDraftPayload(values));
+      const updatedDraft = await saveDraft(draft.id, toDraftPayload(values));
       setDraft(updatedDraft);
       setDialogError(null);
       setPublicationContext(null);
@@ -208,18 +198,13 @@ export const DisciplineEditPage = () => {
 
   return (
     <div className="space-y-6">
-      <section className="panel p-6 sm:p-8">
-        <div className="mb-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-          Gestao de disciplina
-        </div>
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Editar disciplina</h1>
-        <p className="mt-2 text-sm leading-7 text-muted">Atualize o rascunho com leitura confortável e publique com aprovação formal quando o conteúdo estiver consolidado.</p>
-        <p className="mt-3 text-xs font-medium text-muted">
+      <h1 className="sr-only">Editar disciplina</h1>
+      <p role="status" className="text-xs font-medium text-muted">
           {autosaveStatus === 'saving' && 'Salvando automaticamente...'}
           {autosaveStatus === 'saved' && 'Rascunho sincronizado automaticamente.'}
           {autosaveStatus === 'error' && 'Falha no autosave. Tente salvar manualmente.'}
         </p>
-      </section>
+
 
       <ErrorNotice error={error} />
 
@@ -227,7 +212,6 @@ export const DisciplineEditPage = () => {
         initialValues={initialFormValues}
         saving={saving}
         error={error?.message || ''}
-        availablePrerequisites={availablePrerequisites}
         modalityOptions={componentMetadata?.modalities}
         academicLevelOptions={componentMetadata?.academicLevels}
         courseOptions={componentMetadata?.courses}

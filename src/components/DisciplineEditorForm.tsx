@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { focusDisciplineField } from '../lib/pendingFields';
 
 import {
   buildReferenceChecklist,
@@ -20,7 +21,6 @@ interface DisciplineEditorFormProps {
   onSaveAndPublish: (values: DisciplineFormValues) => Promise<void>;
   onValuesChange?: (values: DisciplineFormValues) => void;
   showPublishAction?: boolean;
-  availablePrerequisites?: Array<{ code: string; name: string }>;
   modalityOptions?: DomainOption[];
   academicLevelOptions?: AcademicLevelOption[];
   courseOptions?: CourseCatalogOption[];
@@ -45,8 +45,6 @@ const workloadLabels: Record<keyof DisciplineFormValues['studentWorkload'], stri
 };
 
 const componentCodeRegex = /^[A-Z]{2,4}[0-9]{2,4}$/;
-const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
-const notApplicableToken = 'NAO_SE_APLICA';
 const fallbackAcademicLevelOptions: AcademicLevelOption[] = [
   { value: 'graduacao', label: 'Graduação', sigaaSourceId: '' },
   { value: 'pos_graduacao', label: 'Pós-Graduação', sigaaSourceId: '' },
@@ -61,7 +59,6 @@ export const DisciplineEditorForm = ({
   onSaveAndPublish,
   onValuesChange,
   showPublishAction = true,
-  availablePrerequisites = [],
   modalityOptions = [],
   academicLevelOptions = [],
   courseOptions = [],
@@ -80,8 +77,6 @@ export const DisciplineEditorForm = ({
     referencesBasic?: string;
     referencesComplementary?: string;
   }>({});
-  const [prereqSearch, setPrereqSearch] = useState('');
-  const [pendingCodeInput, setPendingCodeInput] = useState('');
 
   useEffect(() => {
     setValues(initialValues);
@@ -120,99 +115,12 @@ export const DisciplineEditorForm = ({
     }));
   };
 
-  const extractPrerequerimentCodes = (value: string) =>
-    Array.from(new Set(value.toUpperCase().match(prerequerimentCodeRegex) ?? []));
-
-  const selectedPrerequeriments = extractPrerequerimentCodes(values.prerequeriments);
   const resolvedAcademicLevelOptions = academicLevelOptions.length > 0
     ? academicLevelOptions
     : fallbackAcademicLevelOptions;
-  const isNotApplicable = values.prerequeriments.trim().toUpperCase() === notApplicableToken;
-  const availableCodes = new Set(availablePrerequisites.map((item) => item.code.toUpperCase()));
 
-  const selectedPrerequerimentBadges = selectedPrerequeriments.map((code) => ({
-    code,
-    status: availableCodes.has(code) ? 'existing' : 'pending',
-  }));
-
-  const suggestedPrerequeriments = availablePrerequisites
-    .filter((option) => {
-      if (option.code === values.code) {
-        return false;
-      }
-
-      if (selectedPrerequeriments.includes(option.code)) {
-        return false;
-      }
-
-      if (!prereqSearch.trim()) {
-        return true;
-      }
-
-      const query = prereqSearch.trim().toLowerCase();
-      return option.code.toLowerCase().includes(query) || option.name.toLowerCase().includes(query);
-    })
-    .slice(0, 8);
-
-  const basicReferencesChecklist = buildReferenceChecklist(values.referencesBasic);
   const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
-  const referenceWarningItems = basicReferencesChecklist.filter((item) => item.status === 'warning');
 
-  const handleAddPrerequeriment = (code: string) => {
-    const nextCodes = Array.from(new Set([...selectedPrerequeriments, code]));
-
-    setValues((current) => ({
-      ...current,
-      prerequeriments: nextCodes.join(', '),
-    }));
-
-    setPrereqSearch('');
-  };
-
-  const handleAddPendingCode = () => {
-    const normalizedCode = pendingCodeInput.replace(/\s+/g, '').toUpperCase();
-
-    if (!normalizedCode) {
-      return;
-    }
-
-    if (!componentCodeRegex.test(normalizedCode)) {
-      return;
-    }
-
-    if (normalizedCode === values.code) {
-      return;
-    }
-
-    handleAddPrerequeriment(normalizedCode);
-    setPendingCodeInput('');
-  };
-
-  const handleRemovePrerequeriment = (code: string) => {
-    const nextCodes = selectedPrerequeriments.filter((item) => item !== code);
-
-    setValues((current) => ({
-      ...current,
-      prerequeriments: nextCodes.join(', '),
-    }));
-  };
-
-  const handleSetNotApplicable = () => {
-    setValues((current) => ({
-      ...current,
-      prerequeriments: notApplicableToken,
-    }));
-
-    setPrereqSearch('');
-    setPendingCodeInput('');
-  };
-
-  const handleUnsetNotApplicable = () => {
-    setValues((current) => ({
-      ...current,
-      prerequeriments: '',
-    }));
-  };
 
   const validate = () => {
     const nextErrors: {
@@ -315,11 +223,11 @@ export const DisciplineEditorForm = ({
           <h2 className="text-xl font-semibold text-ink">Identificação da disciplina</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <FormField label="Código" value={values.code} onChange={(event) => handleChange('code', event.target.value)} error={fieldErrors.code} />
+          <FormField id="discipline-code" label="Código" value={values.code} onChange={(event) => handleChange('code', event.target.value)} error={fieldErrors.code} />
           <div className="md:col-span-2">
-            <FormField label="Nome" value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
+            <FormField id="discipline-name" label="Nome" value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
           </div>
-          <SelectField label="Curso" value={values.department} error={fieldErrors.department} onChange={(event) => handleChange('department', event.target.value)}>
+          <SelectField id="discipline-department" label="Curso" value={values.department} error={fieldErrors.department} onChange={(event) => handleChange('department', event.target.value)}>
             <option value="">Selecione um curso</option>
             {values.department && !courseOptions.some((option) => option.value === values.department) ? (
               <option value={values.department}>{values.department}</option>
@@ -328,8 +236,8 @@ export const DisciplineEditorForm = ({
               <option key={option.key} value={option.value}>{option.label}</option>
             ))}
           </SelectField>
-          <FormField label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
-          <SelectField
+          <FormField id="discipline-semester" label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
+          <SelectField id="discipline-academicLevel"
             label="Nível acadêmico"
             value={values.academicLevel}
             onChange={(event) => handleChange('academicLevel', event.target.value)}
@@ -339,11 +247,11 @@ export const DisciplineEditorForm = ({
             ))}
           </SelectField>
           <div className="md:col-span-2">
-            <SelectField label="Modalidade" value={values.modality} error={fieldErrors.modality} onChange={(event) => handleChange('modality', event.target.value)}>
-              {!modalityOptions.some((option) => option.value === values.modality) && values.modality ? (
+            <SelectField id="discipline-modality" label="Modalidade" value={values.modality} error={fieldErrors.modality} onChange={(event) => handleChange('modality', event.target.value)}>
+              {!modalityOptions.some((option) => option.value === values.modality) && values.modality && values.modality !== 'MODULO' ? (
                 <option value={values.modality}>{values.modality}</option>
               ) : null}
-              {modalityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              {modalityOptions.filter((option) => option.value !== 'MODULO').map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </SelectField>
           </div>
         </div>
@@ -372,8 +280,8 @@ export const DisciplineEditorForm = ({
       <section className="grid min-w-0 gap-6">
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField className="min-h-[280px]" label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
-            <TextareaField
+            <TextareaField id="discipline-syllabus" className="min-h-[280px]" label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
+            <TextareaField id="discipline-objective"
               label="Objetivos"
               value={values.objective}
               onChange={(event) => handleChange('objective', event.target.value)}
@@ -381,14 +289,14 @@ export const DisciplineEditorForm = ({
               className="min-h-[320px]"
               placeholder="Use um objetivo por linha para facilitar a organização dos parágrafos no documento oficial."
             />
-            <TextareaField className="min-h-[480px]" label="Conteúdo programático" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
-            <TextareaField className="min-h-[360px]" label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
+            <TextareaField id="discipline-program" className="min-h-[480px]" label="Conteúdo programático" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
+            <TextareaField id="discipline-methodology" className="min-h-[360px]" label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
           </div>
         </div>
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField className="min-h-[360px]" label="Avaliação da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
-            <TextareaField
+            <TextareaField id="discipline-learningAssessment" className="min-h-[360px]" label="Avaliação da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
+            <TextareaField id="discipline-referencesBasic"
               label="Referências básicas"
               value={values.referencesBasic}
               onChange={(event) => handleChange('referencesBasic', event.target.value)}
@@ -396,20 +304,7 @@ export const DisciplineEditorForm = ({
               className="min-h-[320px]"
               placeholder="Liste autores, títulos e dados editoriais essenciais."
             />
-            {basicReferencesChecklist.length > 0 ? (
-              <div className={referenceWarningItems.length > 0
-                ? 'rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'
-                : 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800'}
-              >
-                <div className="font-semibold">Validação ABNT</div>
-                <div className="mt-1">
-                  {referenceWarningItems.length > 0
-                    ? `${referenceWarningItems.length} referência(s) precisam de ano ou dados completos de acesso.`
-                    : 'Referências prontas para a publicação.'}
-                </div>
-              </div>
-            ) : null}
-            <TextareaField
+            <TextareaField id="discipline-referencesComplementary"
               label="Referências complementares"
               value={values.referencesComplementary}
               onChange={(event) => handleChange('referencesComplementary', event.target.value)}
@@ -422,7 +317,7 @@ export const DisciplineEditorForm = ({
                 Referências complementares são opcionais e não impedem a publicação; revise os dados para melhorar o documento oficial.
               </p>
             ) : null}
-            <TextareaField
+            <TextareaField id="discipline-prerequeriments"
               label="Pré-requisitos"
               value={values.prerequeriments}
               onChange={(event) => handleChange('prerequeriments', event.target.value)}
@@ -430,102 +325,14 @@ export const DisciplineEditorForm = ({
               placeholder="Use códigos de disciplinas separados por vírgula, ou NAO_SE_APLICA"
             />
 
-            <div className="rounded-2xl border border-line bg-background p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
-                <span>Classificação de pré-requisitos</span>
-                {isNotApplicable ? (
-                  <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">Não se aplica</span>
-                ) : null}
-              </div>
 
-              <div className="mb-3 flex flex-wrap gap-2">
-                {!isNotApplicable ? (
-                  <button
-                    type="button"
-                    onClick={handleSetNotApplicable}
-                    className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Marcar como não se aplica
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleUnsetNotApplicable}
-                    className="rounded-full border border-primary-200 bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:bg-primary-200"
-                  >
-                    Remover "não se aplica"
-                  </button>
-                )}
-              </div>
-
-              <div className={isNotApplicable ? 'pointer-events-none opacity-60' : ''}>
-              <FormField
-                label="Buscar disciplina por código ou nome"
-                value={prereqSearch}
-                onChange={(event) => setPrereqSearch(event.target.value)}
-                placeholder="Ex.: IC045 ou Compiladores"
-              />
-
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <FormField
-                  label="Adicionar código pendente"
-                  value={pendingCodeInput}
-                  onChange={(event) => setPendingCodeInput(event.target.value.toUpperCase())}
-                  placeholder="Ex.: MAT999"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddPendingCode}
-                  className="mt-7 h-11 rounded-2xl border border-amber-300 bg-amber-100 px-4 text-xs font-semibold text-amber-700 transition hover:bg-amber-200"
-                >
-                  Adicionar pendente
-                </button>
-              </div>
-
-              {selectedPrerequeriments.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedPrerequerimentBadges.map((item) => (
-                    <button
-                      key={item.code}
-                      type="button"
-                      onClick={() => handleRemovePrerequeriment(item.code)}
-                      className={
-                        item.status === 'existing'
-                          ? 'rounded-full border border-primary-200 bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:bg-primary-200'
-                          : 'rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-200'
-                      }
-                    >
-                      {item.code} {item.status === 'existing' ? '(existente)' : '(pendente)'} x
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {suggestedPrerequeriments.length > 0 ? (
-                <div className="mt-3 max-h-44 space-y-2 overflow-auto rounded-xl border border-line bg-white p-2">
-                  {suggestedPrerequeriments.map((option) => (
-                    <button
-                      key={option.code}
-                      type="button"
-                      onClick={() => handleAddPrerequeriment(option.code)}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-primary-100/40"
-                    >
-                      <span className="font-semibold text-primary-600">{option.code}</span>
-                      <span className="ml-3 truncate text-ink/80">{option.name}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-xs text-muted">
-                  Nenhuma disciplina encontrada para referência com esse filtro.
-                </p>
-              )}
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
+      {Object.keys(fieldErrors).length > 0 ? (
+        <button type="button" className="font-semibold text-primary-700 underline" onClick={() => focusDisciplineField(Object.keys(fieldErrors)[0])}>Visualizar campos pendentes</button>
+      ) : null}
       {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
 
       <div className="sticky bottom-2 z-10 rounded-3xl border border-line bg-white/95 p-4 shadow-panel backdrop-blur sm:-mx-1">

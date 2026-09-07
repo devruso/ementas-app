@@ -340,12 +340,12 @@ describe('DisciplineDetailsPage', () => {
 
     await screen.findByText('Compiladores draft');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF oficial' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Exportar DOCX' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF do rascunho' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Exportar DOCX do rascunho' }));
 
     await waitFor(() => {
-      expect(mockedExportComponentPdf).toHaveBeenCalledWith('component-1');
-      expect(mockedExportComponentDocx).toHaveBeenCalledWith('component-1');
+      expect(mockedExportComponentPdf).toHaveBeenCalledWith('component-1', 'draft');
+      expect(mockedExportComponentDocx).toHaveBeenCalledWith('component-1', 'draft');
     });
   });
 

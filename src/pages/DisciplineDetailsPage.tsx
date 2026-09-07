@@ -316,7 +316,7 @@ export const DisciplineDetailsPage = () => {
     setExporting(true);
 
     try {
-      const blob = await exportComponentPdf(component.id);
+      const blob = await exportComponentPdf(component.id, showingDraft ? 'draft' : 'published');
       const fileUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = fileUrl;
@@ -336,7 +336,7 @@ export const DisciplineDetailsPage = () => {
     setExportingDoc(true);
 
     try {
-      const blob = await exportComponentDocx(component.id);
+      const blob = await exportComponentDocx(component.id, showingDraft ? 'draft' : 'published');
       const fileUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = fileUrl;
@@ -589,7 +589,7 @@ export const DisciplineDetailsPage = () => {
               <>
                 <Link
                   to={`/disciplinas/${component.code.toLowerCase()}/editar`}
-                  className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50"
+                  className="inline-flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-100 px-3 py-2.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-200"
                 >
                   <FilePenLine className="h-4 w-4 text-primary-600" />
                   Editar disciplina
@@ -665,7 +665,7 @@ export const DisciplineDetailsPage = () => {
               className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Download className="h-4 w-4 text-secondary-700" />
-              {exporting ? 'Exportando PDF...' : 'Exportar PDF oficial'}
+              {exporting ? 'Exportando PDF...' : showingDraft ? 'Exportar PDF do rascunho' : 'Exportar PDF oficial'}
             </button>
 
             <button
@@ -675,7 +675,7 @@ export const DisciplineDetailsPage = () => {
               className="inline-flex w-full items-center gap-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FileText className="h-4 w-4 text-primary-600" />
-              {exportingDoc ? 'Exportando DOCX...' : 'Exportar DOCX'}
+              {exportingDoc ? 'Exportando DOCX...' : showingDraft ? 'Exportar DOCX do rascunho' : 'Exportar DOCX'}
             </button>
 
             <Link

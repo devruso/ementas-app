@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { DocumentImportCard } from '../components/DocumentImportCard';
 import {
   createComponentDraft,
+  getComponentDraftByCode,
+  updateComponentDraft,
   getComponentMetadata,
-  getComponentDrafts,
-  getComponents,
   importComponentsFromSiac,
   importComponentsFromSigaaPublic,
 } from '../lib/api';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
-import type { Component, ComponentMetadata, ImportComponentsSummary, SigaaSourceType } from '../types';
+import type { ComponentMetadata, ImportComponentsSummary, SigaaSourceType } from '../types';
 
 export const DisciplineCreatePage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const importingDocument = searchParams.get('modo') === 'importar';
+  const [documentApplied, setDocumentApplied] = useState(false);
   const [initialValues, setInitialValues] = useState(getDisciplineFormInitialValues());
   const [saving, setSaving] = useState(false);
   const [importingSiac, setImportingSiac] = useState(false);
@@ -35,52 +38,33 @@ export const DisciplineCreatePage = () => {
   const [siacSummary, setSiacSummary] = useState<ImportComponentsSummary | null>(null);
   const [sigaaSummary, setSigaaSummary] = useState<ImportComponentsSummary | null>(null);
   const [error, setError] = useState('');
-  const [availablePrerequisites, setAvailablePrerequisites] = useState<Array<{ code: string; name: string }>>([]);
   const [componentMetadata, setComponentMetadata] = useState<ComponentMetadata | null>(null);
 
   useEffect(() => {
-    Promise.allSettled([
-      getComponents({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
-      getComponentDrafts({ page: 0, limit: 300, sortBy: 'code', sortOrder: 'ASC' }),
-      getComponentMetadata(),
-    ])
-      .then((results) => {
-        const mapped = new Map<string, { code: string; name: string }>();
-
-        if (results[0].status === 'fulfilled') {
-          results[0].value.results.forEach((component: Component) => {
-            mapped.set(component.code, { code: component.code, name: component.name });
-          });
-        }
-
-        if (results[1].status === 'fulfilled') {
-          results[1].value.results.forEach((draft) => {
-            if (draft.code?.trim()) {
-              mapped.set(draft.code, { code: draft.code, name: draft.name || 'Rascunho sem nome' });
-            }
-          });
-        }
-
-        setAvailablePrerequisites(Array.from(mapped.values()));
-
-        if (results[2].status === 'fulfilled') {
-          const metadata = results[2].value;
-          setComponentMetadata(metadata);
-          setInitialValues((current) => current.modality
-            ? current
-            : { ...current, modality: metadata.defaults.modality });
-        }
-      })
-      .catch(() => {
-        setAvailablePrerequisites([]);
-      });
+    getComponentMetadata().then((metadata) => {
+      setComponentMetadata(metadata);
+      setInitialValues((current) => current.modality
+        ? current
+        : { ...current, modality: metadata.defaults.modality });
+    }).catch(() => setError('Falha ao carregar os dados do formulário. Recarregue a página.'));
   }, []);
 
   const handleCreate = async (values: DisciplineFormValues) => {
     try {
       setSaving(true);
       setError('');
-      const draft = await createComponentDraft(toDraftPayload(values));
+      let existing = null;
+      if (documentApplied) {
+        try {
+          existing = await getComponentDraftByCode(values.code.trim().toUpperCase());
+        } catch (lookupError) {
+          if ((lookupError as AppError).statusCode !== 404) throw lookupError;
+        }
+      }
+      if (existing && !window.confirm(`A disciplina ${values.code} já existe. Deseja sobrescrever todo o conteúdo do rascunho com o documento importado? A publicação oficial será atualizada após publicar.`)) return;
+      const draft = existing
+        ? await updateComponentDraft(existing.id, toDraftPayload(values))
+        : await createComponentDraft(toDraftPayload(values));
       navigate(`/disciplinas/${draft.code.toLowerCase()}/editar`, { replace: true });
     } catch (err) {
       const appError = err as AppError;
@@ -165,13 +149,13 @@ export const DisciplineCreatePage = () => {
   return (
     <div className="space-y-6 motion-fade">
       <section className="panel interactive-lift p-5 sm:p-8">
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Adicionar disciplina</h1>
-        <p className="mt-2 text-sm leading-7 text-muted">Crie um novo rascunho do componente curricular e, se quiser, pré-preencha os campos com importação documental.</p>
+        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">{importingDocument ? 'Importar disciplina' : 'Cadastrar disciplina'}</h1>
+        <p className="mt-2 text-sm leading-7 text-muted">{importingDocument ? 'Importe o documento e revise os dados antes de salvar.' : 'Preencha os dados da nova disciplina.'}</p>
       </section>
 
-      <DocumentImportCard onApplyPreview={setInitialValues} />
+      {importingDocument ? <DocumentImportCard onApplyPreview={(values) => { setInitialValues(values); setDocumentApplied(true); }} /> : null}
 
-      <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
+      {importingDocument ? <><section className="panel interactive-lift min-w-0 p-5 sm:p-6">
         <h2 className="text-xl font-semibold text-ink">Importar disciplinas por curso e semestre</h2>
         <p className="mt-2 text-sm leading-7 text-muted">
           Fluxo legado mantido no novo frontend para acelerar carga inicial de disciplinas.
@@ -299,11 +283,11 @@ export const DisciplineCreatePage = () => {
         {sigaaSummary ? renderImportSummary(sigaaSummary, 'Resumo da importacao SIGAA público') : null}
       </section>
 
+      </> : null}
       <DisciplineEditorForm
         initialValues={initialValues}
         saving={saving}
         error={error}
-        availablePrerequisites={availablePrerequisites}
         modalityOptions={componentMetadata?.modalities}
         academicLevelOptions={componentMetadata?.academicLevels}
         courseOptions={componentMetadata?.courses}

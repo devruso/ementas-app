@@ -76,7 +76,7 @@ describe('DisciplineEditorForm publish validation', () => {
     expect(modality).toHaveValue('Presencial');
     expect(screen.getByRole('option', { name: 'Disciplina' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Atividade' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Módulo' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Módulo' })).not.toBeInTheDocument();
 
     await userEvent.selectOptions(modality, 'ATIVIDADE');
     expect(modality).toHaveValue('ATIVIDADE');

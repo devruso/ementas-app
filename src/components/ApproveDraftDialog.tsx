@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { publicationFieldIds } from '../lib/pendingFields';
 
 import type { PublicationContext } from '../types';
 import type { AppError } from '../lib/errors';
@@ -58,7 +59,7 @@ export const ApproveDraftDialog = ({
 
   return (
     <div className="fixed inset-0 z-30 flex items-end bg-slate-950/55 p-3 sm:items-center sm:justify-center sm:p-6">
-      <div className="panel w-full max-w-lg p-5 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title">
+      <div className="panel max-h-[90dvh] w-full max-w-lg overflow-y-auto p-5 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase text-primary-700">Etapa {step} de 2</div>
@@ -119,6 +120,13 @@ export const ApproveDraftDialog = ({
           </div>
         )}
 
+        {error?.code?.startsWith('PUBLICATION_') && (Array.isArray(error.details?.fields) || error.code.includes('REFERENCE')) ? (
+          <Link
+            className="my-4 inline-flex font-semibold text-primary-700 underline"
+            to={`/disciplinas/${componentCode.toLowerCase()}/editar?campo=${publicationFieldIds[String((error.details?.fields as unknown[])?.[0])] || 'referencesBasic'}`}
+            onClick={onClose}
+          >Visualizar campos pendentes</Link>
+        ) : null}
         <FormActions>
           {step === 1 ? (
             <button
