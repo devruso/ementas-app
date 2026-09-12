@@ -19,7 +19,8 @@ interface UsersTableProps {
   onPageChange: (page: number) => void;
   onRemoveUser: (user: User) => Promise<void>;
   onRoleDraftChange?: (userId: string, role: User['role']) => void;
-  onUpdateUserRole?: (user: User) => Promise<void>;
+  onUpdateUserRole?: (user: User, role: User['role']) => Promise<void>;
+  embedded?: boolean;
 }
 
 export const UsersTable = ({
@@ -36,13 +37,14 @@ export const UsersTable = ({
   onRemoveUser,
   onRoleDraftChange,
   onUpdateUserRole,
+  embedded = false,
 }: UsersTableProps) => {
   const hasPreviousPage = currentPage >= 1;
   const hasNextPage = currentPage + 1 < totalPages;
   const canManageRoles = currentUserRole === 'super_admin';
 
   return (
-    <div className="panel interactive-lift overflow-hidden">
+    <div className={embedded ? 'overflow-hidden' : 'panel interactive-lift overflow-hidden'}>
       <div className="hidden grid-cols-[minmax(220px,1.5fr)_minmax(240px,1.6fr)_120px_160px_120px] gap-4 border-b border-line bg-slate-50 px-5 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-ink/70 md:grid">
         <div>Nome</div>
         <div>E-mail</div>
@@ -65,30 +67,22 @@ export const UsersTable = ({
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50 md:hidden">Tipo</div>
               {canManageRoles && onRoleDraftChange && onUpdateUserRole ? (
-                <div className="flex flex-col gap-2">
+                <div>
                   <select
                     aria-label={`Perfil de ${user.name}`}
                     value={roleDraftByUserId?.[user.id] || user.role}
                     disabled={user.id === currentUserId || updatingRoleUserId === user.id}
-                    onChange={(event) => onRoleDraftChange(user.id, event.target.value as User['role'])}
+                    onChange={(event) => {
+                      const role = event.target.value as User['role'];
+                      onRoleDraftChange(user.id, role);
+                      void onUpdateUserRole(user, role);
+                    }}
                     className="rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink"
                   >
                     <option value="teacher">Professor</option>
                     <option value="admin">Admin</option>
                     <option value="super_admin">Super Admin</option>
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateUserRole(user)}
-                    disabled={
-                      user.id === currentUserId
-                      || updatingRoleUserId === user.id
-                      || (roleDraftByUserId?.[user.id] || user.role) === user.role
-                    }
-                    className="inline-flex items-center justify-center rounded-xl border border-primary-200 px-3 py-2 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {updatingRoleUserId === user.id ? 'Salvando...' : 'Salvar perfil'}
-                  </button>
                 </div>
               ) : (
                 <span className="inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600">
