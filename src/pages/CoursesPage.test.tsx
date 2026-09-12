@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -35,12 +35,16 @@ describe('CoursesPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Cursos' })).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Nome do curso'), 'Sistemas de Informação');
-    await user.type(screen.getByLabelText('Código (opcional)'), 'bsi');
     await user.click(screen.getByRole('button', { name: 'Criar curso' }));
+    const createDialog = screen.getByRole('dialog', { name: 'Criar curso' });
+    await user.type(within(createDialog).getByLabelText('Nome do curso'), 'Sistemas de Informação');
+    await user.type(within(createDialog).getByLabelText('Código (opcional)'), 'bsi');
+    await user.click(within(createDialog).getByRole('button', { name: 'Criar curso' }));
     await waitFor(() => expect(mockedCreateCourse).toHaveBeenCalledWith('Sistemas de Informação', 'bsi'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Editar' }));
+    expect(screen.getByRole('dialog', { name: 'Editar curso' })).toBeInTheDocument();
     const nameInput = screen.getByLabelText('Nome do curso');
     await user.clear(nameInput);
     await user.type(nameInput, 'Ciência da Computação');

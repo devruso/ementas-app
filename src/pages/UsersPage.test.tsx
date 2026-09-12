@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -127,9 +127,11 @@ describe('UsersPage', () => {
 
     render(<UsersPage />);
 
-    await userEvent.type(await screen.findByLabelText('Nome do professor'), 'Novo Professor');
-    await userEvent.type(screen.getByLabelText('E-mail institucional'), 'novo.prof@test.com');
-    await userEvent.click(screen.getByRole('button', { name: 'Criar professor agora' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Cadastrar professor' }));
+    const dialog = screen.getByRole('dialog', { name: 'Cadastrar professor' });
+    await userEvent.type(within(dialog).getByLabelText('Nome do professor'), 'Novo Professor');
+    await userEvent.type(within(dialog).getByLabelText('E-mail institucional'), 'novo.prof@test.com');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cadastrar professor' }));
 
     await waitFor(() => {
       expect(mockedCreateTeacherByAdmin).toHaveBeenCalledWith(
@@ -140,6 +142,7 @@ describe('UsersPage', () => {
     });
 
     expect(await screen.findByText(/link de definição de senha foi gerado com segurança/i)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('deve permitir ao super admin atualizar o perfil de usuário', async () => {
@@ -151,7 +154,6 @@ describe('UsersPage', () => {
     expect(await screen.findByText('Professor Teste')).toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText('Perfil de Professor Teste'), 'admin');
-    await userEvent.click(screen.getByRole('button', { name: 'Salvar perfil' }));
 
     await waitFor(() => {
       expect(mockedUpdateUserRole).toHaveBeenCalledWith('u-1', 'admin');
