@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { FormField } from '../components/FormField';
+import { Modal } from '../components/Modal';
 import { SearchBar } from '../components/SearchBar';
 import { createCourse, deleteCourse, getCourses, updateCourse } from '../lib/api';
 import { AppError } from '../lib/errors';
@@ -14,7 +15,6 @@ const initialFilter: ListFilter = {
 };
 
 export const CoursesPage = () => {
-  const formSectionRef = useRef<HTMLElement | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ListFilter>(initialFilter);
   const [courses, setCourses] = useState<ListData<Course>>({ results: [], total: 0 });
@@ -26,6 +26,7 @@ export const CoursesPage = () => {
   const [deletingCourseId, setDeletingCourseId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -47,6 +48,12 @@ export const CoursesPage = () => {
     setName('');
     setCode('');
     setEditingCourseId('');
+  };
+
+  const closeForm = () => {
+    if (saving) return;
+    resetForm();
+    setFormOpen(false);
   };
 
   const loadCourses = async () => {
@@ -100,6 +107,7 @@ export const CoursesPage = () => {
       }
 
       resetForm();
+      setFormOpen(false);
       await loadCourses();
     } catch (err) {
       const appError = err as AppError;
@@ -116,7 +124,7 @@ export const CoursesPage = () => {
     setError('');
     setSuccess('');
 
-    formSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    setFormOpen(true);
   };
 
   const handleDelete = async (course: Course) => {
@@ -143,51 +151,10 @@ export const CoursesPage = () => {
 
   return (
     <div className="space-y-6 motion-fade">
-      <section ref={formSectionRef} className="panel interactive-lift p-5 sm:p-6">
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Cursos</h1>
-        <p className="mt-2 text-sm leading-7 text-muted">
-          Cadastro completo dos cursos associados às disciplinas.
-        </p>
-
-
-        <form className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]" onSubmit={handleSubmit}>
-          <FormField
-            label="Nome do curso"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Bacharelado em Ciência da Computação"
-          />
-          <FormField
-            label="Código (opcional)"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            placeholder="DCC"
-          />
-
-          <div className="flex flex-wrap items-center gap-3 md:col-span-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? 'Salvando...' : editingCourseId ? 'Salvar alterações' : 'Criar curso'}
-            </button>
-            {editingCourseId ? (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="inline-flex items-center justify-center rounded-2xl border border-line bg-white px-5 py-3 font-semibold text-ink transition hover:bg-slate-50"
-              >
-                Cancelar edição
-              </button>
-            ) : null}
-          </div>
-        </form>
-      </section>
-
+      <h1 className="sr-only">Cursos</h1>
       <section className="panel interactive-lift overflow-hidden">
-        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_220px_180px]">
-          <SearchBar value={search} placeholder="Buscar curso por nome ou código" onChange={setSearch} />
+        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_220px_180px_auto] lg:items-end">
+          <SearchBar label="Buscar curso" value={search} placeholder="Buscar curso por nome ou código" onChange={setSearch} />
           <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
             <span>Ordenar por</span>
             <select
@@ -217,6 +184,18 @@ export const CoursesPage = () => {
               <option value="DESC">Decrescente</option>
             </select>
           </label>
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setError('');
+              setSuccess('');
+              setFormOpen(true);
+            }}
+            className="inline-flex h-14 items-center justify-center rounded-2xl bg-primary-500 px-5 font-semibold text-white transition hover:bg-primary-600"
+          >
+            Criar curso
+          </button>
         </div>
 
         {error ? <div className="mx-5 mb-4 rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
@@ -272,6 +251,26 @@ export const CoursesPage = () => {
           </div>
         )}
       </section>
+
+      <Modal
+        open={formOpen}
+        title={editingCourseId ? 'Editar curso' : 'Criar curso'}
+        description="Informe os dados do curso associado às disciplinas."
+        onClose={closeForm}
+      >
+        <form className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]" onSubmit={handleSubmit}>
+          <FormField label="Nome do curso" value={name} onChange={(event) => setName(event.target.value)} placeholder="Bacharelado em Ciência da Computação" />
+          <FormField label="Código (opcional)" value={code} onChange={(event) => setCode(event.target.value)} placeholder="DCC" />
+          <div className="flex flex-wrap justify-end gap-3 md:col-span-2">
+            <button type="button" onClick={closeForm} disabled={saving} className="rounded-2xl border border-line bg-white px-5 py-3 font-semibold text-ink transition hover:bg-slate-50 disabled:opacity-60">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} className="rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60">
+              {saving ? 'Salvando...' : editingCourseId ? 'Salvar alterações' : 'Criar curso'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <section className="flex flex-col gap-3 rounded-3xl border border-dashed border-primary-100 bg-white/80 px-5 py-4 text-sm text-ink/80 md:flex-row md:items-center md:justify-between">
         <div>

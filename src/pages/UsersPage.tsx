@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { InviteLinkCard } from '../components/InviteLinkCard';
 import { FormField } from '../components/FormField';
+import { Modal } from '../components/Modal';
 import { SearchBar } from '../components/SearchBar';
 import { SelectField } from '../components/SelectField';
 import { UsersTable } from '../components/UsersTable';
@@ -41,6 +42,7 @@ export const UsersPage = () => {
   const [lastPasswordSetupLink, setLastPasswordSetupLink] = useState('');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [teacherFormOpen, setTeacherFormOpen] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -140,6 +142,7 @@ export const UsersPage = () => {
 
       setTeacherName('');
       setTeacherEmail('');
+      setTeacherFormOpen(false);
       setInviteLink('');
       setInviteFeedback('');
       setInviteError('');
@@ -217,18 +220,8 @@ export const UsersPage = () => {
     }
   };
 
-  const handleUpdateRole = async (user: User) => {
-    const nextRole = roleDraftByUserId[user.id] || user.role;
-
+  const handleUpdateRole = async (user: User, nextRole: User['role']) => {
     if (nextRole === user.role) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Deseja alterar o perfil de ${user.name} para ${nextRole.replace('_', ' ')}?`
-    );
-
-    if (!confirmed) {
       return;
     }
 
@@ -242,6 +235,7 @@ export const UsersPage = () => {
     } catch (err) {
       const appError = err as AppError;
       setError(appError.message);
+      setRoleDraftByUserId((current) => ({ ...current, [user.id]: user.role }));
     } finally {
       setUpdatingRoleUserId('');
     }
@@ -302,67 +296,9 @@ export const UsersPage = () => {
         </div>
       </section>
 
-      <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
-        <h2 className="text-xl font-semibold text-ink">Criar professor sem sair do app</h2>
-        <p className="mt-2 text-sm leading-7 text-muted">
-          O sistema gera o vínculo de acesso automaticamente, concluindo o cadastro do professor na mesma tela.
-        </p>
-
-        <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreateTeacher}>
-          <FormField
-            label="Nome do professor"
-            value={teacherName}
-            onChange={(event) => setTeacherName(event.target.value)}
-          />
-          <FormField
-            label="E-mail institucional"
-            type="email"
-            value={teacherEmail}
-            onChange={(event) => setTeacherEmail(event.target.value)}
-          />
-          <label className="flex items-center gap-2 rounded-2xl border border-line bg-background px-4 py-3 text-sm text-ink md:col-span-2">
-            <input
-              type="checkbox"
-              checked={sendCredentialsByEmail}
-              onChange={(event) => setSendCredentialsByEmail(event.target.checked)}
-              className="h-4 w-4 rounded border-line"
-            />
-            Enviar link de definição de senha para e-mail institucional ao concluir o cadastro
-          </label>
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              disabled={creatingTeacher}
-              className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {creatingTeacher ? 'Criando professor...' : 'Criar professor agora'}
-            </button>
-          </div>
-        </form>
-
-        {success ? (
-          <div className="mt-4 space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            <p>{success}</p>
-            {lastPasswordSetupLink && (error || !sendCredentialsByEmail) ? (
-              <p>
-                Link de definição de senha:{' '}
-                <a href={lastPasswordSetupLink} target="_blank" rel="noreferrer" className="font-semibold underline">
-                  {lastPasswordSetupLink}
-                </a>
-              </p>
-            ) : null}
-            {lastGeneratedPassword && error ? (
-              <p>
-                Senha provisória interna: <strong>{lastGeneratedPassword}</strong>
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
       <section className="panel interactive-lift overflow-hidden">
-        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_240px_180px]">
-          <SearchBar value={search} placeholder="Nome ou e-mail do usuário" onChange={setSearch} />
+        <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_240px_180px_auto] lg:items-end">
+          <SearchBar label="Buscar professor" value={search} placeholder="Nome ou e-mail do usuário" onChange={setSearch} />
           <SelectField
             label="Ordenar por"
             value={filter.sortBy}
@@ -381,12 +317,33 @@ export const UsersPage = () => {
             <option value="DESC">Decrescente</option>
             <option value="ASC">Crescente</option>
           </SelectField>
+          <button
+            type="button"
+            onClick={() => {
+              setTeacherName('');
+              setTeacherEmail('');
+              setError('');
+              setSuccess('');
+              setTeacherFormOpen(true);
+            }}
+            className="inline-flex h-14 items-center justify-center rounded-2xl bg-primary-500 px-5 font-semibold text-white transition hover:bg-primary-600"
+          >
+            Cadastrar professor
+          </button>
         </div>
-      </section>
 
-      {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
+        {error ? <div className="mx-5 mb-4 rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
+        {success ? (
+          <div className="mx-5 mb-4 space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <p>{success}</p>
+            {lastPasswordSetupLink && (error || !sendCredentialsByEmail) ? (
+              <p>Link de definição de senha: <a href={lastPasswordSetupLink} target="_blank" rel="noreferrer" className="font-semibold underline">{lastPasswordSetupLink}</a></p>
+            ) : null}
+            {lastGeneratedPassword && error ? <p>Senha provisória interna: <strong>{lastGeneratedPassword}</strong></p> : null}
+          </div>
+        ) : null}
 
-      <UsersTable
+        <UsersTable
         users={users}
         currentPage={filter.page}
         totalPages={Math.max(totalPages, 1)}
@@ -402,7 +359,33 @@ export const UsersPage = () => {
           setRoleDraftByUserId((current) => ({ ...current, [userId]: role }));
         }}
         onUpdateUserRole={handleUpdateRole}
-      />
+          embedded
+        />
+      </section>
+
+      <Modal
+        open={teacherFormOpen}
+        title="Cadastrar professor"
+        description="Informe os dados do professor e escolha como enviar o acesso inicial."
+        onClose={() => {
+          if (!creatingTeacher) setTeacherFormOpen(false);
+        }}
+      >
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleCreateTeacher}>
+          <FormField label="Nome do professor" value={teacherName} onChange={(event) => setTeacherName(event.target.value)} />
+          <FormField label="E-mail institucional" type="email" value={teacherEmail} onChange={(event) => setTeacherEmail(event.target.value)} />
+          <label className="flex items-center gap-2 rounded-2xl border border-line bg-background px-4 py-3 text-sm text-ink md:col-span-2">
+            <input type="checkbox" checked={sendCredentialsByEmail} onChange={(event) => setSendCredentialsByEmail(event.target.checked)} className="h-4 w-4 rounded border-line" />
+            Enviar link de definição de senha para o e-mail institucional
+          </label>
+          <div className="flex flex-wrap justify-end gap-3 md:col-span-2">
+            <button type="button" disabled={creatingTeacher} onClick={() => setTeacherFormOpen(false)} className="rounded-2xl border border-line bg-white px-5 py-3 font-semibold text-ink transition hover:bg-slate-50 disabled:opacity-60">Cancelar</button>
+            <button type="submit" disabled={creatingTeacher} className="rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60">
+              {creatingTeacher ? 'Cadastrando professor...' : 'Cadastrar professor'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
