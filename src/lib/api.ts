@@ -605,7 +605,7 @@ export const updateComponentDraft = async (
 
 export const approveComponentDraft = async (
   componentDraftId: string,
-  data: { password: string }
+  data: { password: string; agreementDate: string; agreementNumber: number }
 ) => {
   const response = await api.post<Component>(`/component-drafts/${componentDraftId}/approve`, data);
   return response.data;

@@ -9,7 +9,7 @@ import { approveComponentDraft, getComponentDraftByCode, getComponentMetadata, g
 import { ApiErrorCode } from '../lib/apiErrorCatalog';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
-import type { ComponentDraft, ComponentMetadata, PublicationContext } from '../types';
+import type { ComponentDraft, ComponentMetadata, PublicationApproval, PublicationContext } from '../types';
 
 export const DisciplineEditPage = () => {
   const navigate = useNavigate();
@@ -157,7 +157,7 @@ export const DisciplineEditPage = () => {
     }
   };
 
-  const handleApprove = async () => {
+  const handleApprove = async (approval: PublicationApproval) => {
     if (!draft?.id) {
       return;
     }
@@ -175,7 +175,7 @@ export const DisciplineEditPage = () => {
       setSaving(true);
       setDialogError(null);
       await approveComponentDraft(draft.id, {
-        password: approvalPassword,
+        ...approval,
       });
 
       setDialogOpen(false);

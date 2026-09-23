@@ -268,7 +268,11 @@ describe('DisciplineEditPage autosave', () => {
     await user.click(screen.getByRole('button', { name: /Confirmar publica/ }));
 
     await waitFor(() => {
-      expect(mockedApproveComponentDraft).toHaveBeenCalledWith('draft-1', { password: 'Senha123!' });
+      expect(mockedApproveComponentDraft).toHaveBeenCalledWith('draft-1', {
+        password: 'Senha123!',
+        agreementDate: '2026-08-16',
+        agreementNumber: 1,
+      });
       expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045');
     });
   });

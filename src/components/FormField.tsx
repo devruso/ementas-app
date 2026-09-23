@@ -15,7 +15,7 @@ export const FormField = ({ label, error, className, ...props }: FormFieldProps)
 
   return (
     <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
-      <span>{label}</span>
+      <span className="break-words [overflow-wrap:anywhere]">{label}</span>
       <div className="relative">
         <input
           {...props}

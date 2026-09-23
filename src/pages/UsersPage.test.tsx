@@ -91,7 +91,7 @@ describe('UsersPage', () => {
     await screen.findByText('Professor Teste');
     await userEvent.clear(screen.getByLabelText('Enviar convite para e-mail institucional'));
     await userEvent.type(screen.getByLabelText('Enviar convite para e-mail institucional'), 'jamilsonj@ufba.br');
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite por e-mail' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Convidar' }));
 
     await waitFor(() => {
       expect(mockedSendInviteByEmail).toHaveBeenCalledWith('jamilsonj@ufba.br', window.location.origin);

@@ -255,7 +255,7 @@ export const ProfilePage = () => {
     <div className="grid gap-6 xl:grid-cols-2">
       <section className="panel p-6 sm:p-8">
         <div className="mb-6 space-y-2">
-          <h1 className="text-2xl font-semibold text-ink">Informacoes da conta</h1>
+          <h1 className="text-2xl font-semibold text-ink">Informações da conta</h1>
           <p className="text-sm leading-7 text-muted">Atualize seu e-mail sem alterar o backend atual.</p>
         </div>
 

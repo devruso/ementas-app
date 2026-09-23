@@ -235,7 +235,7 @@ describe('DisciplineDetailsPage', () => {
 
     expect(mockedApproveComponentDraft).toHaveBeenCalledWith(
       'draft-1',
-      { password: 'Senha123!' }
+      { password: 'Senha123!', agreementDate: '2026-05-01', agreementNumber: 1 }
     );
   });
 

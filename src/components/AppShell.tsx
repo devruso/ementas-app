@@ -39,7 +39,7 @@ export const AppShell = () => {
             </div>
             <div className="hidden sm:block">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
-                Instituto de Computacao
+                Instituto de Computação
               </div>
               <div className="text-lg font-semibold">Ementas</div>
             </div>
@@ -82,7 +82,7 @@ export const AppShell = () => {
                 </NavLink>
 
                 <span className="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white/90">
-                  Olá
+                  Olá, {auth.user?.name || 'usuário'}
                 </span>
 
                 <button

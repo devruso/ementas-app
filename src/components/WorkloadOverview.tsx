@@ -55,8 +55,8 @@ export const WorkloadOverview = ({ workload }: WorkloadOverviewProps) => (
           <h3 className="mb-4 text-base font-semibold leading-tight text-ink xl:whitespace-nowrap">Carga horária {group.title}</h3>
           <dl className="grid gap-3 sm:grid-cols-2">
             {group.fields.map(([label, field]) => (
-              <div key={field} className="rounded-2xl border border-transparent bg-background px-4 py-3 shadow-sm">
-                <dt className="text-xs font-medium text-muted">{label}</dt>
+              <div key={field} className="min-w-0 rounded-2xl border border-transparent bg-background px-3 py-3 shadow-sm sm:px-4">
+                <dt className="break-words text-xs font-medium leading-4 text-muted">{label}</dt>
                 <dd className="mt-1 text-sm font-semibold text-ink">{formatWorkload(workload?.[field])}</dd>
               </div>
             ))}

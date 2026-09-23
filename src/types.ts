@@ -184,6 +184,12 @@ export interface PublicationContext {
   agreementRule: string;
 }
 
+export interface PublicationApproval {
+  password: string;
+  agreementDate: string;
+  agreementNumber: number;
+}
+
 export interface ComponentDraft {
   id: string;
   code: string;

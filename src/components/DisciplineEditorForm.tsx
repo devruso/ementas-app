@@ -215,6 +215,19 @@ export const DisciplineEditorForm = ({
 
   return (
     <div className="space-y-6 motion-fade">
+      <div className="flex flex-wrap justify-end gap-3">
+        <button type="button" aria-label="Voltar pelo topo" onClick={onCancel} disabled={saving} className="rounded-2xl border border-line px-5 py-3 font-semibold text-ink transition hover:bg-slate-50 disabled:opacity-60">
+          Voltar
+        </button>
+        <button type="button" aria-label="Salvar pelo topo" onClick={submitSave} disabled={saving} className="rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:opacity-60">
+          {saving ? 'Salvando...' : 'Salvar'}
+        </button>
+        {showPublishAction ? (
+          <button type="button" aria-label="Salvar e publicar pelo topo" onClick={submitSaveAndPublish} disabled={saving} className="rounded-2xl bg-secondary-500 px-5 py-3 font-semibold text-secondary-700 transition hover:brightness-95 disabled:opacity-60">
+            Salvar e publicar
+          </button>
+        ) : null}
+      </div>
       <section className="panel interactive-lift min-w-0 p-5 sm:p-6">
         <div className="mb-5">
           <div className="mb-2 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
@@ -261,7 +274,7 @@ export const DisciplineEditorForm = ({
         {workloadCards.map((card) => (
           <div key={card.key} className="panel interactive-lift min-w-0 p-5 sm:p-6">
             <h3 className="mb-4 text-base font-semibold leading-tight text-ink xl:whitespace-nowrap">Carga horária {card.title}</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
               {workloadFields.map((field) => (
                 <FormField
                   key={`${card.key}-${field}`}

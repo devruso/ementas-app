@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { publicationFieldIds } from '../lib/pendingFields';
 
-import type { PublicationContext } from '../types';
+import type { PublicationApproval, PublicationContext } from '../types';
 import type { AppError } from '../lib/errors';
 import { ErrorNotice } from './ErrorNotice';
 import { FormActions } from './FormActions';
@@ -19,16 +19,8 @@ interface ApproveDraftDialogProps {
   error?: AppError | null;
   onChangePassword: (value: string) => void;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: (approval: PublicationApproval) => void;
 }
-
-const formatAgreementDate = (value?: string) => {
-  if (!value) {
-    return 'Aguardando geração';
-  }
-
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(value));
-};
 
 export const ApproveDraftDialog = ({
   open,
@@ -43,6 +35,8 @@ export const ApproveDraftDialog = ({
   onSubmit,
 }: ApproveDraftDialogProps) => {
   const [step, setStep] = useState<1 | 2>(1);
+  const [agreementDate, setAgreementDate] = useState('');
+  const [agreementNumber, setAgreementNumber] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -50,11 +44,18 @@ export const ApproveDraftDialog = ({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!context) return;
+    setAgreementDate(context.agreementDate.slice(0, 10));
+    setAgreementNumber(String(Number(context.agreementNumber.match(/(\d+)$/)?.[1] || '')));
+  }, [context]);
+
   if (!open) {
     return null;
   }
 
-  const canContinue = Boolean(context) && !loadingContext;
+  const numericAgreementNumber = Number(agreementNumber);
+  const canContinue = Boolean(context && agreementDate) && Number.isInteger(numericAgreementNumber) && numericAgreementNumber > 0 && !loadingContext;
   const canPublish = canContinue && Boolean(password) && !submitting;
 
   return (
@@ -79,20 +80,23 @@ export const ApproveDraftDialog = ({
               </div>
             ) : context ? (
               <>
-                <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-x-4 gap-y-3 border-y border-line py-4 text-sm">
+                <dl className="grid gap-4 border-y border-line py-4 text-sm sm:grid-cols-2">
                   <dt className="text-muted">Docente responsável</dt>
                   <dd className="text-right font-semibold text-ink">{context.approverName}</dd>
-                  <dt className="text-muted">Data da aprovação</dt>
-                  <dd className="text-right font-semibold text-ink">{formatAgreementDate(context.agreementDate)}</dd>
-                  <dt className="text-muted">Número da ATA</dt>
-                  <dd className="text-right font-semibold text-ink">{context.agreementNumber}</dd>
+                  <div>
+                    <FormField label="Data da aprovação" type="date" value={agreementDate} onChange={(event) => setAgreementDate(event.target.value)} />
+                  </div>
+                  <div>
+                    <FormField label="Número da ATA" type="number" min={1} step={1} value={agreementNumber} onChange={(event) => setAgreementNumber(event.target.value)} />
+                    <p className="mt-2 text-xs text-muted">{context.agreementNumber}</p>
+                  </div>
                   <dt className="text-muted">Assinatura no DOCX</dt>
                   <dd className="text-right font-semibold text-ink">
                     {context.hasVisualSignature ? 'Imagem configurada' : 'Linha nominal, sem imagem'}
                   </dd>
                 </dl>
                 <p className="text-xs leading-5 text-muted">
-                  A ATA segue a sequência anual global <strong>ATA-ANO-NÚMERO</strong>. A imagem da assinatura é opcional nesta etapa.
+                  A data já vem preenchida e pode ser alterada. O número informado será registrado no formato <strong>ATA-ANO-NÚMERO</strong>. A imagem da assinatura é opcional nesta etapa.
                   {!context.hasVisualSignature ? (
                     <Link to="/perfil" className="ml-1 font-semibold text-primary-700 underline">Adicionar no perfil</Link>
                   ) : null}
@@ -150,7 +154,7 @@ export const ApproveDraftDialog = ({
           )}
           <button
             type="button"
-            onClick={step === 1 ? () => setStep(2) : onSubmit}
+            onClick={step === 1 ? () => setStep(2) : () => onSubmit({ password, agreementDate, agreementNumber: numericAgreementNumber })}
             disabled={step === 1 ? !canContinue : !canPublish}
             className="inline-flex items-center justify-center gap-2 bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
           >

@@ -21,7 +21,7 @@ import {
 import { formatDate } from '../lib/format';
 import { AppError } from '../lib/errors';
 import { ApiErrorCode, isInvalidSessionError } from '../lib/apiErrorCatalog';
-import type { Component, ComponentLog, PublicationContext } from '../types';
+import type { Component, ComponentLog, PublicationApproval, PublicationContext } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
 
@@ -348,7 +348,7 @@ export const DisciplineDetailsPage = () => {
     }
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (approval: PublicationApproval) => {
     if (!component?.draft?.id) {
       return;
     }
@@ -366,7 +366,7 @@ export const DisciplineDetailsPage = () => {
       setPublishing(true);
       setDialogError(null);
       await approveComponentDraft(component.draft.id, {
-        password: approvalPassword,
+        ...approval,
       });
       setDialogOpen(false);
       setApprovalPassword('');

@@ -112,30 +112,6 @@ const formatCourseDisplay = (value: string | undefined, options: CourseCatalogOp
   };
 };
 
-const formatSummary = (component: Component) => {
-  const rawSummary = normalizeText(component.syllabus || component.program);
-
-  if (!rawSummary) {
-    return 'Resumo acadêmico indisponível na fonte pública.';
-  }
-
-  const cleanedSummary = rawSummary
-    .replace(/^\/?\s*descri[c\u00e7][a\u00e3]o\s*:\s*/i, '')
-    .replace(/^ementa\s*:\s*/i, '')
-    .replace(/^conte[u\u00fa]do program[a\u00e1]tico\s*:\s*/i, '')
-    .trim();
-
-  if (
-    !cleanedSummary ||
-    /n[aã]o informado pela fonte/i.test(cleanedSummary) ||
-    /n[aã]o dispon[ií]vel/i.test(cleanedSummary)
-  ) {
-    return 'Resumo acadêmico indisponível na fonte pública.';
-  }
-
-  return cleanedSummary;
-};
-
 const levelAccentClassMap: Record<string, string> = {
   graduacao: 'from-emerald-400 via-teal-500 to-cyan-500',
   pos_graduacao: 'from-sky-400 via-blue-500 to-indigo-500',
@@ -412,7 +388,6 @@ export const DisciplineListPage = () => {
 
   const renderDisciplineRow = (component: Component) => {
     const course = formatCourseDisplay(component.courseRef?.name || component.department, componentMetadata?.courses || []);
-    const summary = formatSummary(component);
     const academicLevelLabel = formatAcademicLevelLabel(component, componentMetadata?.academicLevels || []);
     const semesterLabel = formatSemesterLabel(component.semester);
     const levelAccentClass = getLevelAccentClass(component.academicLevel);
@@ -441,9 +416,6 @@ export const DisciplineListPage = () => {
                 {component.name}
               </Link>
             </h3>
-            <p className="mt-2 max-w-[50ch] line-clamp-2 text-sm leading-6 text-slate-500">
-              {summary}
-            </p>
           </div>
 
           <div className="rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">

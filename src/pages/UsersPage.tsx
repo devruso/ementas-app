@@ -274,7 +274,7 @@ export const UsersPage = () => {
                 disabled={sendingInviteEmail}
                 className="inline-flex h-14 items-center justify-center self-end rounded-2xl border border-primary-200 bg-white px-5 py-3 font-semibold text-primary-700 transition hover:-translate-y-0.5 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {sendingInviteEmail ? 'Enviando convite...' : 'Enviar convite por e-mail'}
+                {sendingInviteEmail ? 'Convidando...' : 'Convidar'}
               </button>
             </form>
 
