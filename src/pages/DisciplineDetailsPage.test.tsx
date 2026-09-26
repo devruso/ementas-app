@@ -79,14 +79,6 @@ describe('DisciplineDetailsPage', () => {
         hasSignatureFileConfigured: true,
       },
     });
-    mockedGetDraftPublicationContext.mockResolvedValueOnce({
-      agreementDate: '2026-05-01T12:00:00.000Z',
-      agreementNumber: 'ATA-2026-001',
-      approverName: 'Admin',
-      hasVisualSignature: false,
-      agreementRule: 'ATA-{ANO}-{SEQUENCIA_GLOBAL_ANUAL_COM_3_DIGITOS}',
-    });
-
     mockedGetComponentByCode.mockResolvedValue({
       id: 'component-1',
       code: 'IC045',
@@ -239,7 +231,43 @@ describe('DisciplineDetailsPage', () => {
     );
   });
 
+  it('deve validar campos obrigatórios ao clicar em Publicar, antes da confirmação', async () => {
+    mockedGetDraftPublicationContext.mockRejectedValueOnce(new AppError(
+      'A publicação oficial possui campos obrigatórios pendentes.',
+      400,
+      {
+        code: 'PUBLICATION_REQUIRED_FIELDS',
+        details: { fields: ['Objetivos'] },
+      }
+    ));
+
+    render(
+      <MemoryRouter>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Compiladores draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    const dialog = within((await screen.findByRole('heading', { name: 'Publicar IC045' })).closest('div.panel') as HTMLElement);
+    expect(await dialog.findByText('A publicação oficial possui campos obrigatórios pendentes.')).toBeInTheDocument();
+    expect(dialog.getByRole('link', { name: 'Visualizar campos pendentes' })).toHaveAttribute(
+      'href',
+      '/disciplinas/ic045/editar?campo=objective'
+    );
+    expect(dialog.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+    expect(mockedApproveComponentDraft).not.toHaveBeenCalled();
+  });
+
   it('deve exibir status das assinaturas no dialogo de publicacao', async () => {
+    mockedGetDraftPublicationContext.mockResolvedValueOnce({
+      agreementDate: '2026-05-01T12:00:00.000Z',
+      agreementNumber: 'ATA-2026-001',
+      approverName: 'Admin',
+      hasVisualSignature: false,
+      agreementRule: 'ATA-{ANO}-{SEQUENCIA_GLOBAL_ANUAL_COM_3_DIGITOS}',
+    });
     useAuthMock.mockReturnValue({
       isLoading: false,
       isAuthenticated: true,
