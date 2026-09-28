@@ -1,6 +1,6 @@
 import { Check, Copy, Download, Eye, FilePenLine, FileText, Home, ScrollText, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { SectionCard } from '../components/SectionCard';
@@ -24,6 +24,12 @@ import { ApiErrorCode, isInvalidSessionError } from '../lib/apiErrorCatalog';
 import type { Component, ComponentLog, PublicationApproval, PublicationContext } from '../types';
 
 const prerequerimentCodeRegex = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
+
+const getPublicShareUrl = (share?: { publicLink?: string; token?: string }) => {
+  const link = share?.publicLink?.trim() || (share?.token ? `/publico/disciplinas/${share.token}` : '');
+
+  return link ? new URL(link, window.location.origin).toString() : '';
+};
 
 const componentComparableFields: Array<
   | 'name'
@@ -195,6 +201,7 @@ export const DisciplineDetailsPage = () => {
   const auth = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -215,6 +222,7 @@ export const DisciplineDetailsPage = () => {
   const [knownCodes, setKnownCodes] = useState<Set<string>>(new Set());
 
   const code = useMemo(() => params.componentCode?.toUpperCase() || '', [params.componentCode]);
+  const isPendingPrerequisite = new URLSearchParams(location.search).get('preRequisitoPendente') === '1';
 
   const loadLatestActiveShare = async (componentId: string) => {
     const sharesResponse = await getActivePublicShares(componentId, {
@@ -225,7 +233,7 @@ export const DisciplineDetailsPage = () => {
     });
 
     const latestShare = sharesResponse.results[0];
-    setPublicShareLink(latestShare ? `${window.location.origin}${latestShare.publicLink}` : '');
+    setPublicShareLink(getPublicShareUrl(latestShare));
     setPublicShareExpiresAt(latestShare ? formatDate(latestShare.expiresAt) : '');
     setPublicShareCopied(false);
   };
@@ -258,6 +266,20 @@ export const DisciplineDetailsPage = () => {
         }
       }
     }
+
+    const prerequisiteCodes = Array.from(
+      new Set(currentComponent.prerequeriments?.toUpperCase().match(prerequerimentCodeRegex) ?? [])
+    );
+    await Promise.all(prerequisiteCodes
+      .filter((prerequisiteCode) => prerequisiteCode !== currentComponent.code.toUpperCase() && !catalog.has(prerequisiteCode))
+      .map(async (prerequisiteCode) => {
+        try {
+          await getComponentByCode(prerequisiteCode);
+          catalog.add(prerequisiteCode);
+        } catch {
+          // A ausência é exibida como pré-requisito pendente de cadastro.
+        }
+      }));
 
     setKnownCodes(catalog);
     setComponent(currentComponent);
@@ -409,7 +431,10 @@ export const DisciplineDetailsPage = () => {
       setCreatingShare(true);
       setErrorMessage('');
       const share = await createPublicShare(component.id, 24);
-      const absoluteLink = `${window.location.origin}${share.publicLink}`;
+      const absoluteLink = getPublicShareUrl(share);
+      if (!absoluteLink) {
+        throw new AppError('Não foi possível gerar o endereço público da disciplina.', 500);
+      }
       setPublicShareLink(absoluteLink);
       setPublicShareExpiresAt(formatDate(share.expiresAt));
       setPublicShareCopied(false);
@@ -442,7 +467,18 @@ export const DisciplineDetailsPage = () => {
   if (!component) {
     return (
       <div className="panel p-10 text-center text-sm text-muted">
-        {errorMessage || 'Disciplina não encontrada.'}
+        {isPendingPrerequisite ? (
+          <div className="mx-auto max-w-xl space-y-4">
+            <h1 className="text-xl font-semibold text-ink">Pré-requisito pendente de cadastro</h1>
+            <p>
+              O componente curricular <strong>{code}</strong> foi informado como pré-requisito, mas ainda não está cadastrado no sistema.
+            </p>
+            <p>Cadastre essa disciplina para que a relação de pré-requisito seja concluída automaticamente.</p>
+            <Link to="/disciplinas/adicionar" className="inline-flex rounded-xl bg-primary-500 px-4 py-2 font-semibold text-white transition hover:bg-primary-600">
+              Cadastrar componente curricular
+            </Link>
+          </div>
+        ) : (errorMessage || 'Disciplina não encontrada.')}
       </div>
     );
   }
@@ -526,14 +562,17 @@ export const DisciplineDetailsPage = () => {
               ) : prerequerimentStatus.length > 0 ? (
                 <span className="inline-flex flex-wrap gap-2 align-middle">
                   {prerequerimentStatus.map((item) => (
-                    <span
+                    <Link
                       key={item.code}
+                      to={item.status === 'existing'
+                        ? `/disciplinas/${item.code.toLowerCase()}`
+                        : `/disciplinas/${item.code.toLowerCase()}?preRequisitoPendente=1`}
                       className={item.status === 'existing'
-                        ? 'inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600'
-                        : 'inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700'}
+                        ? 'inline-flex rounded-full border border-primary-200 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-600 transition hover:bg-primary-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600'
+                        : 'inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700'}
                     >
                       {item.code} {item.status === 'existing' ? '(existente)' : '(pendente)'}
-                    </span>
+                    </Link>
                   ))}
                 </span>
               ) : (

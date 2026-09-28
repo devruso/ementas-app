@@ -219,6 +219,20 @@ describe('DisciplineEditPage autosave', () => {
     expect(await screen.findByText('Rascunho sincronizado automaticamente.')).toBeInTheDocument();
   });
 
+  it('não deve fazer autosave de uma disciplina incompleta e deve informar o motivo', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><DisciplineEditPage /></MemoryRouter>);
+
+    const programInput = await screen.findByLabelText('Conteúdo programático');
+    await user.clear(programInput);
+
+    await waitFor(() => {
+      expect(screen.getByText('Rascunho não salvo: corrija os campos destacados antes de continuar.')).toBeInTheDocument();
+    });
+    expect(mockedUpdateComponentDraft).not.toHaveBeenCalled();
+    expect(screen.getByText('Preencha o conteúdo programático para publicação oficial.')).toBeInTheDocument();
+  });
+
   it('deve preservar a carga horária digitada quando uma resposta atrasada do autosave retorna', async () => {
     mockedUpdateComponentDraft.mockResolvedValueOnce({
       id: 'draft-1',

@@ -29,6 +29,23 @@ export interface DisciplineFormValues {
   moduleWorkload: WorkloadGroupFormValue;
 }
 
+export type DisciplineFormField =
+  | 'code'
+  | 'name'
+  | 'department'
+  | 'semester'
+  | 'modality'
+  | 'syllabus'
+  | 'objective'
+  | 'program'
+  | 'methodology'
+  | 'learningAssessment'
+  | 'referencesBasic'
+  | 'referencesComplementary'
+  | 'prerequeriments';
+
+export type DisciplineValidationErrors = Partial<Record<DisciplineFormField, string>>;
+
 export interface ReferenceChecklistItem {
   lineNumber: number;
   text: string;
@@ -56,6 +73,48 @@ const URL_REGEX = /(https?:\/\/[^\s)]+)(?=[)\].,;!?]*\s*$|[\s])/i;
 const ACCESS_REGEX = /acesso\s+em\s*:/i;
 const TIME_REGEX = /\b\d{2}:\d{2}\b/;
 const YEAR_REGEX = /\b(19|20)\d{2}\b/;
+const COMPONENT_CODE_REGEX = /^[A-Z]{2,4}[0-9]{2,4}$/;
+const PREREQUISITE_CODE_REGEX = /\b[A-Z]{2,4}[0-9]{2,4}\b/g;
+
+export const validateDisciplineSave = (values: DisciplineFormValues): DisciplineValidationErrors => {
+  const errors: DisciplineValidationErrors = {};
+
+  if (!values.code.trim()) {
+    errors.code = 'Informe o código da disciplina.';
+  } else if (!COMPONENT_CODE_REGEX.test(values.code.trim())) {
+    errors.code = 'Código inválido. Use o formato AAA999 ou AAAA9999 (ex.: MAT245 ou IC045).';
+  }
+
+  if (!values.name.trim()) errors.name = 'Informe o nome da disciplina.';
+  if (!values.department.trim()) errors.department = 'Selecione o curso da disciplina.';
+  if (!values.semester.trim()) errors.semester = 'Informe o semestre vigente.';
+  if (!values.modality.trim()) errors.modality = 'Selecione a modalidade da disciplina.';
+
+  return errors;
+};
+
+export const validateDisciplinePublication = (values: DisciplineFormValues): DisciplineValidationErrors => {
+  const errors = validateDisciplineSave(values);
+
+  if (!values.syllabus.trim()) errors.syllabus = 'Preencha a ementa para publicação oficial.';
+  if (!values.objective.trim()) errors.objective = 'Preencha os objetivos para publicação oficial.';
+  if (!values.program.trim()) errors.program = 'Preencha o conteúdo programático para publicação oficial.';
+  if (!values.methodology.trim()) errors.methodology = 'Preencha a metodologia para publicação oficial.';
+  if (!values.learningAssessment.trim()) errors.learningAssessment = 'Preencha a avaliação da aprendizagem para publicação oficial.';
+
+  if (!values.referencesBasic.trim()) {
+    errors.referencesBasic = 'Preencha ao menos as referências básicas para publicação oficial.';
+  } else if (hasNonWebReferenceWithoutYear(values.referencesBasic)) {
+    errors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
+  }
+
+  const prerequisiteCodes = values.prerequeriments.toUpperCase().match(PREREQUISITE_CODE_REGEX) || [];
+  if (values.code.trim() && prerequisiteCodes.includes(values.code.trim().toUpperCase())) {
+    errors.prerequeriments = 'Uma disciplina não pode ser pré-requisito de si mesma.';
+  }
+
+  return errors;
+};
 
 const ensureTrailingPeriod = (value: string) => {
   const normalized = value.trim();

@@ -7,7 +7,7 @@ import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { ErrorNotice } from '../components/ErrorNotice';
 import { approveComponentDraft, getComponentDraftByCode, getComponentMetadata, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
 import { ApiErrorCode } from '../lib/apiErrorCatalog';
-import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload } from '../lib/componentDraft';
+import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload, validateDisciplinePublication } from '../lib/componentDraft';
 import { AppError } from '../lib/errors';
 import type { ComponentDraft, ComponentMetadata, PublicationApproval, PublicationContext } from '../types';
 
@@ -26,7 +26,7 @@ export const DisciplineEditPage = () => {
   const [approvalPassword, setApprovalPassword] = useState('');
   const [liveValues, setLiveValues] = useState<DisciplineFormValues | null>(null);
   const [lastSavedPayload, setLastSavedPayload] = useState('');
-  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'invalid' | 'error'>('idle');
   const [componentMetadata, setComponentMetadata] = useState<ComponentMetadata | null>(null);
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const saveDraft = (id: string, payload: Partial<ComponentDraft>) => {
@@ -79,6 +79,11 @@ export const DisciplineEditPage = () => {
 
   useEffect(() => {
     if (!draft?.id || !liveValues || saving || dialogOpen) {
+      return;
+    }
+
+    if (Object.keys(validateDisciplinePublication(liveValues)).length > 0) {
+      setAutosaveStatus('invalid');
       return;
     }
 
@@ -202,6 +207,7 @@ export const DisciplineEditPage = () => {
       <p role="status" className="text-xs font-medium text-muted">
           {autosaveStatus === 'saving' && 'Salvando automaticamente...'}
           {autosaveStatus === 'saved' && 'Rascunho sincronizado automaticamente.'}
+          {autosaveStatus === 'invalid' && 'Rascunho não salvo: corrija os campos destacados antes de continuar.'}
           {autosaveStatus === 'error' && 'Falha no autosave. Tente salvar manualmente.'}
         </p>
 

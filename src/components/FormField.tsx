@@ -15,10 +15,11 @@ export const FormField = ({ label, error, className, ...props }: FormFieldProps)
 
   return (
     <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
-      <span className="break-words [overflow-wrap:anywhere]">{label}</span>
+      <span className="break-words [overflow-wrap:anywhere]">{label}{props.required ? <><span className="ml-1 text-danger" aria-hidden="true">*</span><span className="sr-only"> obrigatório</span></> : null}</span>
       <div className="relative">
         <input
           {...props}
+          aria-label={props['aria-label'] || label}
           type={inputType}
           className={cn(
             'soft-ring h-14 min-w-0 w-full rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm placeholder:text-muted',

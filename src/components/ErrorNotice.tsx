@@ -25,7 +25,6 @@ export const ErrorNotice = ({ error, compact = false }: ErrorNoticeProps) => {
           {!compact && error.reason ? <div className="mt-1 text-xs leading-5 text-red-800">Motivo: {error.reason}</div> : null}
           {missingFields.length > 0 ? <div className="mt-1 text-xs leading-5 text-red-800">Campos: {missingFields.join(', ')}.</div> : null}
           {!compact && error.recovery ? <div className="mt-1 text-xs leading-5 text-red-800">Como resolver: {error.recovery}</div> : null}
-          {error.code ? <div className="mt-2 text-[11px] font-medium text-red-700/80">Código: {error.code}</div> : null}
         </div>
       </div>
     </div>

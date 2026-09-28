@@ -10,10 +10,11 @@ interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement>
 export const SelectField = ({ label, error, className, children, ...props }: SelectFieldProps) => {
   return (
     <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
-      <span>{label}</span>
+      <span>{label}{props.required ? <><span className="ml-1 text-danger" aria-hidden="true">*</span><span className="sr-only"> obrigatório</span></> : null}</span>
       <div className="relative">
         <select
           {...props}
+          aria-label={props['aria-label'] || label}
           className={cn(
             'soft-ring h-14 w-full min-w-0 appearance-none rounded-2xl border border-transparent bg-white px-4 pr-11 text-sm text-ink shadow-panel',
             error ? 'border-danger/40 ring-4 ring-red-100' : '',

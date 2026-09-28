@@ -79,7 +79,7 @@ describe('DisciplineDetailsPage', () => {
         hasSignatureFileConfigured: true,
       },
     });
-    mockedGetComponentByCode.mockResolvedValue({
+    const component = {
       id: 'component-1',
       code: 'IC045',
       name: 'Compiladores',
@@ -101,6 +101,13 @@ describe('DisciplineDetailsPage', () => {
         name: 'Compiladores draft',
       },
       logs: [],
+    };
+    mockedGetComponentByCode.mockImplementation(async (componentCode) => {
+      if (componentCode === 'MATA50') {
+        throw new AppError('Disciplina não encontrada.', 404);
+      }
+
+      return component;
     });
 
     mockedGetComponentLogs.mockResolvedValue({
@@ -186,7 +193,7 @@ describe('DisciplineDetailsPage', () => {
     expect(editLink).toHaveAttribute('href', '/disciplinas/ic045/editar');
     expect(screen.getByText('DCC')).toBeInTheDocument();
     expect(screen.getByText('Graduação')).toBeInTheDocument();
-    expect(screen.getByText('MATA50 (pendente)')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'MATA50 (pendente)' })).toHaveAttribute('href', '/disciplinas/mata50?preRequisitoPendente=1');
     expect(screen.getAllByText('Ementa de teste')).toHaveLength(1);
 
     const syllabusSection = screen.getByText('Ementa').closest('section');
@@ -196,6 +203,36 @@ describe('DisciplineDetailsPage', () => {
 
     const publishButton = screen.getByRole('button', { name: 'Publicar' });
     expect(publishButton).not.toHaveClass('bg-primary-500');
+  });
+
+  it('explica que um pré-requisito pendente precisa ser cadastrado', async () => {
+    mockedGetComponentByCode.mockRejectedValueOnce(new AppError('Disciplina não encontrada.', 404));
+
+    render(
+      <MemoryRouter initialEntries={['/disciplinas/ic045?preRequisitoPendente=1']}>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Pré-requisito pendente de cadastro' })).toBeInTheDocument();
+    expect(screen.getByText('IC045')).toBeInTheDocument();
+    expect(screen.getByText(/ainda não está cadastrado no sistema/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Cadastrar componente curricular' })).toHaveAttribute('href', '/disciplinas/adicionar');
+  });
+
+  it('vincula automaticamente o pré-requisito que já existe no sistema', async () => {
+    mockedGetComponents.mockResolvedValueOnce({
+      results: [{ id: 'component-prereq', code: 'MATA50', name: 'Álgebra Linear' } as never],
+      total: 1,
+    });
+
+    render(
+      <MemoryRouter>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('link', { name: 'MATA50 (existente)' })).toHaveAttribute('href', '/disciplinas/mata50');
   });
 
   it('deve aprovar rascunho com data e número de ata', async () => {
@@ -356,7 +393,7 @@ describe('DisciplineDetailsPage', () => {
     expect(await dialog.findByText(/exige o ano nas refer/i)).toBeInTheDocument();
     expect(dialog.getByText(/sem URL não informa o ano/i)).toBeInTheDocument();
     expect(dialog.getByText(/informe o ano da refer/i)).toBeInTheDocument();
-    expect(dialog.getByText(/C.digo: PUBLICATION_REFERENCE_YEAR_REQUIRED/)).toBeInTheDocument();
+    expect(dialog.queryByText(/C.digo: PUBLICATION_REFERENCE_YEAR_REQUIRED/)).not.toBeInTheDocument();
   });
 
   it('deve exportar PDF e DOCX na tela de detalhe', async () => {
@@ -418,5 +455,28 @@ describe('DisciplineDetailsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Copiar link público' }));
     expect(writeTextMock).toHaveBeenCalledWith(generatedLink);
     expect(screen.getByText('Link copiado.')).toBeInTheDocument();
+  });
+
+  it('deve montar o link público pelo token quando a API não enviar publicLink', async () => {
+    mockedGetActivePublicShares.mockResolvedValueOnce({ results: [], total: 0 });
+    mockedCreatePublicShare.mockResolvedValueOnce({
+      id: 'share-2',
+      token: 'token-sem-link',
+      expiresAt: '2026-05-04T12:00:00.000Z',
+      publicLink: '',
+    });
+
+    render(
+      <MemoryRouter>
+        <DisciplineDetailsPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Compiladores draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar link público' }));
+
+    expect(await screen.findByLabelText('Link público ativo')).toHaveValue(
+      `${window.location.origin}/publico/disciplinas/token-sem-link`
+    );
   });
 });

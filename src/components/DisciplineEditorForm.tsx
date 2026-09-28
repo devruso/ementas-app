@@ -4,7 +4,10 @@ import { focusDisciplineField } from '../lib/pendingFields';
 import {
   buildReferenceChecklist,
   DisciplineFormValues,
-  hasNonWebReferenceWithoutYear,
+  DisciplineFormField,
+  DisciplineValidationErrors,
+  validateDisciplinePublication,
+  validateDisciplineSave,
 } from '../lib/componentDraft';
 import type { AcademicLevel, AcademicLevelOption, CourseCatalogOption, DomainOption } from '../types';
 import { FormActions } from './FormActions';
@@ -44,7 +47,6 @@ const workloadLabels: Record<keyof DisciplineFormValues['studentWorkload'], stri
   practiceInternship: 'Prática/Estágio',
 };
 
-const componentCodeRegex = /^[A-Z]{2,4}[0-9]{2,4}$/;
 const fallbackAcademicLevelOptions: AcademicLevelOption[] = [
   { value: 'graduacao', label: 'Graduação', sigaaSourceId: '' },
   { value: 'pos_graduacao', label: 'Pós-Graduação', sigaaSourceId: '' },
@@ -64,19 +66,7 @@ export const DisciplineEditorForm = ({
   courseOptions = [],
 }: DisciplineEditorFormProps) => {
   const [values, setValues] = useState<DisciplineFormValues>(initialValues);
-  const [fieldErrors, setFieldErrors] = useState<{
-    code?: string;
-    name?: string;
-    department?: string;
-    modality?: string;
-    syllabus?: string;
-    objective?: string;
-    program?: string;
-    methodology?: string;
-    learningAssessment?: string;
-    referencesBasic?: string;
-    referencesComplementary?: string;
-  }>({});
+  const [fieldErrors, setFieldErrors] = useState<DisciplineValidationErrors>({});
 
   useEffect(() => {
     setValues(initialValues);
@@ -87,9 +77,25 @@ export const DisciplineEditorForm = ({
   }, [onValuesChange, values]);
 
   const handleChange = (field: keyof DisciplineFormValues, value: string) => {
+    const updateValue = (nextValue: string) => {
+      const nextValues = { ...values, [field]: nextValue };
+      const saveErrors = validateDisciplineSave(nextValues);
+      const publicationErrors = validateDisciplinePublication(nextValues);
+
+      setValues(nextValues);
+      setFieldErrors((currentErrors) => {
+        const validationField = field as DisciplineFormField;
+        const { [validationField]: _resolvedError, ...remainingErrors } = currentErrors;
+        const nextError = publicationErrors[validationField]
+          || saveErrors[validationField];
+
+        return nextError ? { ...remainingErrors, [field]: nextError } : remainingErrors;
+      });
+    };
+
     if (field === 'code') {
       const normalizedCode = value.replace(/\s+/g, '').toUpperCase();
-      setValues((current) => ({ ...current, code: normalizedCode }));
+      updateValue(normalizedCode);
       return;
     }
 
@@ -98,7 +104,7 @@ export const DisciplineEditorForm = ({
       return;
     }
 
-    setValues((current) => ({ ...current, [field]: value }));
+    updateValue(value);
   };
 
   const handleWorkloadChange = (
@@ -122,46 +128,17 @@ export const DisciplineEditorForm = ({
   const complementaryReferencesChecklist = buildReferenceChecklist(values.referencesComplementary);
 
 
-  const validate = () => {
-    const nextErrors: {
-      code?: string;
-      name?: string;
-      department?: string;
-      modality?: string;
-      syllabus?: string;
-      objective?: string;
-      program?: string;
-      methodology?: string;
-      learningAssessment?: string;
-      referencesBasic?: string;
-      referencesComplementary?: string;
-    } = {};
-
-    if (!values.code.trim()) {
-      nextErrors.code = 'Informe o código da disciplina.';
-    } else if (!componentCodeRegex.test(values.code.trim())) {
-      nextErrors.code = 'Código inválido. Use o formato AAA999 ou AAAA9999 (ex.: MAT245 ou IC045).';
-    }
-
-    if (!values.name.trim()) {
-      nextErrors.name = 'Informe o nome da disciplina.';
-    }
-
-    if (!values.department.trim()) {
-      nextErrors.department = 'Selecione o curso da disciplina.';
-    }
-
-    if (!values.modality.trim()) {
-      nextErrors.modality = 'Selecione a modalidade da disciplina.';
-    }
-
+  const validate = (forPublication = false) => {
+    const nextErrors = forPublication
+      ? validateDisciplinePublication(values)
+      : validateDisciplineSave(values);
     setFieldErrors(nextErrors);
 
     return Object.keys(nextErrors).length === 0;
   };
 
   const submitSave = async () => {
-    if (!validate()) {
+    if (!validate(true)) {
       return;
     }
 
@@ -169,35 +146,7 @@ export const DisciplineEditorForm = ({
   };
 
   const submitSaveAndPublish = async () => {
-    if (!validate()) {
-      return;
-    }
-
-    const publishErrors: typeof fieldErrors = {};
-
-    if (!values.syllabus.trim()) {
-      publishErrors.syllabus = 'Preencha a ementa para publicação oficial.';
-    }
-    if (!values.objective.trim()) {
-      publishErrors.objective = 'Preencha os objetivos para publicação oficial.';
-    }
-    if (!values.program.trim()) {
-      publishErrors.program = 'Preencha o conteúdo programático para publicação oficial.';
-    }
-    if (!values.methodology.trim()) {
-      publishErrors.methodology = 'Preencha a metodologia para publicação oficial.';
-    }
-    if (!values.learningAssessment.trim()) {
-      publishErrors.learningAssessment = 'Preencha a avaliação da aprendizagem para publicação oficial.';
-    }
-    if (!values.referencesBasic.trim()) {
-      publishErrors.referencesBasic = 'Preencha ao menos as referências básicas para publicação oficial.';
-    } else if (hasNonWebReferenceWithoutYear(values.referencesBasic)) {
-      publishErrors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
-    }
-
-    if (Object.keys(publishErrors).length > 0) {
-      setFieldErrors((current) => ({ ...current, ...publishErrors }));
+    if (!validate(true)) {
       return;
     }
 
@@ -236,11 +185,11 @@ export const DisciplineEditorForm = ({
           <h2 className="text-xl font-semibold text-ink">Identificação da disciplina</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <FormField id="discipline-code" label="Código" value={values.code} onChange={(event) => handleChange('code', event.target.value)} error={fieldErrors.code} />
+          <FormField id="discipline-code" label="Código" required value={values.code} onChange={(event) => handleChange('code', event.target.value)} error={fieldErrors.code} />
           <div className="md:col-span-2">
-            <FormField id="discipline-name" label="Nome" value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
+            <FormField id="discipline-name" label="Nome" required value={values.name} onChange={(event) => handleChange('name', event.target.value)} error={fieldErrors.name} />
           </div>
-          <SelectField id="discipline-department" label="Curso" value={values.department} error={fieldErrors.department} onChange={(event) => handleChange('department', event.target.value)}>
+          <SelectField id="discipline-department" label="Curso" required value={values.department} error={fieldErrors.department} onChange={(event) => handleChange('department', event.target.value)}>
             <option value="">Selecione um curso</option>
             {values.department && !courseOptions.some((option) => option.value === values.department) ? (
               <option value={values.department}>{values.department}</option>
@@ -249,7 +198,7 @@ export const DisciplineEditorForm = ({
               <option key={option.key} value={option.value}>{option.label}</option>
             ))}
           </SelectField>
-          <FormField id="discipline-semester" label="Semestre vigente" value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} />
+          <FormField id="discipline-semester" label="Semestre vigente" required value={values.semester} onChange={(event) => handleChange('semester', event.target.value)} error={fieldErrors.semester} />
           <SelectField id="discipline-academicLevel"
             label="Nível acadêmico"
             value={values.academicLevel}
@@ -260,7 +209,7 @@ export const DisciplineEditorForm = ({
             ))}
           </SelectField>
           <div className="md:col-span-2">
-            <SelectField id="discipline-modality" label="Modalidade" value={values.modality} error={fieldErrors.modality} onChange={(event) => handleChange('modality', event.target.value)}>
+            <SelectField id="discipline-modality" label="Modalidade" required value={values.modality} error={fieldErrors.modality} onChange={(event) => handleChange('modality', event.target.value)}>
               {!modalityOptions.some((option) => option.value === values.modality) && values.modality && values.modality !== 'MODULO' ? (
                 <option value={values.modality}>{values.modality}</option>
               ) : null}
@@ -293,24 +242,26 @@ export const DisciplineEditorForm = ({
       <section className="grid min-w-0 gap-6">
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField id="discipline-syllabus" className="min-h-[280px]" label="Ementa" value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
+            <TextareaField id="discipline-syllabus" className="min-h-[280px]" label="Ementa" required value={values.syllabus} onChange={(event) => handleChange('syllabus', event.target.value)} error={fieldErrors.syllabus} />
             <TextareaField id="discipline-objective"
               label="Objetivos"
+              required
               value={values.objective}
               onChange={(event) => handleChange('objective', event.target.value)}
               error={fieldErrors.objective}
               className="min-h-[320px]"
               placeholder="Use um objetivo por linha para facilitar a organização dos parágrafos no documento oficial."
             />
-            <TextareaField id="discipline-program" className="min-h-[480px]" label="Conteúdo programático" value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
-            <TextareaField id="discipline-methodology" className="min-h-[360px]" label="Metodologia" value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
+            <TextareaField id="discipline-program" className="min-h-[480px]" label="Conteúdo programático" required value={values.program} onChange={(event) => handleChange('program', event.target.value)} error={fieldErrors.program} />
+            <TextareaField id="discipline-methodology" className="min-h-[360px]" label="Metodologia" required value={values.methodology} onChange={(event) => handleChange('methodology', event.target.value)} error={fieldErrors.methodology} />
           </div>
         </div>
         <div className="panel interactive-lift min-w-0 p-5 sm:p-6">
           <div className="space-y-5">
-            <TextareaField id="discipline-learningAssessment" className="min-h-[360px]" label="Avaliação da aprendizagem" value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
+            <TextareaField id="discipline-learningAssessment" className="min-h-[360px]" label="Avaliação da aprendizagem" required value={values.learningAssessment} onChange={(event) => handleChange('learningAssessment', event.target.value)} error={fieldErrors.learningAssessment} />
             <TextareaField id="discipline-referencesBasic"
               label="Referências básicas"
+              required
               value={values.referencesBasic}
               onChange={(event) => handleChange('referencesBasic', event.target.value)}
               error={fieldErrors.referencesBasic}
@@ -334,6 +285,7 @@ export const DisciplineEditorForm = ({
               label="Pré-requisitos"
               value={values.prerequeriments}
               onChange={(event) => handleChange('prerequeriments', event.target.value)}
+              error={fieldErrors.prerequeriments}
               className="min-h-[128px]"
               placeholder="Use códigos de disciplinas separados por vírgula, ou NAO_SE_APLICA"
             />
@@ -344,7 +296,10 @@ export const DisciplineEditorForm = ({
       </section>
 
       {Object.keys(fieldErrors).length > 0 ? (
-        <button type="button" className="font-semibold text-primary-700 underline" onClick={() => focusDisciplineField(Object.keys(fieldErrors)[0])}>Visualizar campos pendentes</button>
+        <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger" role="alert">
+          Não foi possível salvar enquanto houver campos obrigatórios ou pré-requisitos inválidos. Revise os campos destacados.
+          <button type="button" className="ml-2 font-semibold underline" onClick={() => focusDisciplineField(Object.keys(fieldErrors)[0])}>Visualizar campos pendentes</button>
+        </div>
       ) : null}
       {error ? <div className="rounded-2xl border border-danger/20 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div> : null}
 

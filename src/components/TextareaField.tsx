@@ -23,9 +23,10 @@ export const TextareaField = ({ label, error, className, ...props }: TextareaFie
 
   return (
     <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
-      <span>{label}</span>
+      <span>{label}{props.required ? <><span className="ml-1 text-danger" aria-hidden="true">*</span><span className="sr-only"> obrigatório</span></> : null}</span>
       <textarea
         {...props}
+        aria-label={props['aria-label'] || label}
         ref={textareaRef}
         className={cn(
           'soft-ring min-h-[152px] min-w-0 resize-none overflow-hidden rounded-2xl border border-transparent bg-background px-4 py-3 text-sm text-ink shadow-sm placeholder:text-muted',

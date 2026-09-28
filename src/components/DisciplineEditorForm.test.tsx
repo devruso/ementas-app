@@ -125,6 +125,75 @@ describe('DisciplineEditorForm publish validation', () => {
     expect(screen.getAllByText('Preencha a ementa para publicação oficial.').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Preencha os objetivos para publicação oficial.').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Preencha ao menos as referências básicas para publicação oficial.').length).toBeGreaterThan(0);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('deve bloquear o salvamento comum e explicar quais campos precisam ser corrigidos', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <DisciplineEditorForm
+        initialValues={baseValues}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={onSave}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/Não foi possível salvar enquanto houver campos obrigatórios/i)).toBeInTheDocument();
+    expect(screen.getAllByText('Preencha o conteúdo programático para publicação oficial.').length).toBeGreaterThan(0);
+  });
+
+  it('impede que a disciplina seja cadastrada como pré-requisito de si mesma', async () => {
+    render(
+      <DisciplineEditorForm
+        initialValues={{ ...baseValues, prerequeriments: 'IC045' }}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(screen.getAllByText('Uma disciplina não pode ser pré-requisito de si mesma.').length).toBeGreaterThan(0);
+  });
+
+  it('identifica visualmente os campos obrigatórios e valida conteúdo programático antes de publicar', async () => {
+    render(
+      <DisciplineEditorForm
+        initialValues={baseValues}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    expect(screen.getByLabelText('Conteúdo programático')).toBeRequired();
+    expect(screen.getByLabelText('Referências básicas')).toBeRequired();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar e publicar' }));
+    expect(screen.getAllByText('Preencha o conteúdo programático para publicação oficial.').length).toBeGreaterThan(0);
+  });
+
+  it('mostra a validação de conteúdo programático durante a edição', async () => {
+    render(
+      <DisciplineEditorForm
+        initialValues={{ ...baseValues, program: 'Unidade I' }}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    await userEvent.clear(screen.getByLabelText('Conteúdo programático'));
+    expect(screen.getByText('Preencha o conteúdo programático para publicação oficial.')).toBeInTheDocument();
   });
 
   it('não deve bloquear publicação por referência complementar incompleta', async () => {

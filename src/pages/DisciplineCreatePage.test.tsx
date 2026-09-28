@@ -57,7 +57,11 @@ describe('DisciplineCreatePage', () => {
     mockedGetComponentDrafts.mockResolvedValue({ total: 0, results: [] });
     vi.mocked(getComponentDraftByCode).mockResolvedValue({ id: 'existing', code: 'IC045', name: 'Antigo' });
     vi.mocked(updateComponentDraft).mockResolvedValue({ id: 'existing', code: 'IC045', name: 'Novo' });
-    vi.mocked(previewDraftImport).mockResolvedValue({ suggestedDraft: { code: 'IC045', name: 'Novo', department: 'Ciência da Computação', modality: 'DISCIPLINA', syllabus: 'Ementa importada' }, warnings: [], unrecognizedSections: [] } as never);
+    vi.mocked(previewDraftImport).mockResolvedValue({ suggestedDraft: {
+      code: 'IC045', name: 'Novo', department: 'Ciência da Computação', semester: '2026.1', modality: 'DISCIPLINA',
+      syllabus: 'Ementa importada', objective: 'Objetivo importado', program: 'Programa importado', methodology: 'Metodologia importada',
+      learningAssessment: 'Avaliação importada', referencesBasic: 'SILVA, A. Livro. 2020.',
+    }, warnings: [], unrecognizedSections: [] } as never);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(confirmed);
     const { container } = render(<DisciplineCreatePage />);
     await screen.findByRole('option', { name: 'Ciência da Computação' });
@@ -66,7 +70,7 @@ describe('DisciplineCreatePage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(confirm).toHaveBeenCalled());
     if (confirmed) {
-      await waitFor(() => expect(updateComponentDraft).toHaveBeenCalledWith('existing', expect.objectContaining({ syllabus: 'Ementa importada', objective: '', referencesComplementary: '' })));
+      await waitFor(() => expect(updateComponentDraft).toHaveBeenCalledWith('existing', expect.objectContaining({ syllabus: 'Ementa importada', objective: 'Objetivo importado', referencesComplementary: '' })));
     } else {
       expect(updateComponentDraft).not.toHaveBeenCalled();
     }
@@ -121,6 +125,13 @@ describe('DisciplineCreatePage', () => {
     await userEvent.type(screen.getByLabelText('Código'), 'IC045');
     await userEvent.type(screen.getByLabelText('Nome'), 'Compiladores');
     await userEvent.selectOptions(screen.getByLabelText('Curso'), 'Ciência da Computação');
+    await userEvent.type(screen.getByLabelText('Semestre vigente', { selector: '#discipline-semester' }), '2026.1');
+    await userEvent.type(screen.getByLabelText('Ementa'), 'Ementa da disciplina');
+    await userEvent.type(screen.getByLabelText('Objetivos'), 'Objetivo da disciplina');
+    await userEvent.type(screen.getByLabelText('Conteúdo programático'), 'Programa da disciplina');
+    await userEvent.type(screen.getByLabelText('Metodologia'), 'Metodologia da disciplina');
+    await userEvent.type(screen.getByLabelText('Avaliação da aprendizagem'), 'Avaliação da disciplina');
+    await userEvent.type(screen.getByLabelText('Referências básicas'), 'SILVA, A. Livro. 2020.');
     await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() => {
