@@ -5,6 +5,7 @@ import { focusDisciplineField } from '../lib/pendingFields';
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
 import { DisciplineEditorForm } from '../components/DisciplineEditorForm';
 import { ErrorNotice } from '../components/ErrorNotice';
+import { PublicationSuccessDialog } from '../components/PublicationSuccessDialog';
 import { approveComponentDraft, getComponentDraftByCode, getComponentMetadata, getDraftPublicationContext, updateComponentDraft } from '../lib/api';
 import { ApiErrorCode } from '../lib/apiErrorCatalog';
 import { DisciplineFormValues, getDisciplineFormInitialValues, toDraftPayload, validateDisciplinePublication } from '../lib/componentDraft';
@@ -20,6 +21,7 @@ export const DisciplineEditPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [publicationSuccessOpen, setPublicationSuccessOpen] = useState(false);
   const [dialogError, setDialogError] = useState<AppError | null>(null);
   const [publicationContext, setPublicationContext] = useState<PublicationContext | null>(null);
   const [loadingPublicationContext, setLoadingPublicationContext] = useState(false);
@@ -78,7 +80,7 @@ export const DisciplineEditPage = () => {
   }, [code]);
 
   useEffect(() => {
-    if (!draft?.id || !liveValues || saving || dialogOpen) {
+    if (!draft?.id || !liveValues || saving || dialogOpen || publicationSuccessOpen) {
       return;
     }
 
@@ -108,7 +110,7 @@ export const DisciplineEditPage = () => {
     }, 800);
 
     return () => window.clearTimeout(timeoutId);
-  }, [dialogOpen, draft?.id, lastSavedPayload, liveValues, saving]);
+  }, [dialogOpen, draft?.id, lastSavedPayload, liveValues, publicationSuccessOpen, saving]);
 
   const handleSave = async (values: DisciplineFormValues) => {
     if (!draft?.id) {
@@ -184,7 +186,8 @@ export const DisciplineEditPage = () => {
       });
 
       setDialogOpen(false);
-      navigate(`/disciplinas/${draft.code.toLowerCase()}`);
+      setApprovalPassword('');
+      setPublicationSuccessOpen(true);
     } catch (err) {
       const appError = err as AppError;
       setDialogError(appError);
@@ -238,6 +241,11 @@ export const DisciplineEditPage = () => {
         onChangePassword={setApprovalPassword}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleApprove}
+      />
+      <PublicationSuccessDialog
+        open={publicationSuccessOpen}
+        componentCode={draft.code}
+        onClose={() => navigate(`/disciplinas/${draft.code.toLowerCase()}`)}
       />
     </div>
   );

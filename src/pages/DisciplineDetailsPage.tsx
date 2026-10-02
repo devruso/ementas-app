@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { ApproveDraftDialog } from '../components/ApproveDraftDialog';
+import { PublicationSuccessDialog } from '../components/PublicationSuccessDialog';
 import { SectionCard } from '../components/SectionCard';
 import { WorkloadOverview } from '../components/WorkloadOverview';
 import { useAuth } from '../contexts/AuthContext';
@@ -208,6 +209,7 @@ export const DisciplineDetailsPage = () => {
   const [exportingDoc, setExportingDoc] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [publicationSuccessOpen, setPublicationSuccessOpen] = useState(false);
   const [dialogError, setDialogError] = useState<AppError | null>(null);
   const [publicationContext, setPublicationContext] = useState<PublicationContext | null>(null);
   const [loadingPublicationContext, setLoadingPublicationContext] = useState(false);
@@ -393,6 +395,7 @@ export const DisciplineDetailsPage = () => {
       setDialogOpen(false);
       setApprovalPassword('');
       setShowPublishedVersion(true);
+      setPublicationSuccessOpen(true);
       await loadComponent();
     } catch (err) {
       const appError = err as AppError;
@@ -758,6 +761,11 @@ export const DisciplineDetailsPage = () => {
         onChangePassword={setApprovalPassword}
         onClose={() => setDialogOpen(false)}
         onSubmit={handlePublish}
+      />
+      <PublicationSuccessDialog
+        open={publicationSuccessOpen}
+        componentCode={component.code}
+        onClose={() => setPublicationSuccessOpen(false)}
       />
     </div>
   );
