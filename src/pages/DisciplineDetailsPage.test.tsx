@@ -85,7 +85,7 @@ describe('DisciplineDetailsPage', () => {
       name: 'Compiladores',
       department: 'DCC',
       semester: '2026.1',
-      academicLevel: 'graduacao',
+      academicLevel: 'graduacao' as const,
       modality: 'Presencial',
       program: 'Conteúdo programático de teste',
       objective: 'Objetivos de teste',
@@ -266,6 +266,8 @@ describe('DisciplineDetailsPage', () => {
       'draft-1',
       { password: 'Senha123!', agreementDate: '2026-05-01', agreementNumber: 1 }
     );
+    expect(await screen.findByRole('heading', { name: 'Publicação concluída' })).toBeInTheDocument();
+    expect(screen.getByText(/IC045 foi publicada oficialmente com sucesso/i)).toBeInTheDocument();
   });
 
   it('deve validar campos obrigatórios ao clicar em Publicar, antes da confirmação', async () => {

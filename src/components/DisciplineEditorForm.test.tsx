@@ -148,6 +148,33 @@ describe('DisciplineEditorForm publish validation', () => {
     expect(screen.getAllByText('Preencha o conteúdo programático para publicação oficial.').length).toBeGreaterThan(0);
   });
 
+  it('deve bloquear o salvamento comum quando uma referência básica não web estiver sem ano', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <DisciplineEditorForm
+        initialValues={{
+          ...baseValues,
+          syllabus: 'Ementa',
+          objective: 'Objetivo',
+          program: 'Conteúdo',
+          methodology: 'Metodologia',
+          learningAssessment: 'Avaliação',
+          referencesBasic: 'SILVA, J. Métodos formais e lógica. 2. ed.',
+        }}
+        saving={false}
+        onCancel={vi.fn()}
+        onSave={onSave}
+        onSaveAndPublish={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getAllByText('As referências básicas não web devem incluir ano (ABNT).').length).toBeGreaterThan(0);
+  });
+
   it('impede que a disciplina seja cadastrada como pré-requisito de si mesma', async () => {
     render(
       <DisciplineEditorForm
