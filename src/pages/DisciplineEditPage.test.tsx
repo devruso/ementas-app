@@ -287,7 +287,11 @@ describe('DisciplineEditPage autosave', () => {
         agreementDate: '2026-08-16',
         agreementNumber: 1,
       });
-      expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045');
     });
+
+    expect(await screen.findByRole('heading', { name: 'Publicação concluída' })).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalledWith('/disciplinas/ic045');
+    await user.click(screen.getByRole('button', { name: 'Ver versão publicada' }));
+    expect(navigateMock).toHaveBeenCalledWith('/disciplinas/ic045');
   });
 });
