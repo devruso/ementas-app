@@ -26,16 +26,18 @@ vi.mock('../contexts/AuthContext', () => ({
 }));
 
 vi.mock('react-signature-canvas', () => {
-  const MockSignatureCanvas = forwardRef((_props, ref) => {
+  const MockSignatureCanvas = forwardRef((props: { clearOnResize?: boolean }, ref) => {
     useImperativeHandle(ref, () => ({
       isEmpty: () => false,
       clear: () => undefined,
+      toDataURL: () => 'data:image/png;base64,bW9jay1zaWduYXR1cmU=',
+      fromDataURL: () => Promise.resolve(),
       getTrimmedCanvas: () => ({
         toBlob: (callback: (blob: Blob | null) => void) => callback(new Blob(['mock-signature'], { type: 'image/png' })),
       }),
     }));
 
-    return <div data-testid="mock-signature-canvas" />;
+    return <div data-testid="mock-signature-canvas" data-clear-on-resize={String(props.clearOnResize)} />;
   });
 
   return {
@@ -127,5 +129,19 @@ describe('ProfilePage signature integration', () => {
 
     expect(await screen.findByText('Arquivo de assinatura excede 2MB.')).toBeInTheDocument();
     expect(mockedUploadUserSignatureFile).not.toHaveBeenCalled();
+  });
+
+  it('deve baixar a assinatura capturada e preservar o canvas em redimensionamentos', async () => {
+    const user = userEvent.setup();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    render(<ProfilePage />);
+
+    expect(screen.getByTestId('mock-signature-canvas')).toHaveAttribute('data-clear-on-resize', 'false');
+    await user.click(screen.getByRole('button', { name: 'Capturar assinatura desenhada' }));
+
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/assinatura desenhada capturada e baixada/i)).toBeInTheDocument();
+    expect(screen.getByText(/arquivo pronto para envio: assinatura-\d+\.png/i)).toBeInTheDocument();
   });
 });
