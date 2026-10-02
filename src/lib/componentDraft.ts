@@ -89,6 +89,9 @@ export const validateDisciplineSave = (values: DisciplineFormValues): Discipline
   if (!values.department.trim()) errors.department = 'Selecione o curso da disciplina.';
   if (!values.semester.trim()) errors.semester = 'Informe o semestre vigente.';
   if (!values.modality.trim()) errors.modality = 'Selecione a modalidade da disciplina.';
+  if (values.referencesBasic.trim() && hasNonWebReferenceWithoutYear(values.referencesBasic)) {
+    errors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
+  }
 
   return errors;
 };
@@ -104,11 +107,9 @@ export const validateDisciplinePublication = (values: DisciplineFormValues): Dis
 
   if (!values.referencesBasic.trim()) {
     errors.referencesBasic = 'Preencha ao menos as referências básicas para publicação oficial.';
-  } else if (hasNonWebReferenceWithoutYear(values.referencesBasic)) {
-    errors.referencesBasic = 'As referências básicas não web devem incluir ano (ABNT).';
   }
 
-  const prerequisiteCodes = values.prerequeriments.toUpperCase().match(PREREQUISITE_CODE_REGEX) || [];
+  const prerequisiteCodes: string[] = values.prerequeriments.toUpperCase().match(PREREQUISITE_CODE_REGEX) || [];
   if (values.code.trim() && prerequisiteCodes.includes(values.code.trim().toUpperCase())) {
     errors.prerequeriments = 'Uma disciplina não pode ser pré-requisito de si mesma.';
   }
