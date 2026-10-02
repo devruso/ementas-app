@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 
 import { FormActions } from '../components/FormActions';
@@ -14,6 +14,9 @@ const supportedSignatureFileTypes = new Set(['image/png', 'image/jpeg', 'image/w
 export const ProfilePage = () => {
   const auth = useAuth();
   const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
+  const signatureCanvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const drawnSignatureDataRef = useRef('');
+  const [signatureCanvasWidth, setSignatureCanvasWidth] = useState(800);
   const [email, setEmail] = useState(auth.user?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,6 +39,48 @@ export const ProfilePage = () => {
   useEffect(() => {
     setEmail(auth.user?.email || '');
   }, [auth.user?.email]);
+
+  useEffect(() => {
+    const container = signatureCanvasContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const resizeCanvas = () => {
+      const signatureCanvas = signatureCanvasRef.current;
+
+      if (signatureCanvas && !signatureCanvas.isEmpty()) {
+        drawnSignatureDataRef.current = signatureCanvas.toDataURL('image/png');
+      }
+
+      const nextWidth = Math.max(1, Math.round(container.getBoundingClientRect().width));
+      setSignatureCanvasWidth((currentWidth) => currentWidth === nextWidth ? currentWidth : nextWidth);
+    };
+
+    resizeCanvas();
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(resizeCanvas);
+    resizeObserver?.observe(container);
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', resizeCanvas);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!drawnSignatureDataRef.current) {
+      return;
+    }
+
+    signatureCanvasRef.current?.fromDataURL(drawnSignatureDataRef.current, {
+      width: signatureCanvasWidth,
+      height: 160,
+    });
+  }, [signatureCanvasWidth]);
 
   useEffect(() => {
     if (!signatureFile) {
@@ -148,14 +193,25 @@ export const ProfilePage = () => {
       return;
     }
 
-    const generatedFile = new File([blob], `assinatura-${Date.now()}.png`, { type: 'image/png' });
+    const fileName = `assinatura-${Date.now()}.png`;
+    const generatedFile = new File([blob], fileName, { type: 'image/png' });
+    const downloadUrl = URL.createObjectURL(blob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = downloadUrl;
+    downloadAnchor.download = fileName;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    URL.revokeObjectURL(downloadUrl);
+
     setSignatureFile(generatedFile);
     setSignatureError('');
-    setSignatureMessage('Assinatura desenhada capturada. Clique em "Atualizar assinatura" para persistir.');
+    setSignatureMessage('Assinatura desenhada capturada e baixada. Clique em "Atualizar assinatura" para persistir.');
   };
 
   const handleClearDrawnSignature = () => {
     signatureCanvasRef.current?.clear();
+    drawnSignatureDataRef.current = '';
   };
 
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -325,11 +381,21 @@ export const ProfilePage = () => {
           </label>
           <div className="rounded-2xl border border-line bg-background px-4 py-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Assinatura desenhada (opcional)</div>
-            <div className="rounded-2xl border border-line bg-white p-2">
+            <div ref={signatureCanvasContainerRef} className="rounded-2xl border border-line bg-white p-2">
               <SignatureCanvas
                 ref={signatureCanvasRef}
                 penColor="#0f172a"
+                clearOnResize={false}
+                onEnd={() => {
+                  const signatureCanvas = signatureCanvasRef.current;
+
+                  if (signatureCanvas && !signatureCanvas.isEmpty()) {
+                    drawnSignatureDataRef.current = signatureCanvas.toDataURL('image/png');
+                  }
+                }}
                 canvasProps={{
+                  width: signatureCanvasWidth,
+                  height: 160,
                   className: 'h-40 w-full rounded-xl bg-white',
                 }}
               />
