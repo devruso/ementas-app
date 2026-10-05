@@ -235,8 +235,8 @@ export const updateUserPassword = async (password: string) => {
   await api.put('/users/update/password', { password });
 };
 
-export const updateUserSignature = async (signature: string) => {
-  await api.put('/users/update/signature', { signature });
+export const updateUserSignature = async (signature?: string, removeSignatureFile = false) => {
+  await api.put('/users/update/signature', { signature, removeSignatureFile });
 };
 
 export const uploadUserSignatureFile = async (signatureFile: File, signature?: string) => {

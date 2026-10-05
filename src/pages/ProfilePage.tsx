@@ -6,6 +6,7 @@ import { FormField } from '../components/FormField';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserSignatureFilePreview, updateUserEmail, updateUserPassword, updateUserSignature, uploadUserSignatureFile } from '../lib/api';
 import { AppError } from '../lib/errors';
+import { captureSignatureFile } from '../lib/signatureCanvas';
 import { isValidEmail, isValidPassword } from '../lib/validation';
 
 const MAX_SIGNATURE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
@@ -15,6 +16,12 @@ export const ProfilePage = () => {
   const auth = useAuth();
   const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
   const signatureCanvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const signatureFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [signatureInputMode, setSignatureInputMode] = useState<'file' | 'draw'>('file');
+  const [removeSignatureFile, setRemoveSignatureFile] = useState(false);
+  const [hasUncapturedDrawing, setHasUncapturedDrawing] = useState(false);
+  const [capturingSignature, setCapturingSignature] = useState(false);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const drawnSignatureDataRef = useRef('');
   const [signatureCanvasWidth, setSignatureCanvasWidth] = useState(800);
   const [email, setEmail] = useState(auth.user?.email || '');
@@ -54,7 +61,7 @@ export const ProfilePage = () => {
         drawnSignatureDataRef.current = signatureCanvas.toDataURL('image/png');
       }
 
-      const nextWidth = Math.max(1, Math.round(container.getBoundingClientRect().width));
+      const nextWidth = Math.max(1, Math.round(container.clientWidth - 18));
       setSignatureCanvasWidth((currentWidth) => currentWidth === nextWidth ? currentWidth : nextWidth);
     };
 
@@ -69,7 +76,7 @@ export const ProfilePage = () => {
       resizeObserver?.disconnect();
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, []);
+  }, [signatureInputMode]);
 
   useLayoutEffect(() => {
     if (!drawnSignatureDataRef.current) {
@@ -80,7 +87,7 @@ export const ProfilePage = () => {
       width: signatureCanvasWidth,
       height: 160,
     });
-  }, [signatureCanvasWidth]);
+  }, [signatureCanvasWidth, signatureInputMode]);
 
   useEffect(() => {
     if (!signatureFile) {
@@ -107,6 +114,7 @@ export const ProfilePage = () => {
     let isMounted = true;
     let previewUrl = '';
 
+    setPersistedSignaturePreviewUrl('');
     setLoadingPersistedSignaturePreview(true);
     setSignaturePreviewError('');
 
@@ -141,9 +149,9 @@ export const ProfilePage = () => {
         URL.revokeObjectURL(previewUrl);
       }
     };
-  }, [auth.user?.signatureFileContentType, auth.user?.signatureFileKey]);
+  }, [auth.user?.signatureFileContentType, auth.user?.signatureFileKey, previewRevision]);
 
-  const activeSignaturePreviewUrl = localSignaturePreviewUrl || persistedSignaturePreviewUrl;
+  const activeSignaturePreviewUrl = localSignaturePreviewUrl || (removeSignatureFile ? '' : persistedSignaturePreviewUrl);
   const hasSignatureConfigured = Boolean(auth.user?.hasSignatureConfigured);
   const hasSignatureFileConfigured = Boolean(auth.user?.hasSignatureFileConfigured);
 
@@ -172,46 +180,48 @@ export const ProfilePage = () => {
     }
 
     setSignatureFile(selectedFile);
+    setRemoveSignatureFile(false);
+    setSignatureMessage('');
     setSignatureError('');
   };
 
   const handleCaptureDrawnSignature = async () => {
     const signatureCanvas = signatureCanvasRef.current;
-
     if (!signatureCanvas || signatureCanvas.isEmpty()) {
       setSignatureError('Desenhe a assinatura no quadro antes de capturar o arquivo.');
       return;
     }
-
-    const trimmedCanvas = signatureCanvas.getTrimmedCanvas();
-    const blob = await new Promise<Blob | null>((resolve) => {
-      trimmedCanvas.toBlob((generatedBlob) => resolve(generatedBlob), 'image/png');
-    });
-
-    if (!blob) {
-      setSignatureError('Não foi possível capturar a assinatura desenhada. Tente novamente.');
-      return;
+    try {
+      setCapturingSignature(true);
+      setSignatureFile(await captureSignatureFile(signatureCanvas.getCanvas()));
+      if (signatureFileInputRef.current) signatureFileInputRef.current.value = '';
+      setRemoveSignatureFile(false);
+      setHasUncapturedDrawing(false);
+      setSignatureError('');
+      setSignatureMessage('Desenho capturado. Clique em "Atualizar assinatura" para salvar.');
+    } catch (err) {
+      setSignatureError((err as Error).message || 'Não foi possível capturar o desenho. Tente novamente.');
+      setSignatureMessage('');
+    } finally {
+      setCapturingSignature(false);
     }
-
-    const fileName = `assinatura-${Date.now()}.png`;
-    const generatedFile = new File([blob], fileName, { type: 'image/png' });
-    const downloadUrl = URL.createObjectURL(blob);
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.href = downloadUrl;
-    downloadAnchor.download = fileName;
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    URL.revokeObjectURL(downloadUrl);
-
-    setSignatureFile(generatedFile);
-    setSignatureError('');
-    setSignatureMessage('Assinatura desenhada capturada e baixada. Clique em "Atualizar assinatura" para persistir.');
   };
 
   const handleClearDrawnSignature = () => {
     signatureCanvasRef.current?.clear();
     drawnSignatureDataRef.current = '';
+    setHasUncapturedDrawing(false);
+    if (signatureInputMode === 'draw') setSignatureFile(null);
+    setSignatureMessage('');
+    setSignatureError('');
+  };
+
+  const handleRemoveSignatureImage = () => {
+    handleClearDrawnSignature();
+    setSignatureFile(null);
+    if (signatureFileInputRef.current) signatureFileInputRef.current.value = '';
+    setRemoveSignatureFile(hasSignatureFileConfigured);
+    setSignatureMessage(hasSignatureFileConfigured ? 'Imagem removida da prévia. Clique em "Atualizar assinatura" para salvar a remoção.' : '');
   };
 
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -280,8 +290,14 @@ export const ProfilePage = () => {
       return;
     }
 
-    if (!hasTextualSignature && !signatureFile) {
-      setSignatureError('Informe uma assinatura textual ou envie um arquivo de assinatura.');
+    if (hasUncapturedDrawing) {
+      setSignatureError('Capture a assinatura desenhada antes de salvar.');
+      setSignatureMessage('');
+      return;
+    }
+
+    if (!hasTextualSignature && !signatureFile && !removeSignatureFile) {
+      setSignatureError('Nenhuma alteração para salvar. Informe uma nova assinatura textual, selecione uma imagem ou remova a imagem atual.');
       setSignatureMessage('');
       return;
     }
@@ -292,12 +308,16 @@ export const ProfilePage = () => {
       if (signatureFile) {
         await uploadUserSignatureFile(signatureFile, hasTextualSignature ? signature.trim() : undefined);
       } else {
-        await updateUserSignature(signature.trim());
+        await updateUserSignature(hasTextualSignature ? signature.trim() : undefined, removeSignatureFile);
       }
+      await auth.refreshUser();
       setSignature('');
       setSignatureFile(null);
+      setRemoveSignatureFile(false);
+      handleClearDrawnSignature();
+      if (signatureFileInputRef.current) signatureFileInputRef.current.value = '';
+      setPreviewRevision((value) => value + 1);
       setSignatureMessage('Assinatura atualizada com sucesso.');
-      await auth.refreshUser();
     } catch (err) {
       const appError = err as AppError;
       setSignatureError(appError.message);
@@ -312,7 +332,7 @@ export const ProfilePage = () => {
       <section className="panel p-6 sm:p-8">
         <div className="mb-6 space-y-2">
           <h1 className="text-2xl font-semibold text-ink">Informações da conta</h1>
-          <p className="text-sm leading-7 text-muted">Atualize seu e-mail sem alterar o backend atual.</p>
+          <p className="text-sm leading-7 text-muted">Confira seus dados e atualize seu e-mail.</p>
         </div>
 
         <form className="space-y-5" onSubmit={handleEmailSubmit}>
@@ -334,7 +354,7 @@ export const ProfilePage = () => {
       <section className="panel p-6 sm:p-8">
         <div className="mb-6 space-y-2">
           <h2 className="text-2xl font-semibold text-ink">Alterar senha</h2>
-          <p className="text-sm leading-7 text-muted">Mantenha o mesmo padrao de validacao usado no front-end anterior.</p>
+          <p className="text-sm leading-7 text-muted">Escolha uma senha com letras maiúsculas e minúsculas, números e um caractere especial.</p>
         </div>
 
         <form className="space-y-5" onSubmit={handlePasswordSubmit}>
@@ -357,7 +377,7 @@ export const ProfilePage = () => {
         <div className="mb-6 space-y-2">
           <h2 className="text-2xl font-semibold text-ink">Assinatura digital de aprovação</h2>
           <p className="text-sm leading-7 text-muted">
-            Esta assinatura é validada no backend para publicar oficialmente uma disciplina.
+            Configure sua assinatura e a imagem usada nos documentos oficiais. A aprovação de disciplinas é confirmada com a senha da conta.
           </p>
         </div>
 
@@ -367,97 +387,91 @@ export const ProfilePage = () => {
             type="password"
             value={signature}
             onChange={(event) => setSignature(event.target.value)}
-            error={signatureError || undefined}
-            placeholder="Assinatura textual (opcional se houver arquivo)"
+            disabled={updatingSignature || capturingSignature}
+            autoComplete="new-password"
+            placeholder={hasSignatureConfigured ? 'Assinatura textual já configurada; preencha apenas para alterar' : 'Assinatura textual (opcional)'}
           />
-          <label className="flex min-w-0 w-full flex-col gap-2 text-sm font-medium text-ink">
-            <span>Arquivo de assinatura (PNG, JPG ou WEBP)</span>
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp"
-              onChange={handleSignatureFileSelection}
-              className="soft-ring h-14 min-w-0 rounded-2xl border border-transparent bg-background px-4 text-sm text-ink shadow-sm"
-            />
-          </label>
-          <div className="rounded-2xl border border-line bg-background px-4 py-4">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Assinatura desenhada (opcional)</div>
-            <div ref={signatureCanvasContainerRef} className="rounded-2xl border border-line bg-white p-2">
-              <SignatureCanvas
-                ref={signatureCanvasRef}
-                penColor="#0f172a"
-                clearOnResize={false}
-                onEnd={() => {
-                  const signatureCanvas = signatureCanvasRef.current;
-
-                  if (signatureCanvas && !signatureCanvas.isEmpty()) {
-                    drawnSignatureDataRef.current = signatureCanvas.toDataURL('image/png');
-                  }
-                }}
-                canvasProps={{
-                  width: signatureCanvasWidth,
-                  height: 160,
-                  className: 'h-40 w-full rounded-xl bg-white',
-                }}
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleCaptureDrawnSignature}
-                className="inline-flex items-center justify-center rounded-xl border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 transition hover:bg-primary-100"
-              >
-                Capturar assinatura desenhada
-              </button>
-              <button
-                type="button"
-                onClick={handleClearDrawnSignature}
-                className="inline-flex items-center justify-center rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:bg-slate-50"
-              >
-                Limpar desenho
-              </button>
-            </div>
-            {signatureFile ? (
-              <div className="mt-2 text-xs text-ink/70">Arquivo pronto para envio: {signatureFile.name}</div>
-            ) : null}
-          </div>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-            <div className="rounded-2xl border border-line bg-background px-4 py-3 text-xs text-ink/80">
-              <div className="font-semibold uppercase tracking-[0.12em] text-ink/70">Status atual da assinatura</div>
-              <div className="mt-2 space-y-1">
-                <div>Assinatura textual para publicar: {hasSignatureConfigured ? 'Pronta' : 'Pendente'}</div>
-                <div>Assinatura visual para DOCX: {hasSignatureFileConfigured ? 'Pronta' : 'Pendente'}</div>
-                <div>Assinatura textual atualizada em: {auth.user?.signatureUpdatedAt ? new Date(auth.user.signatureUpdatedAt).toLocaleString('pt-BR') : 'Não configurada'}</div>
-                <div>Arquivo persistido: {auth.user?.signatureFileKey || 'Não configurado'}</div>
-                <div>Tipo de arquivo: {auth.user?.signatureFileContentType || 'Não informado'}</div>
+          <p className="text-sm text-muted">
+            {hasSignatureConfigured ? 'Assinatura textual salva. Deixe o campo vazio para manter a atual.' : 'Nenhuma assinatura textual configurada. Você pode salvar apenas a imagem.'}
+          </p>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-4 rounded-2xl border border-line bg-background p-4">
+              <h3 className="font-semibold text-ink">Imagem da assinatura</h3>
+              <p className="text-sm text-muted">Envie uma imagem ou desenhe sua assinatura. A imagem salva aparece na prévia ao voltar ao perfil.</p>
+              <div className="flex gap-2" role="group" aria-label="Origem da imagem da assinatura">
+                {(['file', 'draw'] as const).map((mode) => (
+                  <button key={mode} type="button" aria-pressed={signatureInputMode === mode}
+                    disabled={updatingSignature || capturingSignature}
+                    onClick={() => {
+                      if (mode === signatureInputMode) return;
+                      setSignatureInputMode(mode);
+                      setSignatureFile(null);
+                      drawnSignatureDataRef.current = '';
+                      setHasUncapturedDrawing(false);
+                      setSignatureMessage('');
+                      setSignatureError('');
+                    }}
+                    className={`rounded-xl border px-4 py-2 text-sm font-semibold ${signatureInputMode === mode ? 'border-primary-200 bg-primary-50 text-primary-700' : 'border-line bg-white text-ink'}`}>
+                    {mode === 'file' ? 'Enviar imagem' : 'Desenhar assinatura'}
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="rounded-2xl border border-line bg-background px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
+              {signatureInputMode === 'file' ? (
+                <label className="flex min-w-0 flex-col gap-2 text-sm font-medium text-ink">
+                  <span>Arquivo de assinatura (PNG, JPG ou WEBP)</span>
+                  <input ref={signatureFileInputRef} type="file" accept=".png,.jpg,.jpeg,.webp" aria-label="Arquivo de assinatura (PNG, JPG ou WEBP)"
+                    disabled={updatingSignature} onChange={handleSignatureFileSelection}
+                    className="soft-ring min-w-0 rounded-xl border border-line bg-white p-3 text-sm" />
+                  <span className="text-xs text-muted">Até 2 MB. Prefira PNG com fundo transparente. Para substituir a imagem salva, escolha um novo arquivo.</span>
+                </label>
+              ) : (
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/70">Preview visual</div>
-                  <div className="mt-1 text-xs text-ink/70">
-                    {signatureFile ? 'Prévia local do arquivo selecionado para envio.' : 'Assinatura persistida atualmente no perfil e usada no DOCX oficial quando você for o aprovador.'}
+                  <div ref={signatureCanvasContainerRef} className="rounded-2xl border border-line bg-white p-2">
+                    <SignatureCanvas ref={signatureCanvasRef} penColor="#0f172a" clearOnResize={false}
+                      onEnd={() => {
+                        const canvas = signatureCanvasRef.current;
+                        if (canvas && !canvas.isEmpty()) {
+                          drawnSignatureDataRef.current = canvas.toDataURL('image/png');
+                          setHasUncapturedDrawing(true);
+                          setSignatureFile(null);
+                          setSignatureMessage('');
+                          setSignatureError('');
+                        }
+                      }}
+                      canvasProps={{ width: signatureCanvasWidth, height: 160, 'aria-label': 'Quadro para desenhar assinatura', className: `h-40 w-full touch-none rounded-xl ${capturingSignature || updatingSignature ? 'pointer-events-none' : ''}` }} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={handleCaptureDrawnSignature} disabled={capturingSignature || updatingSignature}
+                      className="rounded-xl border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700">
+                      {capturingSignature ? 'Capturando...' : 'Capturar assinatura desenhada'}
+                    </button>
+                    <button type="button" onClick={handleClearDrawnSignature} disabled={capturingSignature || updatingSignature}
+                      className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink">Limpar desenho</button>
                   </div>
                 </div>
-                {loadingPersistedSignaturePreview && !signatureFile ? (
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-600">Carregando...</div>
-                ) : null}
-              </div>
+              )}
+              {signatureFile ? <p className="break-all text-xs text-muted">Imagem selecionada: {signatureFile.name}</p> : null}
+            </div>
+            <div className="rounded-2xl border border-line bg-background p-4">
+              <h3 className="font-semibold text-ink">Prévia da assinatura</h3>
+              <p className="mt-2 text-sm text-muted">
+                {signatureFile ? 'Nova imagem. Salve para usá-la nos documentos.' : removeSignatureFile ? 'A imagem será removida ao salvar.' : hasSignatureFileConfigured ? 'Imagem salva para uso nos documentos oficiais.' : 'Nenhuma imagem de assinatura salva.'}
+              </p>
               <div className="mt-3 flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-line bg-white p-4">
                 {activeSignaturePreviewUrl ? (
-                  <img
-                    src={activeSignaturePreviewUrl}
-                    alt="Prévia da assinatura"
-                    className="max-h-28 w-full object-contain"
-                  />
-                ) : (
-                  <div className="text-center text-xs leading-6 text-ink/60">
-                    {signaturePreviewError || 'Envie ou capture uma assinatura em imagem para validar visualmente o resultado oficial.'}
-                  </div>
-                )}
+                  <img src={activeSignaturePreviewUrl} alt="Prévia da assinatura" className="max-h-28 w-full object-contain" />
+                ) : <p className="text-center text-sm text-muted">{loadingPersistedSignaturePreview && !removeSignatureFile ? 'Carregando imagem salva...' : signaturePreviewError || 'Envie uma imagem ou capture um desenho para visualizar a assinatura.'}</p>}
               </div>
+              {signatureFile || (hasSignatureFileConfigured && !removeSignatureFile) ? (
+                <button type="button" onClick={handleRemoveSignatureImage} disabled={updatingSignature || capturingSignature}
+                  className="mt-3 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-ink">Remover imagem</button>
+              ) : null}
+              {removeSignatureFile ? <button type="button" onClick={() => { setRemoveSignatureFile(false); setSignatureMessage(''); }} className="mt-3 text-sm font-semibold text-primary-700">Manter imagem salva</button> : null}
+              <p className="mt-3 text-xs text-muted">Alterações valem para novas aprovações. Documentos já aprovados mantêm a assinatura registrada.</p>
+              <p className="mt-3 text-xs text-muted">{auth.user?.signatureUpdatedAt ? `Última atualização: ${new Date(auth.user.signatureUpdatedAt).toLocaleString('pt-BR')}` : 'Assinatura ainda não configurada.'}</p>
             </div>
           </div>
+          {signatureError ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">{signatureError}</div> : null}
           {signatureMessage ? (
             <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               {signatureMessage}
@@ -466,7 +480,7 @@ export const ProfilePage = () => {
           <FormActions>
             <button
               type="submit"
-              disabled={updatingSignature}
+              disabled={updatingSignature || capturingSignature}
               className="inline-flex items-center justify-center rounded-2xl bg-primary-500 px-5 py-3 font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {updatingSignature ? 'Atualizando...' : 'Atualizar assinatura'}
